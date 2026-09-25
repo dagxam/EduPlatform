@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="EduPlatform — задания, тесты и результаты для учителей и учеников.">
+  <title>EduPlatform</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">E</div>
+        <div>
+          <strong>EduPlatform</strong>
+          <span>Обучение проще</span>
+        </div>
+      </div>
+
+      <div class="role-switch" aria-label="Демо-роль">
+        <button class="role-btn active" data-role="teacher">Учитель</button>
+        <button class="role-btn" data-role="student">Ученик</button>
+      </div>
+
+      <nav class="nav teacher-nav">
+        <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
+        <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item" data-view="classes"><span>👥</span> Классы</button>
+        <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
+      </nav>
+
+      <nav class="nav student-nav hidden">
+        <button class="nav-item active" data-view="student-dashboard"><span>⌂</span> Главная</button>
+        <button class="nav-item" data-view="student-tasks"><span>▣</span> Мои задания</button>
+        <button class="nav-item" data-view="student-results"><span>★</span> Мои оценки</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="profile-mini">
+          <div class="avatar" id="sidebarAvatar">У</div>
+          <div>
+            <strong id="sidebarName">Учитель</strong>
+            <span id="sidebarRole">Демо-режим</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-only" id="menuBtn" aria-label="Открыть меню">☰</button>
+        <div class="topbar-title">
+          <p id="eyebrow">Кабинет учителя</p>
+          <h1 id="pageTitle">Добрый день!</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" aria-label="Уведомления">🔔</button>
+          <button class="primary-btn teacher-only" id="createTaskBtn">＋ Создать задание</button>
+        </div>
+      </header>
+
+      <section class="view active" id="teacher-dashboard">
+        <div class="hero-card">
+          <div>
+            <span class="pill">2026 / 2027 учебный год</span>
+            <h2>Всё необходимое для заданий и контроля знаний</h2>
+            <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
+          </div>
+          <button class="hero-action" id="heroCreateBtn">Создать новое задание →</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card"><span>Ученики</span><strong>84</strong><small>в 4 классах</small></article>
+          <article class="stat-card"><span>Активные задания</span><strong>7</strong><small>3 со сроком на этой неделе</small></article>
+          <article class="stat-card"><span>Работ сдано</span><strong>126</strong><small>+18 за последние 7 дней</small></article>
+          <article class="stat-card"><span>Средний результат</span><strong>82%</strong><small>оценка 4,2</small></article>
+        </div>
+
+        <div class="content-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div><span class="section-kicker">Сейчас</span><h3>Активные задания</h3></div>
+              <button class="text-btn" data-view-jump="assignments">Все задания</button>
+            </div>
+            <div class="task-list">
+              <div class="task-row">
+                <div class="subject-icon">М</div>
+                <div class="task-main"><strong>Контрольная работа №2</strong><span>Математика · 7А</span></div>
+                <div class="task-progress"><strong>18/24</strong><span>сдали</span></div>
+                <span class="status amber">до 28 сен.</span>
+              </div>
+              <div class="task-row">
+                <div class="subject-icon">Р</div>
+                <div class="task-main"><strong>Части речи</strong><span>Русский язык · 6Б</span></div>
+                <div class="task-progress"><strong>21/21</strong><span>сдали</span></div>
+                <span class="status green">завершено</span>
+              </div>
+              <div class="task-row">
+                <div class="subject-icon">И</div>
+                <div class="task-main"><strong>История Дагестана</strong><span>История · 8А</span></div>
+                <div class="task-progress"><strong>12/25</strong><span>сдали</span></div>
+                <span class="status blue">до 30 сен.</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><span class="section-kicker">Классы</span><h3>Быстрый доступ</h3></div>
+            </div>
+            <div class="class-grid">
+              <button class="class-card"><strong>7А</strong><span>24 ученика</span><b>86%</b></button>
+              <button class="class-card"><strong>6Б</strong><span>21 ученик</span><b>79%</b></button>
+              <button class="class-card"><strong>8А</strong><span>25 учеников</span><b>83%</b></button>
+              <button class="class-card"><strong>9Б</strong><span>14 учеников</span><b>81%</b></button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="assignments">
+        <div class="section-toolbar">
+          <div><span class="section-kicker">Управление</span><h2>Задания</h2><p>Создавайте тесты, прикрепляйте материалы и назначайте классы.</p></div>
+          <button class="primary-btn" id="createTaskBtn2">＋ Новое задание</button>
+        </div>
+        <div class="panel">
+          <div class="filters">
+            <input class="search" type="search" placeholder="Поиск задания">
+            <select><option>Все классы</option><option>7А</option><option>6Б</option><option>8А</option></select>
+            <select><option>Все статусы</option><option>Активные</option><option>Завершённые</option></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Задание</th><th>Класс</th><th>Сдали</th><th>Срок</th><th>Статус</th></tr></thead>
+              <tbody>
+                <tr><td><b>Контрольная работа №2</b><small>Математика · 20 вопросов</small></td><td>7А</td><td>18 / 24</td><td>28 сентября</td><td><span class="status amber">Активно</span></td></tr>
+                <tr><td><b>Части речи</b><small>Русский язык · 15 вопросов</small></td><td>6Б</td><td>21 / 21</td><td>24 сентября</td><td><span class="status green">Завершено</span></td></tr>
+                <tr><td><b>История Дагестана</b><small>История · 12 вопросов</small></td><td>8А</td><td>12 / 25</td><td>30 сентября</td><td><span class="status blue">Активно</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="classes">
+        <div class="section-toolbar">
+          <div><span class="section-kicker">Ученики</span><h2>Классы</h2><p>Состав классов, активность и средний результат.</p></div>
+          <button class="primary-btn">＋ Добавить класс</button>
+        </div>
+        <div class="large-class-grid">
+          <article class="panel class-detail"><div><span class="class-badge">7А</span><h3>7 класс «А»</h3><p>24 ученика</p></div><strong>86%</strong><button>Открыть класс</button></article>
+          <article class="panel class-detail"><div><span class="class-badge">6Б</span><h3>6 класс «Б»</h3><p>21 ученик</p></div><strong>79%</strong><button>Открыть класс</button></article>
+          <article class="panel class-detail"><div><span class="class-badge">8А</span><h3>8 класс «А»</h3><p>25 учеников</p></div><strong>83%</strong><button>Открыть класс</button></article>
+          <article class="panel class-detail"><div><span class="class-badge">9Б</span><h3>9 класс «Б»</h3><p>14 учеников</p></div><strong>81%</strong><button>Открыть класс</button></article>
+        </div>
+      </section>
+
+      <section class="view" id="results">
+        <div class="section-toolbar">
+          <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Проценты, оценки и статус выполнения по каждому ученику.</p></div>
+          <button class="secondary-btn">⇩ Экспорт</button>
+        </div>
+        <div class="panel">
+          <div class="filters">
+            <input class="search" type="search" placeholder="Фамилия ученика">
+            <select><option>7А</option><option>6Б</option><option>8А</option></select>
+            <select><option>Контрольная работа №2</option><option>Все задания</option></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Ученик</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th></tr></thead>
+              <tbody>
+                <tr><td><b>Магомедов Магомед</b></td><td>Контрольная работа №2</td><td>18 / 20</td><td><b>90%</b></td><td><span class="grade grade-5">5</span></td></tr>
+                <tr><td><b>Ахмедов Али</b></td><td>Контрольная работа №2</td><td>16 / 20</td><td><b>80%</b></td><td><span class="grade grade-4">4</span></td></tr>
+                <tr><td><b>Гаджиев Мурад</b></td><td>Контрольная работа №2</td><td>13 / 20</td><td><b>65%</b></td><td><span class="grade grade-3">3</span></td></tr>
+                <tr><td><b>Омарова Амина</b></td><td>Контрольная работа №2</td><td>19 / 20</td><td><b>95%</b></td><td><span class="grade grade-5">5</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="student-dashboard">
+        <div class="student-welcome">
+          <div><span class="pill">7А класс</span><h2>Привет, Магомед!</h2><p>У тебя есть 2 задания, которые нужно выполнить на этой неделе.</p></div>
+          <div class="student-score"><span>Средний результат</span><strong>87%</strong><small>4,4 средняя оценка</small></div>
+        </div>
+        <div class="student-layout">
+          <div>
+            <div class="panel-head standalone"><div><span class="section-kicker">На очереди</span><h3>Мои задания</h3></div></div>
+            <div class="student-task-cards">
+              <article class="student-task">
+                <div class="student-task-top"><span class="subject-pill">Математика</span><span class="status amber">до 28 сен.</span></div>
+                <h3>Контрольная работа №2</h3><p>20 вопросов · 45 минут · 1 попытка</p>
+                <div class="student-task-bottom"><span>Не начато</span><button class="primary-btn" id="startQuizBtn">Начать</button></div>
+              </article>
+              <article class="student-task">
+                <div class="student-task-top"><span class="subject-pill">История</span><span class="status blue">до 30 сен.</span></div>
+                <h3>История Дагестана</h3><p>12 вопросов · без ограничения · 2 попытки</p>
+                <div class="student-task-bottom"><span>Не начато</span><button class="secondary-btn">Открыть</button></div>
+              </article>
+            </div>
+          </div>
+          <aside class="panel recent-grades">
+            <div class="panel-head"><div><span class="section-kicker">Недавно</span><h3>Последние оценки</h3></div></div>
+            <div class="grade-row"><div><strong>Русский язык</strong><span>Части речи</span></div><span class="grade grade-5">5</span></div>
+            <div class="grade-row"><div><strong>Биология</strong><span>Строение клетки</span></div><span class="grade grade-4">4</span></div>
+            <div class="grade-row"><div><strong>История</strong><span>Повторение</span></div><span class="grade grade-5">5</span></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="student-tasks">
+        <div class="section-toolbar"><div><span class="section-kicker">Учёба</span><h2>Мои задания</h2><p>Все текущие и завершённые работы.</p></div></div>
+        <div class="student-task-cards">
+          <article class="student-task"><div class="student-task-top"><span class="subject-pill">Математика</span><span class="status amber">до 28 сен.</span></div><h3>Контрольная работа №2</h3><p>20 вопросов · 45 минут</p><div class="student-task-bottom"><span>Не начато</span><button class="primary-btn start-quiz">Начать</button></div></article>
+          <article class="student-task"><div class="student-task-top"><span class="subject-pill">Русский язык</span><span class="status green">сдано</span></div><h3>Части речи</h3><p>15 вопросов · результат 93%</p><div class="student-task-bottom"><span>Оценка 5</span><button class="secondary-btn">Результат</button></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="student-results">
+        <div class="section-toolbar"><div><span class="section-kicker">Успеваемость</span><h2>Мои оценки</h2><p>История выполненных работ и результаты.</p></div></div>
+        <div class="panel">
+          <div class="table-wrap">
+            <table><thead><tr><th>Предмет</th><th>Задание</th><th>Результат</th><th>Оценка</th></tr></thead><tbody>
+              <tr><td>Русский язык</td><td><b>Части речи</b></td><td>93%</td><td><span class="grade grade-5">5</span></td></tr>
+              <tr><td>Биология</td><td><b>Строение клетки</b></td><td>84%</td><td><span class="grade grade-4">4</span></td></tr>
+              <tr><td>История</td><td><b>Повторение</b></td><td>92%</td><td><span class="grade grade-5">5</span></td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="taskModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="taskModal">×</button>
+      <span class="section-kicker">Новое задание</span>
+      <h2>Создать задание</h2>
+      <p>Первый прототип формы. На следующем этапе подключим сохранение в базу.</p>
+      <form id="taskForm">
+        <label>Название<input required placeholder="Например: Контрольная работа №3"></label>
+        <div class="form-row">
+          <label>Предмет<select><option>Математика</option><option>Русский язык</option><option>История</option><option>Биология</option></select></label>
+          <label>Класс<select><option>7А</option><option>6Б</option><option>8А</option><option>9Б</option></select></label>
+        </div>
+        <label>Тип<select><option>Онлайн-тест</option><option>Задание с файлом</option><option>Самостоятельная работа</option></select></label>
+        <label class="file-drop">Перетащите PDF, DOCX, PPT/PPTX сюда или выберите файл<input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx"></label>
+        <button class="primary-btn full" type="submit">Продолжить</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="quizModal">
+    <div class="modal quiz-modal">
+      <button class="modal-close" data-close-modal="quizModal">×</button>
+      <div id="quizContent"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
