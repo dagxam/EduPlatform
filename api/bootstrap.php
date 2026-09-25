@@ -116,5 +116,6 @@ function require_user(?array $roles = null): array
 
 function normalize_email(string $email): string
 {
-    $email = trim($email);\n    return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
+    $email = trim($email);
+    return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
 }
