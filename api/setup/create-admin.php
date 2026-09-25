@@ -24,7 +24,8 @@ if ($firstName === '' || $lastName === '') {
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     json_response(['ok' => false, 'error' => 'Укажите корректный email.'], 422);
 }
-$passwordLength = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);\nif ($passwordLength < 8) {
+$passwordLength = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);
+if ($passwordLength < 8) {
     json_response(['ok' => false, 'error' => 'Пароль должен содержать минимум 8 символов.'], 422);
 }
 
