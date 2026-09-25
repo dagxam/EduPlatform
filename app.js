@@ -9,11 +9,13 @@ const sidebarRole = document.getElementById('sidebarRole');
 const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
+const userModal = document.getElementById('userModal');
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   assignments: ['Управление обучением', 'Задания'],
   classes: ['Ученики и группы', 'Классы'],
+  users: ['Администрирование', 'Пользователи'],
   results: ['Журнал успеваемости', 'Результаты'],
   'student-dashboard': ['Кабинет ученика', 'Мои занятия'],
   'student-tasks': ['Учёба', 'Мои задания'],
@@ -66,6 +68,8 @@ function applyUser(user) {
   sidebarAvatar.textContent = ((user.first_name || 'П').charAt(0) + (user.last_name || '').charAt(0)).toUpperCase();
   const roleBadge = document.getElementById('accountRoleBadge');
   if (roleBadge) roleBadge.textContent = roleLabels[user.role] || user.role;
+
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', user.role !== 'admin'));
 
   if (user.role === 'admin') {
     eyebrow.textContent = 'Кабинет администратора';
@@ -215,6 +219,109 @@ function startQuiz() {
 
 document.getElementById('startQuizBtn')?.addEventListener('click', startQuiz);
 document.querySelectorAll('.start-quiz').forEach(btn => btn.addEventListener('click', startQuiz));
+
+let usersCache = [];
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  })[char]);
+}
+
+function roleLabel(role) {
+  return roleLabels[role] || role;
+}
+
+function renderUsers() {
+  const body = document.getElementById('usersTableBody');
+  if (!body) return;
+
+  const query = (document.getElementById('userSearch')?.value || '').trim().toLowerCase();
+  const role = document.getElementById('userRoleFilter')?.value || '';
+
+  const filtered = usersCache.filter(user => {
+    const haystack = [user.first_name, user.last_name, user.email, user.class_name].join(' ').toLowerCase();
+    return (!query || haystack.includes(query)) && (!role || user.role === role);
+  });
+
+  body.innerHTML = filtered.length ? filtered.map(user => `
+    <tr>
+      <td><b>${escapeHtml(user.last_name)} ${escapeHtml(user.first_name)}</b></td>
+      <td>${escapeHtml(user.email)}</td>
+      <td><span class="role-chip role-${escapeHtml(user.role)}">${escapeHtml(roleLabel(user.role))}</span></td>
+      <td>${escapeHtml(user.class_name || '—')}</td>
+      <td><span class="status ${Number(user.is_active) ? 'green' : 'amber'}">${Number(user.is_active) ? 'Активен' : 'Отключён'}</span></td>
+    </tr>
+  `).join('') : '<tr><td colspan="5">Пользователи не найдены.</td></tr>';
+}
+
+async function loadUsers() {
+  const body = document.getElementById('usersTableBody');
+  if (!body || document.querySelector('.admin-only:not(.hidden)') === null) return;
+  body.innerHTML = '<tr><td colspan="5">Загрузка...</td></tr>';
+
+  try {
+    const response = await fetch('./api/users/list.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить пользователей.');
+    usersCache = data.users || [];
+
+    document.getElementById('usersTotal').textContent = usersCache.length;
+    document.getElementById('teachersTotal').textContent = usersCache.filter(u => u.role === 'teacher').length;
+    document.getElementById('studentsTotal').textContent = usersCache.filter(u => u.role === 'student').length;
+    document.getElementById('adminsTotal').textContent = usersCache.filter(u => u.role === 'admin').length;
+    renderUsers();
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('createUserBtn')?.addEventListener('click', () => openModal(userModal));
+document.getElementById('userSearch')?.addEventListener('input', renderUsers);
+document.getElementById('userRoleFilter')?.addEventListener('change', renderUsers);
+
+document.getElementById('newUserRole')?.addEventListener('change', event => {
+  const student = event.target.value === 'student';
+  const field = document.getElementById('classNameField');
+  field.classList.toggle('hidden', !student);
+  field.querySelector('input').required = student;
+});
+
+document.getElementById('userForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const errorEl = document.getElementById('userFormError');
+  const button = form.querySelector('button[type="submit"]');
+  errorEl.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Создаём...';
+
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/users/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать пользователя.');
+
+    form.reset();
+    document.getElementById('classNameField').classList.add('hidden');
+    document.getElementById('classNameField').querySelector('input').required = false;
+    closeModal(userModal);
+    await loadUsers();
+  } catch (error) {
+    errorEl.textContent = error.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Создать пользователя';
+  }
+});
+
+document.querySelector('[data-view="users"]')?.addEventListener('click', loadUsers);
 
 loadSession().then(user => {
   if (user) applyUser(user);
