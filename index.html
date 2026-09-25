@@ -26,6 +26,7 @@
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы</button>
+        <button class="nav-item admin-only hidden" data-view="users"><span>◎</span> Пользователи</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
       </nav>
 
@@ -156,6 +157,31 @@
         </div>
       </section>
 
+      <section class="view" id="users">
+        <div class="section-toolbar">
+          <div><span class="section-kicker">Администрирование</span><h2>Пользователи</h2><p>Создавайте аккаунты учителей и учеников.</p></div>
+          <button class="primary-btn" id="createUserBtn">＋ Добавить пользователя</button>
+        </div>
+        <div class="stats-grid user-stats">
+          <article class="stat-card"><span>Всего</span><strong id="usersTotal">0</strong><small>аккаунтов</small></article>
+          <article class="stat-card"><span>Учителя</span><strong id="teachersTotal">0</strong><small>активных</small></article>
+          <article class="stat-card"><span>Ученики</span><strong id="studentsTotal">0</strong><small>активных</small></article>
+          <article class="stat-card"><span>Администраторы</span><strong id="adminsTotal">0</strong><small>управление</small></article>
+        </div>
+        <div class="panel users-panel">
+          <div class="filters">
+            <input class="search" id="userSearch" type="search" placeholder="Поиск по имени или email">
+            <select id="userRoleFilter"><option value="">Все роли</option><option value="teacher">Учителя</option><option value="student">Ученики</option><option value="admin">Администраторы</option></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Пользователь</th><th>Email</th><th>Роль</th><th>Класс</th><th>Статус</th></tr></thead>
+              <tbody id="usersTableBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="results">
         <div class="section-toolbar">
           <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Проценты, оценки и статус выполнения по каждому ученику.</p></div>
@@ -249,6 +275,32 @@
         <label>Тип<select><option>Онлайн-тест</option><option>Задание с файлом</option><option>Самостоятельная работа</option></select></label>
         <label class="file-drop">Перетащите PDF, DOCX, PPT/PPTX сюда или выберите файл<input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx"></label>
         <button class="primary-btn full" type="submit">Продолжить</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="userModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="userModal">×</button>
+      <span class="section-kicker">Новый аккаунт</span>
+      <h2>Добавить пользователя</h2>
+      <p>Создайте учителя или ученика. Пользователь сможет войти по email и паролю.</p>
+      <form id="userForm">
+        <div class="form-row">
+          <label>Имя<input name="first_name" required></label>
+          <label>Фамилия<input name="last_name" required></label>
+        </div>
+        <label>Email<input name="email" type="email" required></label>
+        <label>Роль
+          <select name="role" id="newUserRole" required>
+            <option value="teacher">Учитель</option>
+            <option value="student">Ученик</option>
+          </select>
+        </label>
+        <label id="classNameField" class="hidden">Класс<input name="class_name" placeholder="Например, 7А"></label>
+        <label>Пароль<input name="password" type="password" minlength="8" required><small>Минимум 8 символов.</small></label>
+        <div class="form-error hidden" id="userFormError"></div>
+        <button class="primary-btn full" type="submit">Создать пользователя</button>
       </form>
     </div>
   </div>
