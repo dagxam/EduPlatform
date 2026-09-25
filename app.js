@@ -5,6 +5,7 @@ const menuBtn = document.getElementById('menuBtn');
 const pageTitle = document.getElementById('pageTitle');
 const eyebrow = document.getElementById('eyebrow');
 const sidebarName = document.getElementById('sidebarName');
+const sidebarRole = document.getElementById('sidebarRole');
 const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
