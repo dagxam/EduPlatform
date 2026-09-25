@@ -13,6 +13,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Validate PHP
+        run: find api -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          node --check login.js
+
       - name: Upload site over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
