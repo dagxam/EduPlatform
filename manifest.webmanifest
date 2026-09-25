@@ -1,0 +1,10 @@
+{
+  "name": "EduPlatform",
+  "short_name": "EduPlatform",
+  "description": "Задания, тесты и результаты для учителей и учеников",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#ffffff",
+  "lang": "ru-RU"
+}
