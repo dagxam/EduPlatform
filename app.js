@@ -1,4 +1,3 @@
-const roleButtons = document.querySelectorAll('.role-btn');
 const teacherNav = document.querySelector('.teacher-nav');
 const studentNav = document.querySelector('.student-nav');
 const sidebar = document.getElementById('sidebar');
@@ -33,18 +32,60 @@ function showView(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function setRole(role) {
-  const teacher = role === 'teacher';
-  roleButtons.forEach(b => b.classList.toggle('active', b.dataset.role === role));
-  teacherNav.classList.toggle('hidden', !teacher);
-  studentNav.classList.toggle('hidden', teacher);
-  document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', !teacher));
-  sidebarName.textContent = teacher ? 'Учитель' : 'Магомед';
-  sidebarAvatar.textContent = teacher ? 'У' : 'М';
-  showView(teacher ? 'teacher-dashboard' : 'student-dashboard');
+const roleLabels = {
+  admin: 'Администратор',
+  teacher: 'Учитель',
+  student: 'Ученик'
+};
+
+async function loadSession() {
+  try {
+    const response = await fetch('./api/auth/me.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || !data.authenticated || !data.user) {
+      window.location.replace('./login.html');
+      return null;
+    }
+    return data.user;
+  } catch {
+    window.location.replace('./login.html');
+    return null;
+  }
 }
 
-roleButtons.forEach(btn => btn.addEventListener('click', () => setRole(btn.dataset.role)));
+function applyUser(user) {
+  const student = user.role === 'student';
+  teacherNav.classList.toggle('hidden', student);
+  studentNav.classList.toggle('hidden', !student);
+  document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', student));
+
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+  sidebarName.textContent = fullName || 'Пользователь';
+  sidebarRole.textContent = roleLabels[user.role] || user.role;
+  sidebarAvatar.textContent = ((user.first_name || 'П').charAt(0) + (user.last_name || '').charAt(0)).toUpperCase();
+  const roleBadge = document.getElementById('accountRoleBadge');
+  if (roleBadge) roleBadge.textContent = roleLabels[user.role] || user.role;
+
+  if (user.role === 'admin') {
+    eyebrow.textContent = 'Кабинет администратора';
+  }
+
+  showView(student ? 'student-dashboard' : 'teacher-dashboard');
+}
+
+async function logout() {
+  try {
+    await fetch('./api/auth/logout.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } finally {
+    window.location.replace('./login.html');
+  }
+}
+
+document.getElementById('logoutBtn')?.addEventListener('click', logout);
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
@@ -173,6 +214,10 @@ function startQuiz() {
 
 document.getElementById('startQuizBtn')?.addEventListener('click', startQuiz);
 document.querySelectorAll('.start-quiz').forEach(btn => btn.addEventListener('click', startQuiz));
+
+loadSession().then(user => {
+  if (user) applyUser(user);
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
