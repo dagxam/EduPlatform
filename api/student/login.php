@@ -21,7 +21,7 @@ throttle_check('student_login', $throttleId, 5, 900);
 $pdo = app_db();
 $stmt = $pdo->prepare(
     'SELECT u.id, u.first_name, u.last_name, u.is_active,
-            c.id AS class_id, c.name AS class_name,
+            c.id AS class_id, c.name AS class_name, c.school_id,
             CASE
               WHEN ca.registration_open = 1
                AND ca.registration_expires_at IS NOT NULL
@@ -79,13 +79,16 @@ if ($firstLogin) {
 throttle_clear('student_login', $throttleId);
 session_regenerate_id(true);
 $_SESSION['user_id'] = $studentId;
+if ((int)($student['school_id'] ?? 0) > 0) {
+    $_SESSION['active_school_id'] = (int)$student['school_id'];
+}
 
 audit_event(
     $firstLogin ? 'student_activated' : 'login_succeeded',
     'user',
     $studentId,
     ['kind' => 'student_pin', 'class_id' => (int)$student['class_id']],
-    null,
+    (int)($student['school_id'] ?? 0) ?: null,
     $studentId
 );
 
@@ -93,4 +96,7 @@ json_response([
     'ok' => true,
     'first_login' => $firstLogin,
     'user' => current_user(),
+    'branding' => (int)($student['school_id'] ?? 0) > 0
+        ? school_branding((int)$student['school_id'])
+        : null,
 ]);
