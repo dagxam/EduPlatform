@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['teacher']);
+$user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -29,6 +29,9 @@ if (!in_array($type, ['quiz', 'file', 'independent'], true)) {
 
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
+if (!can_teach_school($user, $schoolId)) {
+    json_response(['ok' => false, 'error' => 'Для этого аккаунта не включена роль учителя.'], 403);
+}
 
 $stmt = $pdo->prepare(
     'SELECT 1
