@@ -5,6 +5,13 @@
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f5f7fa",
-  "theme_color": "#ffffff",
-  "lang": "ru-RU"
+  "theme_color": "#1d68f0",
+  "lang": "ru-RU",
+  "icons": [
+    {
+      "src": "favicon.png?v=2",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ]
 }
