@@ -263,9 +263,36 @@ async function loadClassStudents() {
       <div class="class-student-row">
         <span class="student-row-avatar">${escapeHtml((student.first_name || '?').charAt(0))}</span>
         <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
-        <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
+        <span class="student-row-actions">
+          <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
+          ${Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
+        </span>
       </div>
     `).join('') : '<div class="empty-students">Учеников пока нет. Загрузите DOCX со списком класса.</div>';
+
+    list.querySelectorAll('[data-reset-pin]').forEach(button => button.addEventListener('click', async () => {
+      if (!currentClass) return;
+      const studentId = Number(button.dataset.resetPin);
+      const student = students.find(item => Number(item.id) === studentId);
+      if (!student) return;
+      if (!confirm(`Сбросить PIN для ${student.last_name} ${student.first_name}?`)) return;
+
+      button.disabled = true;
+      try {
+        const response = await fetch('./api/classes/reset-student-pin.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ class_id: currentClass.id, student_id: studentId })
+        });
+        const data = await response.json();
+        if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сбросить PIN.');
+        await loadClassStudents();
+      } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+      }
+    }));
   } catch (error) {
     list.innerHTML = `<div class="empty-students">${escapeHtml(error.message)}</div>`;
   }
