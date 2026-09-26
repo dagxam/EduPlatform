@@ -10,6 +10,7 @@ const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const userModal = document.getElementById('userModal');
+const schoolModal = document.getElementById('schoolModal');
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
 
@@ -94,6 +95,94 @@ async function logout() {
 
 document.getElementById('logoutBtn')?.addEventListener('click', logout);
 
+let schoolsCache = [];
+
+async function loadSchools() {
+  const selector = document.getElementById('schoolSelector');
+  if (!selector) return;
+
+  try {
+    const response = await fetch('./api/schools/list.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить школы.');
+
+    schoolsCache = data.schools || [];
+    selector.innerHTML = '<option value="0">Личное пространство</option>' + schoolsCache.map(school => {
+      const city = school.city ? ' · ' + school.city : '';
+      return `<option value="${school.id}">${escapeHtml(school.name + city)}</option>`;
+    }).join('');
+    selector.value = data.active_school_id ? String(data.active_school_id) : '0';
+  } catch (error) {
+    selector.innerHTML = '<option value="0">Личное пространство</option>';
+  }
+}
+
+async function selectSchool(schoolId) {
+  const selector = document.getElementById('schoolSelector');
+  if (selector) selector.disabled = true;
+  try {
+    const response = await fetch('./api/schools/select.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ school_id: Number(schoolId) })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось переключить школу.');
+
+    classesCache = [];
+    subjectsCache = [];
+    assignmentsCache = [];
+    currentClass = null;
+    closeModal(classDetailsModal);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+  } catch (error) {
+    alert(error.message);
+    await loadSchools();
+  } finally {
+    if (selector) selector.disabled = false;
+  }
+}
+
+document.getElementById('schoolSelector')?.addEventListener('change', event => selectSchool(event.target.value));
+document.getElementById('createSchoolBtn')?.addEventListener('click', () => openModal(schoolModal));
+
+document.getElementById('schoolForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('schoolFormError');
+  const button = form.querySelector('button[type="submit"]');
+  error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Создаём...';
+
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/schools/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать школу.');
+
+    form.reset();
+    closeModal(schoolModal);
+    classesCache = [];
+    subjectsCache = [];
+    assignmentsCache = [];
+    await loadSchools();
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Создать школу';
+  }
+});
+
 let classesCache = [];
 let currentClass = null;
 
@@ -153,7 +242,7 @@ function updateRegistrationButton() {
   const button = document.getElementById('toggleRegistrationBtn');
   if (!button || !currentClass) return;
   const open = Number(currentClass.registration_open) === 1;
-  button.textContent = open ? 'Открыта — закрыть' : 'Закрыта — открыть';
+  button.textContent = open ? 'Открыта — закрыть' : 'Открыть на 20 минут';
   button.classList.toggle('registration-open', open);
 }
 
@@ -244,8 +333,12 @@ document.getElementById('toggleRegistrationBtn')?.addEventListener('click', asyn
     return;
   }
   currentClass.registration_open = data.registration_open;
+  currentClass.registration_expires_at = data.registration_expires_at || null;
   const cached = classesCache.find(item => Number(item.id) === Number(currentClass.id));
-  if (cached) cached.registration_open = data.registration_open;
+  if (cached) {
+    cached.registration_open = data.registration_open;
+    cached.registration_expires_at = data.registration_expires_at || null;
+  }
   updateRegistrationButton();
 });
 
@@ -669,13 +762,12 @@ document.getElementById('userForm')?.addEventListener('submit', async event => {
 
 document.querySelector('[data-view="users"]')?.addEventListener('click', loadUsers);
 
-loadSession().then(user => {
+loadSession().then(async user => {
   if (user) {
     applyUser(user);
     if (user.role !== 'student') {
-      loadClasses();
-      loadSubjects();
-      loadAssignments();
+      await loadSchools();
+      await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
     }
   }
 });
