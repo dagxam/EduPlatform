@@ -2,8 +2,11 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['teacher']);
+$user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
+if (!can_teach_school($user, $schoolId)) {
+    json_response(['ok' => false, 'error' => 'Для этого аккаунта не включена роль учителя.'], 403);
+}
 
 $stmt = app_db()->prepare(
     'SELECT tc.subject_id, s.name AS subject_name,
