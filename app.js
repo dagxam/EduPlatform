@@ -191,8 +191,10 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     classesCache = [];
     subjectsCache = [];
     assignmentsCache = [];
+    teacherOptionsCache = [];
     await loadSchools();
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+    await loadSchoolManagement();
   } catch (e) {
     error.textContent = e.message;
     error.classList.remove('hidden');
@@ -217,7 +219,9 @@ async function loadClasses() {
     classesCache = data.classes || [];
 
     if (!classesCache.length) {
-      grid.innerHTML = '<article class="panel empty-class-card"><h3>Классов пока нет</h3><p>Создайте первый класс и загрузите список учеников из Word.</p><button class="primary-btn" id="emptyCreateClassBtn">＋ Создать класс</button></article>';
+      grid.innerHTML = currentUser?.role === 'admin'
+        ? '<article class="panel empty-class-card"><h3>Классов пока нет</h3><p>Создайте первый класс и загрузите список учеников из Word.</p><button class="primary-btn" id="emptyCreateClassBtn">＋ Создать класс</button></article>'
+        : '<article class="panel empty-class-card"><h3>Классы не назначены</h3><p>Обратитесь к администратору школы.</p></article>';
       document.getElementById('emptyCreateClassBtn')?.addEventListener('click', () => openModal(classModal));
       return;
     }
