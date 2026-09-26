@@ -82,8 +82,8 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        'INSERT INTO school_users (school_id, user_id, role, is_active)
-         VALUES (:school_id, :user_id, "school_admin", 1)
+        'INSERT INTO school_users (school_id, user_id, role, can_teach, is_active)
+         VALUES (:school_id, :user_id, "school_admin", 0, 1)
          ON CONFLICT(school_id, user_id) DO UPDATE SET role = "school_admin", is_active = 1'
     );
     $stmt->execute(['school_id' => $schoolId, 'user_id' => $adminId]);
