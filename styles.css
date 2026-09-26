@@ -154,3 +154,43 @@
 
 
 .role-note{display:block;margin-top:4px;color:#58708a;font-size:11px;font-weight:700}
+
+
+/* Per-school branding */
+:root{
+  --brand:#1d68f0;
+  --brand-hover:#1559d5;
+  --brand-soft:#edf4ff;
+  --brand-soft-2:#dbe9ff;
+  --brand-shadow:#9fc0f8;
+}
+
+.primary-btn{background:var(--brand);box-shadow:0 6px 16px color-mix(in srgb,var(--brand) 24%,transparent)}
+.primary-btn:hover{background:var(--brand-hover)}
+.text-btn,.hero-action,.subject-icon,.class-card b,.class-detail>strong,.class-badge,
+.class-code-mini strong,.class-list-head>strong,.student-row-avatar,.subject-pill,
+.logout-btn:hover,.mini-action:hover{color:var(--brand)}
+.hero-card{background:linear-gradient(120deg,var(--brand),color-mix(in srgb,var(--brand) 72%,white));box-shadow:0 14px 34px color-mix(in srgb,var(--brand) 24%,transparent)}
+.subject-icon,.class-badge,.student-row-avatar,.subject-pill{background:var(--brand-soft)}
+.class-detail button{background:var(--brand-soft);color:var(--brand)}
+.answer:hover,.mini-action:hover{border-color:color-mix(in srgb,var(--brand) 38%,white);background:color-mix(in srgb,var(--brand) 4%,white)}
+.result-circle{background:conic-gradient(var(--brand) var(--score),#e8edf3 0)}
+.result-grade{color:var(--brand)}
+.assignment-class-options input:checked+span{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 55%,white);color:var(--brand-hover)}
+.class-access-box{background:color-mix(in srgb,var(--brand) 4%,white);border-color:color-mix(in srgb,var(--brand) 20%,white)}
+#quizForm>.primary-btn.full{box-shadow:0 10px 30px color-mix(in srgb,var(--brand) 25%,transparent)}
+
+.school-branding-panel{margin-bottom:18px}
+.branding-form{margin-top:14px}
+.branding-color-row{display:grid;grid-template-columns:minmax(170px,240px) minmax(180px,260px);gap:12px;align-items:end}
+.branding-color-row input[type=color]{width:100%;height:48px;padding:4px;cursor:pointer}
+.branding-favicon-row{display:flex;align-items:center;gap:18px;padding:16px;border:1px solid #e5eaf0;border-radius:14px;background:#fafbfd}
+.favicon-preview{width:72px;height:72px;flex:0 0 72px;border-radius:18px;display:grid;place-items:center;color:#fff;font-size:38px;font-weight:900;box-shadow:0 8px 22px rgba(30,45,62,.12);overflow:hidden}
+.favicon-controls{min-width:0;flex:1;display:flex;flex-direction:column;gap:10px}
+.favicon-controls input[type=file]{width:100%}
+.favicon-remove-check{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;font-weight:600!important}
+.favicon-remove-check input{width:auto}
+@media(max-width:700px){
+  .branding-color-row{grid-template-columns:1fr}
+  .branding-favicon-row{align-items:flex-start}
+}
