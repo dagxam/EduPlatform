@@ -198,7 +198,7 @@
 
 .branding-presets{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .branding-swatch{width:34px;height:34px;border-radius:10px;border:2px solid #fff;background:var(--swatch);box-shadow:0 0 0 1px #d8e0e8;cursor:pointer;padding:0}
-.branding-swatch:hover{transform:translateY(-1px)}
+.branding-swatch:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--swatch) 22%,white)}
 .branding-swatch.active{box-shadow:0 0 0 3px color-mix(in srgb,var(--swatch) 32%,white)}
 
 
@@ -292,7 +292,7 @@ form select:focus{
 .subject-page-card:hover{
   border-color:color-mix(in srgb,var(--brand) 36%,white);
   background:color-mix(in srgb,var(--brand) 3%,white);
-  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(28,43,60,.07);
 }
 .subject-page-card.active{
   border-color:color-mix(in srgb,var(--brand) 42%,white);
@@ -474,3 +474,23 @@ form select:focus{
 .import-format-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:12px}
 .import-format-grid code{white-space:normal;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.55;background:#f8fafc;border:1px solid #e6ebf0;border-radius:10px;padding:10px;color:#34404c}
 @media(max-width:700px){.import-format-grid{grid-template-columns:1fr}}
+
+
+/* Assignment publishing + school sharing */
+.subject-detail-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.share-assignment-picker{margin-top:14px;padding:14px;border:1px solid #e3e9ef;border-radius:14px;background:#fafbfd}
+#shareAssignmentsList{display:flex;flex-direction:column;gap:8px}
+.share-assignment-option{display:flex!important;flex-direction:row!important;align-items:flex-start!important;gap:10px!important;padding:11px 12px;border:1px solid #e1e7ed;border-radius:11px;background:#fff;cursor:pointer}
+.share-assignment-option:hover{border-color:color-mix(in srgb,var(--brand) 32%,white);background:color-mix(in srgb,var(--brand) 3%,white)}
+.share-assignment-option input{width:auto!important;margin-top:3px}
+.share-assignment-option span{min-width:0}
+.share-assignment-option b,.share-assignment-option small{display:block}
+.share-assignment-option small{margin-top:3px;color:#83909d;line-height:1.4}
+#assignToClassForm select,#shareSubjectForm select{width:100%}
+.primary-btn,.secondary-btn,.hero-action,.nav-item,.subject-page-card,.mini-action,.branding-swatch{
+  transition:background-color .16s ease,color .16s ease,border-color .16s ease,box-shadow .16s ease,opacity .16s ease!important;
+}
+@media(max-width:720px){
+  .subject-detail-actions{width:100%}
+  .subject-detail-actions .primary-btn,.subject-detail-actions .secondary-btn{flex:1}
+}
