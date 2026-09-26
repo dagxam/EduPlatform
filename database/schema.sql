@@ -114,7 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
 CREATE TABLE IF NOT EXISTS class_access (
     class_id INTEGER PRIMARY KEY,
     join_code TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    registration_open INTEGER NOT NULL DEFAULT 1,
+    registration_open INTEGER NOT NULL DEFAULT 0,
+    registration_expires_at TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 );
