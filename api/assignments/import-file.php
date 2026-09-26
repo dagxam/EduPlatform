@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
+require __DIR__ . '/_import_parser.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -88,94 +89,6 @@ if (!$stmt->fetchColumn()) {
     json_response(['ok' => false, 'error' => 'Этот предмет и класс недоступны для создания задания.'], 403);
 }
 
-function xml_text_nodes(string $xml, string $tagPattern): string
-{
-    $parts = [];
-    if (preg_match_all($tagPattern, $xml, $matches)) {
-        foreach ($matches[1] as $text) {
-            $parts[] = html_entity_decode(strip_tags((string)$text), ENT_QUOTES | ENT_XML1, 'UTF-8');
-        }
-    }
-    return trim(preg_replace('/\s+/u', ' ', implode(' ', $parts)) ?? '');
-}
-
-function extract_docx_text(string $path): ?string
-{
-    if (!class_exists('ZipArchive')) return null;
-    $zip = new ZipArchive();
-    if ($zip->open($path) !== true) return null;
-
-    $stat = $zip->statName('word/document.xml');
-    if (!$stat || (int)($stat['size'] ?? 0) > 4 * 1024 * 1024) {
-        $zip->close();
-        return null;
-    }
-
-    $xml = $zip->getFromName('word/document.xml');
-    $zip->close();
-    if ($xml === false) return null;
-
-    return xml_text_nodes($xml, '/<w:t\b[^>]*>(.*?)<\/w:t>/si');
-}
-
-function extract_pptx_text(string $path): ?string
-{
-    if (!class_exists('ZipArchive')) return null;
-    $zip = new ZipArchive();
-    if ($zip->open($path) !== true) return null;
-
-    $slides = [];
-    $totalXmlBytes = 0;
-    for ($i = 0; $i < $zip->numFiles; $i++) {
-        $name = (string)$zip->getNameIndex($i);
-        if (!preg_match('#^ppt/slides/slide(\d+)\.xml$#', $name, $m)) {
-            continue;
-        }
-        $stat = $zip->statIndex($i);
-        $size = (int)($stat['size'] ?? 0);
-        $totalXmlBytes += $size;
-        if ($totalXmlBytes > 8 * 1024 * 1024) {
-            $zip->close();
-            return null;
-        }
-        $slides[(int)$m[1]] = $name;
-    }
-
-    ksort($slides);
-    $texts = [];
-    foreach ($slides as $number => $name) {
-        $xml = $zip->getFromName($name);
-        if ($xml === false) continue;
-        $text = xml_text_nodes($xml, '/<a:t\b[^>]*>(.*?)<\/a:t>/si');
-        if ($text !== '') {
-            $texts[] = 'Слайд ' . $number . ': ' . $text;
-        }
-    }
-    $zip->close();
-
-    return trim(implode("\n", $texts));
-}
-
-$tmpPath = (string)($file['tmp_name'] ?? '');
-$extractedText = null;
-$parseStatus = 'uploaded_for_review';
-
-if ($extension === 'docx') {
-    $extractedText = extract_docx_text($tmpPath);
-    if ($extractedText !== null && $extractedText !== '') {
-        $parseStatus = 'text_extracted';
-    }
-} elseif ($extension === 'pptx') {
-    $extractedText = extract_pptx_text($tmpPath);
-    if ($extractedText !== null && $extractedText !== '') {
-        $parseStatus = 'text_extracted';
-    }
-}
-
-if ($extractedText !== null && strlen($extractedText) > 1500000) {
-    $extractedText = substr($extractedText, 0, 1500000);
-}
-
 $storageDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'assignment-imports';
 if (!is_dir($storageDir) && !mkdir($storageDir, 0775, true) && !is_dir($storageDir)) {
     json_response(['ok' => false, 'error' => 'Не удалось подготовить хранилище заданий.'], 500);
@@ -183,6 +96,7 @@ if (!is_dir($storageDir) && !mkdir($storageDir, 0775, true) && !is_dir($storageD
 
 $storedName = 'assignment-' . bin2hex(random_bytes(12)) . '.' . $extension;
 $destination = $storageDir . DIRECTORY_SEPARATOR . $storedName;
+$tmpPath = (string)($file['tmp_name'] ?? '');
 
 if (!move_uploaded_file($tmpPath, $destination)) {
     json_response(['ok' => false, 'error' => 'Не удалось сохранить файл задания.'], 500);
@@ -191,6 +105,25 @@ if (!move_uploaded_file($tmpPath, $destination)) {
 $mimeType = function_exists('mime_content_type')
     ? ((string)(mime_content_type($destination) ?: 'application/octet-stream'))
     : 'application/octet-stream';
+
+$extractedText = import_extract_text($destination, $extension);
+if ($extractedText !== null && strlen($extractedText) > 1500000) {
+    $extractedText = substr($extractedText, 0, 1500000);
+}
+
+$media = import_extract_media($destination, $extension);
+$parsedQuestions = $extractedText !== null ? import_parse_questions($extractedText) : [];
+
+$parseStatus = 'uploaded_for_review';
+$parserMessage = 'Файл сохранён. Автоматическое извлечение текста для этого файла не дало достаточного результата.';
+if ($extractedText !== null && trim($extractedText) !== '') {
+    $parseStatus = 'text_extracted';
+    $parserMessage = 'Текст извлечён. Вопросы не найдены по шаблону UVORIA — проверьте структуру файла.';
+}
+if ($parsedQuestions) {
+    $parseStatus = 'questions_parsed';
+    $parserMessage = 'Вопросы автоматически распознаны и добавлены в черновик для проверки.';
+}
 
 $pdo->beginTransaction();
 try {
@@ -221,9 +154,11 @@ try {
 
     $stmt = $pdo->prepare(
         'INSERT INTO assignment_imports
-         (assignment_id, original_name, stored_name, source_format, mime_type, size_bytes, parse_status, extracted_text)
+         (assignment_id, original_name, stored_name, source_format, mime_type, size_bytes,
+          parse_status, extracted_text, parsed_question_count, parser_message)
          VALUES
-         (:assignment_id, :original_name, :stored_name, :source_format, :mime_type, :size_bytes, :parse_status, :extracted_text)'
+         (:assignment_id, :original_name, :stored_name, :source_format, :mime_type, :size_bytes,
+          :parse_status, :extracted_text, 0, :parser_message)'
     );
     $stmt->execute([
         'assignment_id' => $assignmentId,
@@ -234,7 +169,25 @@ try {
         'size_bytes' => (int)($file['size'] ?? 0),
         'parse_status' => $parseStatus,
         'extracted_text' => $extractedText,
+        'parser_message' => $parserMessage,
     ]);
+
+    $stored = ['count' => 0, 'types' => []];
+    if ($parsedQuestions) {
+        $stored = import_store_questions($pdo, $assignmentId, $parsedQuestions, $media);
+        $stmt = $pdo->prepare(
+            'UPDATE assignment_imports
+             SET parsed_question_count = :count,
+                 parse_status = "questions_parsed",
+                 parser_message = :message
+             WHERE assignment_id = :assignment_id'
+        );
+        $stmt->execute([
+            'count' => (int)$stored['count'],
+            'message' => 'Распознано вопросов: ' . (int)$stored['count'] . '. Проверьте черновик перед публикацией.',
+            'assignment_id' => $assignmentId,
+        ]);
+    }
 
     $pdo->commit();
 } catch (Throwable $e) {
@@ -248,6 +201,8 @@ audit_event('assignment_file_imported', 'assignment', $assignmentId, [
     'class_id' => $classId,
     'format' => $extension,
     'parse_status' => $parseStatus,
+    'parsed_question_count' => (int)($stored['count'] ?? 0),
+    'parsed_types' => $stored['types'] ?? [],
 ], $schoolId, (int)$user['id']);
 
 json_response([
@@ -261,7 +216,12 @@ json_response([
     ],
     'import' => [
         'format' => strtoupper($extension),
-        'parse_status' => $parseStatus,
+        'parse_status' => $parsedQuestions ? 'questions_parsed' : $parseStatus,
         'extracted_chars' => $extractedText !== null ? strlen($extractedText) : 0,
+        'parsed_question_count' => (int)($stored['count'] ?? 0),
+        'types' => $stored['types'] ?? [],
+        'message' => $parsedQuestions
+            ? 'Вопросы распознаны и добавлены в черновик.'
+            : $parserMessage,
     ],
 ], 201);
