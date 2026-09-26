@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" id="themeColorMeta" content="#1d68f0">
   <meta name="description" content="UVORIA — задания, тесты и результаты для учителей и учеников.">
   <title>UVORIA</title>
+  <link rel="icon" id="dynamicFavicon" href="">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -167,6 +168,42 @@
             <button class="primary-btn" id="addTeacherBtn">＋ Учитель</button>
           </div>
         </div>
+        <article class="panel platform-admin-only hidden school-branding-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">Оформление</span>
+              <h3>Цвет и favicon школы</h3>
+            </div>
+          </div>
+          <p class="panel-note">Эти настройки применяются ко всем пользователям выбранной школы. Изменять их может только главный администратор UVORIA.</p>
+          <form id="schoolBrandingForm" class="branding-form">
+            <div class="branding-color-row">
+              <label>Основной цвет
+                <input type="color" name="theme_color_picker" id="schoolThemeColorPicker" value="#1d68f0">
+              </label>
+              <label>HEX
+                <input type="text" name="theme_color" id="schoolThemeColor" value="#1d68f0" maxlength="7" pattern="#[0-9A-Fa-f]{6}" required>
+              </label>
+            </div>
+            <div class="branding-favicon-row">
+              <div class="favicon-preview" id="schoolFaviconPreview">U</div>
+              <div class="favicon-controls">
+                <label>Favicon школы
+                  <input type="file" name="favicon" id="schoolFaviconInput" accept="image/png,image/jpeg,image/webp">
+                  <small>Квадратное PNG, JPG или WebP до 512 КБ.</small>
+                </label>
+                <label class="favicon-remove-check">
+                  <input type="checkbox" name="remove_favicon" id="removeSchoolFavicon" value="1">
+                  <span>Вернуть стандартную иконку UVORIA</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-error hidden" id="schoolBrandingError"></div>
+            <div class="import-result hidden" id="schoolBrandingResult"></div>
+            <button class="primary-btn" type="submit">Сохранить оформление школы</button>
+          </form>
+        </article>
+
         <div class="content-grid school-admin-grid">
           <article class="panel">
             <div class="panel-head"><div><span class="section-kicker">Учебный план</span><h3>Предметы</h3></div></div>
