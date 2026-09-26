@@ -9,29 +9,29 @@ if ($classId < 1) {
 }
 
 $pdo = app_db();
-$schoolId = current_school_id();
-$conditions = ['id = :id'];
-$params = ['id' => $classId];
+$schoolId = require_active_school($user, false);
 
-if ($schoolId !== null) {
-    if (!can_access_school($user, $schoolId)) {
-        json_response(['ok' => false, 'error' => 'Нет доступа к выбранной школе.'], 403);
-    }
-    $conditions[] = 'school_id = :school_id';
-    $params['school_id'] = $schoolId;
+if (($user['role'] ?? '') === 'teacher') {
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM teacher_classes
+         WHERE school_id = :school_id AND teacher_id = :teacher_id AND class_id = :class_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => (int)$user['id'],
+        'class_id' => $classId,
+    ]);
 } else {
-    $conditions[] = 'school_id IS NULL';
+    if (!can_manage_school($user, $schoolId)) {
+        json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
+    }
+    $stmt = $pdo->prepare('SELECT 1 FROM classes WHERE id = :class_id AND school_id = :school_id');
+    $stmt->execute(['class_id' => $classId, 'school_id' => $schoolId]);
 }
 
-if ($user['role'] === 'teacher') {
-    $conditions[] = 'teacher_id = :teacher_id';
-    $params['teacher_id'] = (int)$user['id'];
-}
-
-$stmt = $pdo->prepare('SELECT 1 FROM classes WHERE ' . implode(' AND ', $conditions));
-$stmt->execute($params);
 if (!$stmt->fetchColumn()) {
-    json_response(['ok' => false, 'error' => 'Класс не найден.'], 404);
+    json_response(['ok' => false, 'error' => 'Класс не найден или не назначен этому учителю.'], 404);
 }
 
 $stmt = $pdo->prepare(
