@@ -10,6 +10,8 @@ const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const userModal = document.getElementById('userModal');
+const classModal = document.getElementById('classModal');
+const classDetailsModal = document.getElementById('classDetailsModal');
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
@@ -91,7 +93,208 @@ async function logout() {
 }
 
 document.getElementById('logoutBtn')?.addEventListener('click', logout);
-document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+
+let classesCache = [];
+let currentClass = null;
+
+async function loadClasses() {
+  const grid = document.getElementById('classesGrid');
+  if (!grid) return;
+  grid.innerHTML = '<article class="panel"><p>Загрузка классов...</p></article>';
+
+  try {
+    const response = await fetch('./api/classes/list.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить классы.');
+    classesCache = data.classes || [];
+
+    if (!classesCache.length) {
+      grid.innerHTML = '<article class="panel empty-class-card"><h3>Классов пока нет</h3><p>Создайте первый класс и загрузите список учеников из Word.</p><button class="primary-btn" id="emptyCreateClassBtn">＋ Создать класс</button></article>';
+      document.getElementById('emptyCreateClassBtn')?.addEventListener('click', () => openModal(classModal));
+      return;
+    }
+
+    grid.innerHTML = classesCache.map(item => `
+      <article class="panel class-detail real-class-card">
+        <div>
+          <span class="class-badge">${escapeHtml(item.name)}</span>
+          <h3>${escapeHtml(item.name)}</h3>
+          <p>${Number(item.students_count)} учеников</p>
+        </div>
+        <div class="class-code-mini">
+          <span>Код</span>
+          <strong>${escapeHtml(item.join_code || '—')}</strong>
+        </div>
+        <button type="button" data-open-class="${item.id}">Открыть класс</button>
+      </article>
+    `).join('');
+
+    grid.querySelectorAll('[data-open-class]').forEach(button => button.addEventListener('click', () => {
+      const item = classesCache.find(x => Number(x.id) === Number(button.dataset.openClass));
+      if (item) openClassDetails(item);
+    }));
+  } catch (error) {
+    grid.innerHTML = `<article class="panel"><p>${escapeHtml(error.message)}</p></article>`;
+  }
+}
+
+async function openClassDetails(item) {
+  currentClass = item;
+  document.getElementById('classDetailsTitle').textContent = item.name;
+  document.getElementById('classJoinCode').textContent = item.join_code || '—';
+  updateRegistrationButton();
+  document.getElementById('importStudentsResult').classList.add('hidden');
+  document.getElementById('importStudentsError').classList.add('hidden');
+  openModal(classDetailsModal);
+  await loadClassStudents();
+}
+
+function updateRegistrationButton() {
+  const button = document.getElementById('toggleRegistrationBtn');
+  if (!button || !currentClass) return;
+  const open = Number(currentClass.registration_open) === 1;
+  button.textContent = open ? 'Открыта — закрыть' : 'Закрыта — открыть';
+  button.classList.toggle('registration-open', open);
+}
+
+async function loadClassStudents() {
+  if (!currentClass) return;
+  const list = document.getElementById('classStudentsList');
+  list.innerHTML = '<div class="class-student-row"><span>Загрузка...</span></div>';
+  try {
+    const response = await fetch('./api/classes/students.php?class_id=' + encodeURIComponent(currentClass.id), {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить учеников.');
+    const students = data.students || [];
+    document.getElementById('classStudentsCount').textContent = students.length;
+    list.innerHTML = students.length ? students.map(student => `
+      <div class="class-student-row">
+        <span class="student-row-avatar">${escapeHtml((student.first_name || '?').charAt(0))}</span>
+        <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
+        <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
+      </div>
+    `).join('') : '<div class="empty-students">Учеников пока нет. Загрузите DOCX со списком класса.</div>';
+  } catch (error) {
+    list.innerHTML = `<div class="empty-students">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+document.getElementById('createClassBtn')?.addEventListener('click', () => openModal(classModal));
+
+document.getElementById('classForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('classFormError');
+  const button = form.querySelector('button[type="submit"]');
+  error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Создаём...';
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/classes/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать класс.');
+    form.reset();
+    closeModal(classModal);
+    await loadClasses();
+    const created = classesCache.find(item => Number(item.id) === Number(data.class.id)) || data.class;
+    openClassDetails(created);
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Создать класс';
+  }
+});
+
+document.getElementById('copyClassCodeBtn')?.addEventListener('click', async () => {
+  if (!currentClass?.join_code) return;
+  try {
+    await navigator.clipboard.writeText(currentClass.join_code);
+    const button = document.getElementById('copyClassCodeBtn');
+    const old = button.textContent;
+    button.textContent = 'Скопировано ✓';
+    setTimeout(() => button.textContent = old, 1200);
+  } catch {
+    prompt('Код класса:', currentClass.join_code);
+  }
+});
+
+document.getElementById('toggleRegistrationBtn')?.addEventListener('click', async () => {
+  if (!currentClass) return;
+  const next = Number(currentClass.registration_open) === 1 ? 0 : 1;
+  const response = await fetch('./api/classes/toggle-registration.php', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ class_id: currentClass.id, registration_open: next })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    alert(data.error || 'Не удалось изменить регистрацию.');
+    return;
+  }
+  currentClass.registration_open = data.registration_open;
+  const cached = classesCache.find(item => Number(item.id) === Number(currentClass.id));
+  if (cached) cached.registration_open = data.registration_open;
+  updateRegistrationButton();
+});
+
+document.getElementById('importStudentsForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentClass) return;
+
+  const form = event.currentTarget;
+  const fileInput = form.querySelector('input[type="file"]');
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('importStudentsError');
+  const result = document.getElementById('importStudentsResult');
+  error.classList.add('hidden');
+  result.classList.add('hidden');
+
+  if (!fileInput.files?.[0]) return;
+  const data = new FormData();
+  data.append('class_id', currentClass.id);
+  data.append('file', fileInput.files[0]);
+
+  button.disabled = true;
+  button.textContent = 'Импортируем...';
+  try {
+    const response = await fetch('./api/classes/import-students.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: data
+    });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось импортировать список.');
+    result.textContent = `Добавлено: ${payload.imported_count}. Пропущено повторов: ${payload.skipped_count}.`;
+    result.classList.remove('hidden');
+    form.reset();
+    await loadClassStudents();
+    await loadClasses();
+    const refreshed = classesCache.find(item => Number(item.id) === Number(currentClass.id));
+    if (refreshed) currentClass = refreshed;
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Импортировать DOCX';
+  }
+});
+document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
+  showView(btn.dataset.view);
+  if (btn.dataset.view === 'classes') loadClasses();
+}));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
 
@@ -324,7 +527,10 @@ document.getElementById('userForm')?.addEventListener('submit', async event => {
 document.querySelector('[data-view="users"]')?.addEventListener('click', loadUsers);
 
 loadSession().then(user => {
-  if (user) applyUser(user);
+  if (user) {
+    applyUser(user);
+    if (user.role !== 'student') loadClasses();
+  }
 });
 
 if ('serviceWorker' in navigator) {
