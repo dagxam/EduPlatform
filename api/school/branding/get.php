@@ -24,10 +24,7 @@ if ($schoolId === null || $schoolId < 1) {
     json_response([
         'ok' => true,
         'school_id' => null,
-        'branding' => [
-            'theme_color' => '#1d68f0',
-            'favicon_data' => null,
-        ],
+        'branding' => ['theme_color' => '#1d68f0'],
         'can_edit' => false,
     ]);
 }
