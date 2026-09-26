@@ -269,18 +269,20 @@ function import_split_question_blocks(string $text): array
 
         $lines = preg_split('/\\n/u', $raw) ?: [];
         $current = [];
+        $hasQuestionMarker = false;
         foreach ($lines as $line) {
             $line = trim($line);
             if ($line === '') continue;
 
-            if (
-                $current &&
-                preg_match('/^(?:вопрос|question|задание)\\s*\\d*\\s*[:.)-]/iu', $line)
-            ) {
+            $isQuestionMarker = preg_match('/^(?:вопрос|question|задание)\\s*\\d*\\s*[:.)-]/iu', $line) === 1;
+            if ($current && $isQuestionMarker && $hasQuestionMarker) {
                 $blocks[] = implode("\n", $current);
                 $current = [];
+                $hasQuestionMarker = false;
             }
+
             $current[] = $line;
+            if ($isQuestionMarker) $hasQuestionMarker = true;
         }
         if ($current) $blocks[] = implode("\n", $current);
     }
