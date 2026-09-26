@@ -13,7 +13,14 @@ if ($code === '') {
 }
 
 $stmt = app_db()->prepare(
-    'SELECT c.id, c.name, ca.registration_open
+    'SELECT c.id, c.name,
+            CASE
+              WHEN ca.registration_open = 1
+               AND ca.registration_expires_at IS NOT NULL
+               AND ca.registration_expires_at > CURRENT_TIMESTAMP
+              THEN 1 ELSE 0
+            END AS registration_open,
+            ca.registration_expires_at
      FROM class_access ca
      JOIN classes c ON c.id = ca.class_id
      WHERE ca.join_code = :code
@@ -42,6 +49,7 @@ json_response([
         'id' => (int)$class['id'],
         'name' => $class['name'],
         'registration_open' => (int)$class['registration_open'],
+        'registration_expires_at' => $class['registration_expires_at'],
     ],
     'students' => $stmt->fetchAll(),
 ]);
