@@ -571,6 +571,20 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="questionPreviewModal">
+    <div class="modal class-details-modal">
+      <button class="modal-close" data-close-modal="questionPreviewModal">×</button>
+      <span class="section-kicker">Черновик импорта</span>
+      <h2 id="questionPreviewTitle">Распознанные вопросы</h2>
+      <p>Проверьте, что UVORIA правильно определила типы и ответы. Задание остаётся черновиком и не публикуется автоматически.</p>
+      <div class="question-preview-summary" id="questionPreviewSummary"></div>
+      <div class="question-preview-list" id="questionPreviewList">
+        <p>Загрузка вопросов...</p>
+      </div>
+      <div class="form-error hidden" id="questionPreviewError"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="quizModal">
     <div class="modal quiz-modal">
       <button class="modal-close" data-close-modal="quizModal">×</button>
