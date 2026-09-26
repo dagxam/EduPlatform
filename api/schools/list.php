@@ -8,30 +8,25 @@ $pdo = app_db();
 if (is_platform_admin($user)) {
     $stmt = $pdo->query(
         'SELECT s.id, s.name, s.city, s.slug, s.status,
-                ua.id AS admin_id, ua.first_name AS admin_first_name,
-                ua.last_name AS admin_last_name, ua.email AS admin_email
+                COUNT(DISTINCT CASE WHEN su.role = "school_admin" AND su.is_active = 1 THEN su.user_id END) AS admin_count
          FROM schools s
-         LEFT JOIN school_users su
-           ON su.school_id = s.id AND su.role = "school_admin" AND su.is_active = 1
-         LEFT JOIN users ua ON ua.id = su.user_id
+         LEFT JOIN school_users su ON su.school_id = s.id
          WHERE s.status = "active"
+         GROUP BY s.id
          ORDER BY s.name COLLATE NOCASE'
     );
 } else {
     $stmt = $pdo->prepare(
         'SELECT s.id, s.name, s.city, s.slug, s.status,
                 me.role AS membership_role,
-                ua.id AS admin_id, ua.first_name AS admin_first_name,
-                ua.last_name AS admin_last_name, ua.email AS admin_email
+                COUNT(DISTINCT CASE WHEN su.role = "school_admin" AND su.is_active = 1 THEN su.user_id END) AS admin_count
          FROM school_users me
          JOIN schools s ON s.id = me.school_id
-         LEFT JOIN school_users su
-           ON su.school_id = s.id AND su.role = "school_admin" AND su.is_active = 1
-         LEFT JOIN users ua ON ua.id = su.user_id
+         LEFT JOIN school_users su ON su.school_id = s.id
          WHERE me.user_id = :user_id
            AND me.is_active = 1
            AND s.status = "active"
-         GROUP BY s.id
+         GROUP BY s.id, me.role
          ORDER BY s.name COLLATE NOCASE'
     );
     $stmt->execute(['user_id' => (int)$user['id']]);
