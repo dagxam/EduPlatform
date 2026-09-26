@@ -165,6 +165,7 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'termination_reason', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'attempts', 'attempt_session_hash', 'TEXT');
     add_column_if_missing($pdo, 'answers', 'updated_at', 'TEXT');
 }
 
