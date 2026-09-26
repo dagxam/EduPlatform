@@ -43,10 +43,16 @@ CREATE TABLE IF NOT EXISTS assignments (
     starts_at TEXT,
     due_at TEXT,
     show_answers INTEGER NOT NULL DEFAULT 0,
+    source_school_id INTEGER,
+    source_assignment_id INTEGER,
+    shared_by_user_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
+    FOREIGN KEY (source_school_id) REFERENCES schools(id) ON DELETE SET NULL,
+    FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE SET NULL,
+    FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS assignment_classes (
@@ -142,6 +148,9 @@ CREATE TABLE IF NOT EXISTS answers (
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_shared_origin
+ON assignments(school_id, source_school_id, source_assignment_id)
+WHERE source_assignment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
 
