@@ -26,6 +26,10 @@ jobs:
           node --check app.js
           node --check login.js
 
+      - name: Validate SQLite schema
+        run: |
+          php -r '$pdo = new PDO("sqlite::memory:"); $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); $pdo->exec(file_get_contents("database/schema.sql")); echo "SQLite schema OK\n";'
+
       - name: Upload site over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -35,6 +39,8 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./
+          # FTP account is already rooted at the live UVORIA directory.
+          # Do not prepend /www/... here or nested duplicate folders will be created.
           server-dir: /
           dangerous-clean-slate: false
           exclude: |
@@ -44,3 +50,8 @@ jobs:
             **/node_modules/**
             docs/**
             README.md
+            storage/*.sqlite
+            storage/*.sqlite-*
+            storage/assignment-imports/**
+            storage/question-assets/**
+            storage/avatars/**
