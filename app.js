@@ -1111,7 +1111,7 @@ async function removeSchoolAdmin(adminId) {
 async function promoteTeacherToAdmin(teacherId) {
   const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
   if (!teacher) return;
-  if (!confirm(`Сделать ${teacher.last_name} ${teacher.first_name} администратором этой школы?`)) return;
+  if (!confirm(`Сделать ${teacher.last_name} ${teacher.first_name} администратором этой школы? После этого он исчезнет из списка учителей, а назначения по предметам и классам будут сняты.`)) return;
 
   try {
     const response = await fetch('./api/school/teachers/promote.php', {
@@ -1131,7 +1131,7 @@ async function promoteTeacherToAdmin(teacherId) {
 async function demoteAdminToTeacher(adminId) {
   const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
   if (!admin) return;
-  if (!confirm(`Вернуть ${admin.last_name} ${admin.first_name} в роль учителя?`)) return;
+  if (!confirm(`Вернуть ${admin.last_name} ${admin.first_name} в роль учителя? Он исчезнет из списка администраторов, а предметы и классы нужно будет назначить заново.`)) return;
 
   try {
     const response = await fetch('./api/school/admins/demote.php', {
