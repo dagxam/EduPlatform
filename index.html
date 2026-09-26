@@ -56,6 +56,12 @@
           <h1 id="pageTitle">Добрый день!</h1>
         </div>
         <div class="top-actions">
+          <div class="school-switcher teacher-only">
+            <select id="schoolSelector" aria-label="Выбрать рабочее пространство">
+              <option value="0">Личное пространство</option>
+            </select>
+            <button class="secondary-btn compact-btn" id="createSchoolBtn" type="button">＋ Школа</button>
+          </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
           <button class="primary-btn teacher-only" id="createTaskBtn">＋ Создать задание</button>
         </div>
@@ -289,6 +295,21 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="schoolModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="schoolModal">×</button>
+      <span class="section-kicker">Организация</span>
+      <h2>Добавить школу</h2>
+      <p>Создайте отдельное пространство школы. Классы, предметы и задания внутри него будут отделены от личных данных.</p>
+      <form id="schoolForm">
+        <label>Название школы<input name="name" placeholder="Например: МБОУ СОШ №12" required></label>
+        <label>Город / населённый пункт<input name="city" placeholder="Например: Махачкала"></label>
+        <div class="form-error hidden" id="schoolFormError"></div>
+        <button class="primary-btn full" type="submit">Создать школу</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="classModal">
     <div class="modal">
       <button class="modal-close" data-close-modal="classModal">×</button>
@@ -314,7 +335,7 @@
         <button class="secondary-btn" id="copyClassCodeBtn" type="button">Скопировать код</button>
       </div>
       <div class="registration-switch">
-        <div><b>Первичная регистрация</b><small>Когда открыта, ученик может создать свой PIN при первом входе.</small></div>
+        <div><b>Первичная регистрация</b><small>Учитель открывает её на 20 минут. За это время ученики выбирают себя и создают PIN.</small></div>
         <button class="secondary-btn" id="toggleRegistrationBtn" type="button">—</button>
       </div>
       <div class="import-box">
