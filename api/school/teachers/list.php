@@ -7,7 +7,8 @@ $schoolId = require_active_school($user, true);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active,
+    'SELECT u.id, u.first_name, u.last_name, u.email, u.login_name,
+            u.must_change_password, u.credentials_sent_at, u.is_active,
             su.role AS school_role, su.can_teach
      FROM school_users su
      JOIN users u ON u.id = su.user_id
