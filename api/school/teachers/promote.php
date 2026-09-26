@@ -53,14 +53,34 @@ try {
         'user_id' => $teacherId,
     ]);
 
+    // Роль в школе взаимоисключающая: после повышения человек
+    // больше не должен оставаться в активных назначениях учителя.
+    $stmt = $pdo->prepare(
+        'DELETE FROM teacher_classes
+         WHERE school_id = :school_id AND teacher_id = :teacher_id'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => $teacherId,
+    ]);
+
+    $stmt = $pdo->prepare(
+        'DELETE FROM teacher_subjects
+         WHERE school_id = :school_id AND teacher_id = :teacher_id'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => $teacherId,
+    ]);
+
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     throw $e;
 }
 
-// teacher_subjects / teacher_classes intentionally stay untouched.
-// If the administrator is later returned to teacher role, previous assignments remain.
-audit_event('teacher_promoted_to_school_admin', 'user', $teacherId, [], $schoolId, (int)$user['id']);
+audit_event('teacher_promoted_to_school_admin', 'user', $teacherId, [
+    'teacher_assignments_cleared' => true,
+], $schoolId, (int)$user['id']);
 
 json_response(['ok' => true, 'admin_id' => $teacherId]);
