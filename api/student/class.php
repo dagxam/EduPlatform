@@ -13,7 +13,7 @@ if ($code === '') {
 }
 
 $stmt = app_db()->prepare(
-    'SELECT c.id, c.name,
+    'SELECT c.id, COALESCE(c.display_name, c.name) AS name,
             CASE
               WHEN ca.registration_open = 1
                AND ca.registration_expires_at IS NOT NULL
