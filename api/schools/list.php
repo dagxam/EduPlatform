@@ -17,7 +17,7 @@ if (is_platform_admin($user)) {
     );
 } else {
     $stmt = $pdo->prepare(
-        'SELECT s.id, s.name, s.city, s.slug, s.status,
+        'SELECT s.id, s.name, s.city, s.slug, s.status, s.theme_color,
                 me.role AS membership_role,
                 COUNT(DISTINCT CASE WHEN su.role = "school_admin" AND su.is_active = 1 THEN su.user_id END) AS admin_count
          FROM school_users me
