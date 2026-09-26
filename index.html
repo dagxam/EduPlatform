@@ -25,6 +25,7 @@
 
       <nav class="nav teacher-nav">
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
+        <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item teacher-only hidden" data-view="assignments"><span>▣</span> Задания</button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item admin-only hidden" data-view="classes"><span>👥</span> Классы и ученики</button>
@@ -128,6 +129,90 @@
               <button class="class-card" data-view-jump="classes"><strong>9Б</strong><span>14 учеников</span><b>81%</b></button>
             </div>
           </article>
+        </div>
+      </section>
+
+      <section class="view" id="subjects">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Учебные направления</span>
+            <h2>Предметы</h2>
+            <p>Добавляйте предметы, открывайте нужный предмет и создавайте в нём задания вручную или из DOCX, PDF, PPT и PPTX.</p>
+          </div>
+          <button class="primary-btn" id="addSubjectPageBtn" type="button">＋ Добавить предмет</button>
+        </div>
+
+        <div class="subjects-layout">
+          <div class="panel subjects-list-panel">
+            <div class="panel-head">
+              <div><span class="section-kicker">Школа</span><h3>Список предметов</h3></div>
+            </div>
+            <div id="subjectsPageGrid" class="subjects-page-grid">
+              <p>Загрузка предметов...</p>
+            </div>
+          </div>
+
+          <div class="panel subject-detail-panel" id="subjectDetailPanel">
+            <div class="subject-empty-state" id="subjectEmptyState">
+              <div class="subject-empty-icon">◫</div>
+              <h3>Выберите предмет</h3>
+              <p>Справа появятся задания этого предмета и инструменты для добавления новых материалов.</p>
+            </div>
+
+            <div class="hidden" id="subjectDetailContent">
+              <div class="subject-detail-head">
+                <div>
+                  <span class="section-kicker">Предмет</span>
+                  <h2 id="subjectDetailTitle">—</h2>
+                  <p id="subjectDetailHint">Задания и материалы по выбранному предмету.</p>
+                </div>
+                <button class="primary-btn" id="subjectCreateTaskBtn" type="button">＋ Создать задание</button>
+              </div>
+
+              <div class="subject-import-box">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">Импорт</span>
+                    <h3>Добавить задание из файла</h3>
+                  </div>
+                  <span class="file-format-badges"><b>DOCX</b><b>PDF</b><b>PPT</b><b>PPTX</b></span>
+                </div>
+                <p>Выберите класс и файл. UVORIA создаст черновик внутри этого предмета. DOCX и PPTX сразу подготавливаются для разбора вопросов по нашему шаблону.</p>
+                <form id="subjectImportForm" class="subject-import-form">
+                  <label>Название задания
+                    <input name="title" id="subjectImportTitle" placeholder="Можно оставить пустым — возьмём имя файла">
+                  </label>
+                  <label>Класс
+                    <select name="class_id" id="subjectImportClass" required>
+                      <option value="">Выберите класс</option>
+                    </select>
+                  </label>
+                  <label class="subject-file-field">Файл задания
+                    <input type="file" name="file" id="subjectImportFile" accept=".docx,.pdf,.ppt,.pptx" required>
+                    <small>До 20 МБ. Поддерживаются Word DOCX, PDF, PowerPoint PPT и PPTX.</small>
+                  </label>
+                  <label>Режим контроля
+                    <select name="focus_policy" id="subjectImportFocus">
+                      <option value="allow">Обычный</option>
+                      <option value="strict">Строгий — уход со страницы завершает попытку</option>
+                    </select>
+                  </label>
+                  <div class="form-error hidden" id="subjectImportError"></div>
+                  <div class="import-result hidden" id="subjectImportResult"></div>
+                  <button class="primary-btn" type="submit">Загрузить и создать черновик</button>
+                </form>
+              </div>
+
+              <div class="subject-assignments-block">
+                <div class="panel-head">
+                  <div><span class="section-kicker">Материалы</span><h3>Задания предмета</h3></div>
+                </div>
+                <div id="subjectAssignmentsList" class="subject-assignment-list">
+                  <p>Загрузка заданий...</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
