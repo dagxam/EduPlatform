@@ -131,3 +131,101 @@ CREATE TABLE IF NOT EXISTS class_students (
 
 CREATE INDEX IF NOT EXISTS idx_class_students_class ON class_students(class_id);
 CREATE INDEX IF NOT EXISTS idx_class_access_code ON class_access(join_code);
+
+
+-- Multi-school foundation for Urovia.
+CREATE TABLE IF NOT EXISTS schools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE COLLATE NOCASE,
+    city TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'archived')),
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS school_users (
+    school_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('owner', 'school_admin', 'teacher')),
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (school_id, user_id),
+    FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS school_subjects (
+    school_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (school_id, subject_id),
+    FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS teacher_subjects (
+    school_id INTEGER NOT NULL,
+    teacher_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    PRIMARY KEY (school_id, teacher_id, subject_id),
+    FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS teacher_classes (
+    school_id INTEGER NOT NULL,
+    teacher_id INTEGER NOT NULL,
+    class_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    PRIMARY KEY (school_id, teacher_id, class_id, subject_id),
+    FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER,
+    user_id INTEGER,
+    event_type TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id INTEGER,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS attempt_security_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    details TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_school_users_user ON school_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher ON teacher_subjects(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_classes_teacher ON teacher_classes(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_school ON audit_log(school_id);
+CREATE INDEX IF NOT EXISTS idx_attempt_security_attempt ON attempt_security_events(attempt_id);
+
+INSERT OR IGNORE INTO subjects (name) VALUES
+('Математика'),
+('Русский язык'),
+('Литература'),
+('История'),
+('Обществознание'),
+('Биология'),
+('География'),
+('Физика'),
+('Химия'),
+('Информатика'),
+('Английский язык'),
+('Физическая культура');
