@@ -15,7 +15,7 @@ if ($code === '') {
 throttle_check('class_lookup', 'lookup', 20, 60);
 
 $stmt = app_db()->prepare(
-    'SELECT c.id, COALESCE(c.display_name, c.name) AS name,
+    'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id,
             CASE
               WHEN ca.registration_open = 1
                AND ca.registration_expires_at IS NOT NULL
@@ -55,4 +55,10 @@ json_response([
         'registration_expires_at' => $class['registration_expires_at'],
     ],
     'students' => $stmt->fetchAll(),
+    'branding' => (int)($class['school_id'] ?? 0) > 0
+        ? school_branding((int)$class['school_id'])
+        : [
+            'theme_color' => '#1d68f0',
+            'favicon_data' => null,
+        ],
 ]);
