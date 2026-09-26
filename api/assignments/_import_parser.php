@@ -146,7 +146,8 @@ function import_extract_pdf_text(string $path): ?string
     }
 
     $text = trim(preg_replace('/[ \\t]+/u', ' ', implode("\n", $parts)) ?? '');
-    return mb_strlen($text) >= 20 ? $text : null;
+    $length = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
+    return $length >= 20 ? $text : null;
 }
 
 function import_extract_ppt_binary_text(string $path): ?string
