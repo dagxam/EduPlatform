@@ -20,23 +20,80 @@ function mixHex(colorA,colorB,weight=.5){
   const ch=i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-w)+parseInt(b.slice(i,i+2),16)*w).toString(16).padStart(2,'0');
   return '#'+ch(0)+ch(2)+ch(4);
 }
-function buildSchoolFavicon(color='#1d68f0'){
-  const base=normalizeHexColor(color);
-  const light=mixHex(base,'#ffffff',.16);
-  const dark=mixHex(base,'#000000',.10);
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".52" stop-color="${base}"/><stop offset="1" stop-color="${dark}"/></linearGradient></defs><rect x="10" y="10" width="108" height="108" rx="30" fill="url(#g)"/><path d="M25 28c18-13 57-16 78-5" fill="none" stroke="white" stroke-opacity=".16" stroke-width="7" stroke-linecap="round"/><text x="64" y="84" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" fill="white">U</text></svg>`;
-  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+let faviconBaseImagePromise=null;
+function faviconBaseImage(){
+  if(!faviconBaseImagePromise){
+    faviconBaseImagePromise=new Promise((resolve,reject)=>{
+      const image=new Image();
+      image.onload=()=>resolve(image);
+      image.onerror=reject;
+      image.src='./favicon.png?v=3';
+    });
+  }
+  return faviconBaseImagePromise;
+}
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),l=(max+min)/2,d=max-min;
+  let h=0,s=0;
+  if(d!==0){
+    s=d/(1-Math.abs(2*l-1));
+    if(max===r)h=((g-b)/d)%6;
+    else if(max===g)h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h*=60;if(h<0)h+=360;
+  }
+  return[h,s,l];
+}
+function hslToRgb(h,s,l){
+  const cc=(1-Math.abs(2*l-1))*s,x=cc*(1-Math.abs(((h/60)%2)-1)),m=l-cc/2;
+  let r=0,g=0,b=0;
+  if(h<60)[r,g,b]=[cc,x,0];
+  else if(h<120)[r,g,b]=[x,cc,0];
+  else if(h<180)[r,g,b]=[0,cc,x];
+  else if(h<240)[r,g,b]=[0,x,cc];
+  else if(h<300)[r,g,b]=[x,0,cc];
+  else[r,g,b]=[cc,0,x];
+  return[Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255)];
+}
+function themeHsl(color){
+  const hex=normalizeHexColor(color).slice(1);
+  return rgbToHsl(parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16));
+}
+async function applySchoolFavicon(color){
+  const favicon=document.getElementById('siteFavicon');
+  if(!favicon)return;
+  favicon.setAttribute('href','./favicon.png?v=3');
+  favicon.setAttribute('type','image/png');
+  try{
+    const image=await faviconBaseImage();
+    const canvas=document.createElement('canvas');
+    canvas.width=128;canvas.height=128;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)return;
+    ctx.drawImage(image,0,0,128,128);
+    const frame=ctx.getImageData(0,0,128,128),pixels=frame.data;
+    const[targetHue,targetSat,targetLight]=themeHsl(color);
+    for(let i=0;i<pixels.length;i+=4){
+      if(pixels[i+3]<8)continue;
+      const r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+      if(r>220&&g>220&&b>220){pixels[i]=255;pixels[i+1]=255;pixels[i+2]=255;continue}
+      const[,sourceSat,sourceLight]=rgbToHsl(r,g,b);
+      const light=Math.max(.12,Math.min(.88,targetLight+(sourceLight-.52)*1.18));
+      const sat=Math.max(.25,Math.min(1,targetSat*.92+sourceSat*.08));
+      const[nr,ng,nb]=hslToRgb(targetHue,sat,light);
+      pixels[i]=nr;pixels[i+1]=ng;pixels[i+2]=nb;
+    }
+    ctx.putImageData(frame,0,0);
+    favicon.setAttribute('href',canvas.toDataURL('image/png'));
+  }catch{}
 }
 function applyBranding(branding=null){
   const color=normalizeHexColor(branding?.theme_color||'#1d68f0');
   document.documentElement.style.setProperty('--brand',color);
   document.documentElement.style.setProperty('--brand-hover',mixHex(color,'#000000',.12));
   document.documentElement.style.setProperty('--brand-soft',mixHex(color,'#ffffff',.90));
-  const favicon=document.getElementById('siteFavicon');
-  if(favicon){
-    favicon.setAttribute('href',buildSchoolFavicon(color));
-    favicon.setAttribute('type','image/svg+xml');
-  }
+  applySchoolFavicon(color);
   document.getElementById('themeColorMeta')?.setAttribute('content',color);
 }
 
