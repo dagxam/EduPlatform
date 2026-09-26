@@ -12,6 +12,8 @@ if ($code === '') {
     json_response(['ok' => false, 'error' => 'Введите код класса.'], 422);
 }
 
+throttle_check('class_lookup', 'lookup', 20, 60);
+
 $stmt = app_db()->prepare(
     'SELECT c.id, COALESCE(c.display_name, c.name) AS name,
             CASE
@@ -30,6 +32,7 @@ $stmt->execute(['code' => $code]);
 $class = $stmt->fetch();
 
 if (!$class) {
+    throttle_failure('class_lookup', 'lookup', 20, 60, 300);
     json_response(['ok' => false, 'error' => 'Класс с таким кодом не найден.'], 404);
 }
 
