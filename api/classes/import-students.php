@@ -31,8 +31,18 @@ if (!class_exists('ZipArchive')) {
 }
 
 $pdo = app_db();
-$sql = 'SELECT c.id, c.name FROM classes c WHERE c.id = :id';
+$schoolId = current_school_id();
+$sql = 'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id FROM classes c WHERE c.id = :id';
 $params = ['id' => $classId];
+if ($schoolId !== null) {
+    if (!can_access_school($user, $schoolId)) {
+        json_response(['ok' => false, 'error' => 'Нет доступа к выбранной школе.'], 403);
+    }
+    $sql .= ' AND c.school_id = :school_id';
+    $params['school_id'] = $schoolId;
+} else {
+    $sql .= ' AND c.school_id IS NULL';
+}
 if ($user['role'] === 'teacher') {
     $sql .= ' AND c.teacher_id = :teacher_id';
     $params['teacher_id'] = (int)$user['id'];
