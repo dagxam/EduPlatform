@@ -37,7 +37,7 @@ function normalize_answer_text(string $value): string
 
 function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
 {
-    $stmt = $pdo->prepare('SELECT id, type, points, correct_text FROM questions WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, type, points, correct_text, interaction_type, settings_json FROM questions WHERE id = :id LIMIT 1');
     $stmt->execute(['id' => $questionId]);
     $question = $stmt->fetch();
     if (!$question) {
@@ -66,11 +66,47 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
         $isCorrect = ($selected === $correct && count($selected) > 0) ? 1 : 0;
         $score = $isCorrect ? $points : 0.0;
     } elseif ($type === 'text') {
-        $answerText = trim((string)($payload['answer_text'] ?? ''));
-        $expected = normalize_answer_text((string)($question['correct_text'] ?? ''));
-        $actual = normalize_answer_text($answerText);
-        $isCorrect = ($expected !== '' && $actual === $expected) ? 1 : 0;
-        $score = $isCorrect ? $points : 0.0;
+        $interaction = (string)($question['interaction_type'] ?? 'short_answer');
+
+        if ($interaction === 'ordering') {
+            $selected = array_values(array_map('strval', (array)($payload['order'] ?? [])));
+            $expected = json_decode((string)($question['correct_text'] ?? ''), true);
+            $expected = is_array($expected) ? array_values(array_map('strval', $expected)) : [];
+
+            $answerText = json_encode($selected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
+            $isCorrect = ($expected && $selected === $expected) ? 1 : 0;
+            $score = $isCorrect ? $points : 0.0;
+        } elseif ($interaction === 'matching') {
+            $selected = (array)($payload['matches'] ?? []);
+            $selected = array_map('strval', $selected);
+            ksort($selected, SORT_NATURAL);
+
+            $expected = json_decode((string)($question['correct_text'] ?? ''), true);
+            $expected = is_array($expected) ? array_map('strval', $expected) : [];
+            ksort($expected, SORT_NATURAL);
+
+            $answerText = json_encode($selected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+            $isCorrect = ($expected && $selected === $expected) ? 1 : 0;
+            $score = $isCorrect ? $points : 0.0;
+        } else {
+            $answerText = trim((string)($payload['answer_text'] ?? ''));
+            $actual = normalize_answer_text($answerText);
+            $rawExpected = trim((string)($question['correct_text'] ?? ''));
+
+            $alternatives = array_values(array_filter(array_map(
+                static fn(string $value): string => normalize_answer_text($value),
+                preg_split('/\\s*\\|\\s*/u', $rawExpected) ?: []
+            )));
+
+            if ($alternatives) {
+                $isCorrect = in_array($actual, $alternatives, true) ? 1 : 0;
+                $score = $isCorrect ? $points : 0.0;
+            } else {
+                $needsReview = $answerText !== '' ? 1 : 0;
+                $score = 0.0;
+                $isCorrect = 0;
+            }
+        }
     } elseif ($type === 'number') {
         $answerText = trim((string)($payload['answer_text'] ?? ''));
         $expected = trim((string)($question['correct_text'] ?? ''));
