@@ -794,7 +794,11 @@ function renderSubjectAssignments() {
       <article class="subject-assignment-row">
         <div>
           <b>${escapeHtml(item.title)}</b>
-          <small>${escapeHtml(item.class_names || 'Без класса')} · ${item.type === 'file' ? 'Импортированный файл' : 'Задание UVORIA'}</small>
+          <small>${escapeHtml(item.class_names || 'Без класса')} · ${
+            item.source_format
+              ? escapeHtml(String(item.source_format).toUpperCase()) + (item.parse_status === 'text_extracted' ? ' · текст подготовлен' : ' · файл принят')
+              : 'Задание UVORIA'
+          }</small>
         </div>
         <span class="status ${statusClass}">${statusText}</span>
       </article>`;
