@@ -31,7 +31,7 @@ function showView(id) {
   if (view) view.classList.add('active');
 
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === id));
-  const [small, title] = titles[id] || ['', 'EduPlatform'];
+  const [small, title] = titles[id] || ['', 'UVORIA'];
   eyebrow.textContent = small;
   pageTitle.textContent = title;
   sidebar.classList.remove('open');
@@ -438,7 +438,7 @@ document.getElementById('exportResultsBtn')?.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'eduplatform-results.csv';
+  link.download = 'uvoria-results.csv';
   document.body.appendChild(link);
   link.click();
   link.remove();
