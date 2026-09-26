@@ -75,9 +75,9 @@ async function loadSession() {
 function applyUser(user) {
   currentUser = user;
   const student = user.role === 'student';
-  const teacher = user.role === 'teacher';
   const admin = user.role === 'admin';
   const platformAdmin = admin && Number(user.is_platform_admin) === 1;
+  const teacher = !student && (user.role === 'teacher' || Boolean(user.can_teach));
 
   teacherNav.classList.toggle('hidden', student);
   studentNav.classList.toggle('hidden', !student);
@@ -89,7 +89,11 @@ function applyUser(user) {
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   sidebarName.textContent = fullName || 'Пользователь';
-  sidebarRole.textContent = platformAdmin ? 'Администратор UVORIA' : (admin ? 'Администратор школы' : (roleLabels[user.role] || user.role));
+  sidebarRole.textContent = platformAdmin
+    ? 'Администратор UVORIA'
+    : (admin && teacher
+      ? 'Администратор школы · Учитель'
+      : (admin ? 'Администратор школы' : (roleLabels[user.role] || user.role)));
   sidebarAvatar.textContent = ((user.first_name || 'П').charAt(0) + (user.last_name || '').charAt(0)).toUpperCase();
   const roleBadge = document.getElementById('accountRoleBadge');
   if (roleBadge) roleBadge.textContent = sidebarRole.textContent;
@@ -953,14 +957,19 @@ async function loadSchoolManagement() {
       const assignmentText = (teacher.assignments || []).length
         ? teacher.assignments.map(item => `${item.subject_name} — ${item.class_name}`).join(', ')
         : 'Не назначены';
+      const alsoAdmin = ['school_admin', 'owner'].includes(String(teacher.school_role || ''));
+      const canManageAdmins = Number(currentUser?.is_platform_admin) === 1;
       return `
         <tr>
-          <td><b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b></td>
+          <td>
+            <b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b>
+            ${alsoAdmin ? '<small class="role-note">Администратор + учитель</small>' : ''}
+          </td>
           <td>${escapeHtml(teacher.email)}</td>
           <td><small>${escapeHtml(assignmentText)}</small></td>
           <td class="row-actions-cell">
             <button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button>
-            <button class="secondary-btn compact-btn" type="button" data-promote-teacher="${teacher.id}">Сделать администратором</button>
+            ${canManageAdmins && !alsoAdmin ? `<button class="secondary-btn compact-btn" type="button" data-promote-teacher="${teacher.id}">＋ Права администратора</button>` : ''}
           </td>
         </tr>`;
     }).join('') : '<tr><td colspan="4">Учителей пока нет.</td></tr>';
@@ -978,18 +987,27 @@ async function loadSchoolManagement() {
       schoolAdminsCache = adminsData.admins || [];
       const canEditAdminAccounts = Boolean(adminsData.can_edit_admin_accounts);
 
-      adminsBody.innerHTML = schoolAdminsCache.length ? schoolAdminsCache.map(admin => `
+      adminsBody.innerHTML = schoolAdminsCache.length ? schoolAdminsCache.map(admin => {
+        const teaches = Number(admin.can_teach) === 1;
+        return `
         <tr>
-          <td><b>${escapeHtml(admin.last_name)} ${escapeHtml(admin.first_name)}</b></td>
+          <td>
+            <b>${escapeHtml(admin.last_name)} ${escapeHtml(admin.first_name)}</b>
+            ${teaches ? '<small class="role-note">Администратор + учитель</small>' : ''}
+          </td>
           <td>${escapeHtml(admin.email)}</td>
-          <td><span class="status ${Number(admin.is_active) ? 'green' : 'amber'}">${Number(admin.is_active) ? 'Активен' : 'Отключён'}</span></td>
+          <td>
+            <span class="status green">Администратор</span>
+            ${teaches ? '<span class="status blue">Учитель</span>' : ''}
+          </td>
           <td class="row-actions-cell">
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>` : ''}
-            <button class="secondary-btn compact-btn" type="button" data-demote-admin="${admin.id}">Вернуть в учителя</button>
-            ${canEditAdminAccounts ? `<button class="mini-action danger-action" type="button" data-remove-school-admin="${admin.id}">Снять</button>` : ''}
+            ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-toggle-admin-teacher="${admin.id}" data-enabled="${teaches ? '0' : '1'}">${teaches ? 'Убрать роль учителя' : '＋ Сделать также учителем'}</button>` : ''}
+            ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-demote-admin="${admin.id}">Оставить только учителем</button>` : ''}
+            ${canEditAdminAccounts ? `<button class="mini-action danger-action" type="button" data-remove-school-admin="${admin.id}">Удалить из школы</button>` : ''}
           </td>
-        </tr>
-      `).join('') : '<tr><td colspan="4">Администраторы не назначены.</td></tr>';
+        </tr>`;
+      }).join('') : '<tr><td colspan="4">Администраторы не назначены.</td></tr>';
 
       adminsBody.querySelectorAll('[data-edit-school-admin]').forEach(button => {
         button.addEventListener('click', () => openSchoolAdminEditor(Number(button.dataset.editSchoolAdmin)));
@@ -999,6 +1017,12 @@ async function loadSchoolManagement() {
       });
       adminsBody.querySelectorAll('[data-demote-admin]').forEach(button => {
         button.addEventListener('click', () => demoteAdminToTeacher(Number(button.dataset.demoteAdmin)));
+      });
+      adminsBody.querySelectorAll('[data-toggle-admin-teacher]').forEach(button => {
+        button.addEventListener('click', () => setAdminTeacherRole(
+          Number(button.dataset.toggleAdminTeacher),
+          button.dataset.enabled === '1'
+        ));
       });
     }
   } catch (error) {
@@ -1109,9 +1133,10 @@ async function removeSchoolAdmin(adminId) {
 }
 
 async function promoteTeacherToAdmin(teacherId) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
   const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
   if (!teacher) return;
-  if (!confirm(`Сделать ${teacher.last_name} ${teacher.first_name} администратором этой школы? После этого он исчезнет из списка учителей, а назначения по предметам и классам будут сняты.`)) return;
+  if (!confirm(`Добавить ${teacher.last_name} ${teacher.first_name} права администратора школы? Права учителя и текущие назначения сохранятся.`)) return;
 
   try {
     const response = await fetch('./api/school/teachers/promote.php', {
@@ -1128,10 +1153,34 @@ async function promoteTeacherToAdmin(teacherId) {
   }
 }
 
-async function demoteAdminToTeacher(adminId) {
+async function setAdminTeacherRole(adminId, enabled) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
   const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
   if (!admin) return;
-  if (!confirm(`Вернуть ${admin.last_name} ${admin.first_name} в роль учителя? Он исчезнет из списка администраторов, а предметы и классы нужно будет назначить заново.`)) return;
+
+  const action = enabled ? 'добавить роль учителя' : 'убрать роль учителя';
+  if (!confirm(`${enabled ? 'Добавить' : 'Убрать'} роль учителя для ${admin.last_name} ${admin.first_name}?`)) return;
+
+  try {
+    const response = await fetch('./api/school/admins/set-teacher.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_id: adminId, enabled })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || `Не удалось ${action}.`);
+    await loadSchoolManagement();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function demoteAdminToTeacher(adminId) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
+  if (!admin) return;
+  if (!confirm(`Снять у ${admin.last_name} ${admin.first_name} права администратора и оставить только роль учителя?`)) return;
 
   try {
     const response = await fetch('./api/school/admins/demote.php', {
