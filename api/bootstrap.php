@@ -268,6 +268,39 @@ function can_manage_school(array $user, int $schoolId): bool
     return in_array(school_membership_role((int)$user['id'], $schoolId), ['owner', 'school_admin'], true);
 }
 
+function ensure_staff_school_context(array $user): ?int
+{
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) {
+        return current_school_id();
+    }
+
+    $current = current_school_id();
+    if ($current !== null && can_access_school($user, $current)) {
+        return $current;
+    }
+
+    $stmt = app_db()->prepare(
+        'SELECT s.id
+         FROM school_users su
+         JOIN schools s ON s.id = su.school_id
+         WHERE su.user_id = :user_id
+           AND su.is_active = 1
+           AND s.status = "active"
+         ORDER BY su.created_at ASC, s.id ASC
+         LIMIT 1'
+    );
+    $stmt->execute(['user_id' => (int)$user['id']]);
+    $schoolId = (int)($stmt->fetchColumn() ?: 0);
+
+    if ($schoolId > 0) {
+        $_SESSION['active_school_id'] = $schoolId;
+        return $schoolId;
+    }
+
+    unset($_SESSION['active_school_id']);
+    return null;
+}
+
 function require_active_school(array $user, bool $manage = false): int
 {
     $schoolId = current_school_id();
