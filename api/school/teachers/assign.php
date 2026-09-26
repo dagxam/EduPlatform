@@ -19,7 +19,7 @@ $pdo = app_db();
 $stmt = $pdo->prepare(
     'SELECT 1 FROM school_users
      WHERE school_id = :school_id AND user_id = :teacher_id
-       AND role = "teacher" AND is_active = 1'
+       AND can_teach = 1 AND is_active = 1'
 );
 $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $teacherId]);
 if (!$stmt->fetchColumn()) {
