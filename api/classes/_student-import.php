@@ -140,21 +140,45 @@ function parse_docx_students(string $tmpName): array
     return $students;
 }
 
-function require_school_class_for_admin(PDO $pdo, array $user, int $classId): array
+function require_school_class_for_roster_manager(PDO $pdo, array $user, int $classId): array
 {
-    $schoolId = require_active_school($user, true);
-    $stmt = $pdo->prepare(
-        'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id
-         FROM classes c
-         WHERE c.id = :class_id AND c.school_id = :school_id
-         LIMIT 1'
-    );
-    $stmt->execute(['class_id' => $classId, 'school_id' => $schoolId]);
+    $schoolId = require_active_school($user, false);
+
+    if (can_manage_school($user, $schoolId)) {
+        $stmt = $pdo->prepare(
+            'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id
+             FROM classes c
+             WHERE c.id = :class_id AND c.school_id = :school_id
+             LIMIT 1'
+        );
+        $stmt->execute(['class_id' => $classId, 'school_id' => $schoolId]);
+    } else {
+        $stmt = $pdo->prepare(
+            'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id
+             FROM teacher_classes tc
+             JOIN classes c ON c.id = tc.class_id
+             WHERE tc.school_id = :school_id
+               AND tc.teacher_id = :teacher_id
+               AND tc.class_id = :class_id
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'school_id' => $schoolId,
+            'teacher_id' => (int)$user['id'],
+            'class_id' => $classId,
+        ]);
+    }
+
     $class = $stmt->fetch();
     if (!$class) {
-        json_response(['ok' => false, 'error' => 'Класс не найден.'], 404);
+        json_response(['ok' => false, 'error' => 'Класс не найден или не назначен этому учителю.'], 404);
     }
     return $class;
+}
+
+function require_school_class_for_admin(PDO $pdo, array $user, int $classId): array
+{
+    return require_school_class_for_roster_manager($pdo, $user, $classId);
 }
 
 function class_existing_student_keys(PDO $pdo, int $classId): array
