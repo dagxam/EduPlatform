@@ -33,11 +33,11 @@ if (is_platform_admin($user)) {
 }
 
 $schools = $stmt->fetchAll();
-$activeSchoolId = current_school_id();
-if ($activeSchoolId === null && count($schools) === 1 && !is_platform_admin($user)) {
-    $activeSchoolId = (int)$schools[0]['id'];
-    $_SESSION['active_school_id'] = $activeSchoolId;
+
+if (!is_platform_admin($user)) {
+    ensure_staff_school_context($user);
 }
+$activeSchoolId = current_school_id();
 
 json_response([
     'ok' => true,
