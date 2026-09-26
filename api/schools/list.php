@@ -20,7 +20,7 @@ if (is_platform_admin($user)) {
 } else {
     $stmt = $pdo->prepare(
         'SELECT s.id, s.name, s.city, s.slug, s.status,
-                su.role AS membership_role,
+                me.role AS membership_role,
                 ua.id AS admin_id, ua.first_name AS admin_first_name,
                 ua.last_name AS admin_last_name, ua.email AS admin_email
          FROM school_users me
