@@ -36,6 +36,25 @@ if ($existing) {
     if (($existing['role'] ?? '') !== 'admin') {
         json_response(['ok' => false, 'error' => 'Этот email уже принадлежит аккаунту с другой ролью.'], 409);
     }
+
+    $membershipStmt = $pdo->prepare(
+        'SELECT school_id FROM school_users
+         WHERE user_id = :user_id
+           AND role = "school_admin"
+           AND is_active = 1
+           AND school_id <> :school_id
+         LIMIT 1'
+    );
+    $membershipStmt->execute([
+        'user_id' => (int)$existing['id'],
+        'school_id' => $schoolId,
+    ]);
+    if ($membershipStmt->fetchColumn()) {
+        json_response([
+            'ok' => false,
+            'error' => 'Этот администратор уже закреплён за другой школой. Для каждой школы используйте отдельный аккаунт.',
+        ], 409);
+    }
 } else {
     $length = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);
     if ($length < 8) {
