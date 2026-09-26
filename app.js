@@ -840,6 +840,7 @@ function renderSubjectAssignments() {
         </div>
         <div class="subject-assignment-actions">
           ${questionsCount ? `<button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Проверить вопросы</button>` : ''}
+          <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>
           <span class="status ${statusClass}">${statusText}</span>
         </div>
       </article>`;
@@ -847,6 +848,9 @@ function renderSubjectAssignments() {
 
   list.querySelectorAll('[data-preview-questions]').forEach(button => {
     button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
+  });
+  list.querySelectorAll('[data-assign-class]').forEach(button => {
+    button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
   });
 }
 
@@ -1188,6 +1192,210 @@ function renderAssignments() {
     button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
   });
 }
+
+async function openAssignToClass(assignmentId) {
+  const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment || !assignToClassModal) return;
+
+  const error = document.getElementById('assignToClassError');
+  const select = document.getElementById('assignToClassSelect');
+  const title = document.getElementById('assignToClassTitle');
+  const hidden = document.getElementById('assignToClassAssignmentId');
+
+  error?.classList.add('hidden');
+  if (hidden) hidden.value = String(assignment.id);
+  if (title) title.textContent = `Назначить: ${assignment.title}`;
+
+  try {
+    await loadTeacherOptions();
+    const available = subjectAvailableClasses(Number(assignment.subject_id));
+    const alreadyAssigned = new Set(
+      String(assignment.class_ids || '')
+        .split(',')
+        .map(value => Number(value))
+        .filter(Boolean)
+    );
+    const choices = available.filter(item => !alreadyAssigned.has(Number(item.id)));
+
+    if (select) {
+      select.innerHTML = '<option value="">Выберите класс</option>' + choices.map(item =>
+        `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+      ).join('');
+    }
+
+    if (!choices.length && error) {
+      error.textContent = available.length
+        ? 'Это задание уже назначено всем доступным вам классам.'
+        : 'Для этого предмета вам пока не назначен ни один класс.';
+      error.classList.remove('hidden');
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  }
+
+  openModal(assignToClassModal);
+}
+
+document.getElementById('assignToClassForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const assignmentId = Number(document.getElementById('assignToClassAssignmentId')?.value || 0);
+  const classId = Number(document.getElementById('assignToClassSelect')?.value || 0);
+  const error = document.getElementById('assignToClassError');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  error?.classList.add('hidden');
+  if (assignmentId < 1 || classId < 1) {
+    if (error) {
+      error.textContent = 'Выберите класс.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Назначаем...';
+
+  try {
+    const response = await fetch('./api/assignments/assign.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: assignmentId, class_id: classId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось назначить задание.');
+
+    closeModal(assignToClassModal);
+    await loadAssignments();
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Назначить классу';
+  }
+});
+
+async function openShareSubject() {
+  if (currentUser?.role !== 'admin' || !selectedSubjectId || !shareSubjectModal) return;
+
+  const subject = subjectsCache.find(item => Number(item.id) === Number(selectedSubjectId));
+  if (!subject) return;
+
+  const schoolSelect = document.getElementById('shareTargetSchool');
+  const list = document.getElementById('shareAssignmentsList');
+  const error = document.getElementById('shareSubjectError');
+  const result = document.getElementById('shareSubjectResult');
+  const title = document.getElementById('shareSubjectTitle');
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  if (title) title.textContent = `Отправить «${subject.name}» в другую школу`;
+  if (schoolSelect) schoolSelect.innerHTML = '<option value="">Загрузка школ...</option>';
+  if (list) list.innerHTML = '<p>Загрузка заданий...</p>';
+  openModal(shareSubjectModal);
+
+  try {
+    await loadAssignments();
+
+    const response = await fetch('./api/schools/share-targets.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить список школ.');
+
+    if (schoolSelect) {
+      schoolSelect.innerHTML = '<option value="">Выберите школу</option>' + (data.schools || []).map(school => {
+        const city = school.city ? ' · ' + school.city : '';
+        return `<option value="${school.id}">${escapeHtml(school.name + city)}</option>`;
+      }).join('');
+    }
+
+    const subjectAssignments = assignmentsCache.filter(item => Number(item.subject_id) === Number(selectedSubjectId));
+    if (list) {
+      list.innerHTML = subjectAssignments.length
+        ? subjectAssignments.map(item => `
+            <label class="share-assignment-option">
+              <input type="checkbox" value="${item.id}" checked>
+              <span>
+                <b>${escapeHtml(item.title)}</b>
+                <small>${escapeHtml(item.class_names || 'Задание из библиотеки')} — классы и ученики не передаются</small>
+              </span>
+            </label>
+          `).join('')
+        : '<div class="subject-empty-list"><b>У предмета пока нет заданий</b><span>Можно отправить только сам предмет.</span></div>';
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  }
+}
+
+document.getElementById('shareSubjectBtn')?.addEventListener('click', openShareSubject);
+
+document.getElementById('shareSubjectForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (currentUser?.role !== 'admin' || !selectedSubjectId) return;
+
+  const targetSchoolId = Number(document.getElementById('shareTargetSchool')?.value || 0);
+  const assignmentIds = [...document.querySelectorAll('#shareAssignmentsList input[type="checkbox"]:checked')]
+    .map(input => Number(input.value))
+    .filter(Boolean);
+  const error = document.getElementById('shareSubjectError');
+  const result = document.getElementById('shareSubjectResult');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  if (targetSchoolId < 1) {
+    if (error) {
+      error.textContent = 'Выберите школу-получателя.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Отправляем...';
+
+  try {
+    const response = await fetch('./api/subjects/share.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_id: selectedSubjectId,
+        target_school_id: targetSchoolId,
+        assignment_ids: assignmentIds
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось отправить предмет.');
+
+    if (result) {
+      result.textContent = `Предмет отправлен в «${data.target_school?.name || 'школу'}». Новых заданий: ${data.copied_assignments?.length || 0}, уже были там: ${data.skipped_assignments?.length || 0}.`;
+      result.classList.remove('hidden');
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Отправить в школу';
+  }
+});
 
 async function loadAssignments() {
   const body = document.getElementById('assignmentsTableBody');
