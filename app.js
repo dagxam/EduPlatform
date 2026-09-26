@@ -17,6 +17,7 @@ const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
 let currentUser = null;
+let activeSchoolName = '';
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
@@ -36,8 +37,16 @@ function showView(id) {
 
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === id));
   const [small, title] = titles[id] || ['', 'UVORIA'];
-  eyebrow.textContent = small;
-  pageTitle.textContent = title;
+  if (activeSchoolName && id === 'school-management') {
+    eyebrow.textContent = activeSchoolName;
+    pageTitle.textContent = 'Управление школой';
+  } else if (activeSchoolName && id === 'teacher-dashboard' && currentUser?.role === 'teacher') {
+    eyebrow.textContent = activeSchoolName;
+    pageTitle.textContent = 'Кабинет учителя';
+  } else {
+    eyebrow.textContent = small;
+    pageTitle.textContent = title;
+  }
   sidebar.classList.remove('open');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -76,7 +85,7 @@ function applyUser(user) {
   document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', !teacher));
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
   document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.toggle('hidden', !platformAdmin));
-  document.querySelectorAll('.staff-only').forEach(el => el.classList.toggle('hidden', student));
+  document.querySelectorAll('.school-staff-only').forEach(el => el.classList.toggle('hidden', student || platformAdmin));
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   sidebarName.textContent = fullName || 'Пользователь';
@@ -108,7 +117,7 @@ let schoolsCache = [];
 
 async function loadSchools() {
   const selector = document.getElementById('schoolSelector');
-  if (!selector) return;
+  const fixedSchoolName = document.getElementById('fixedSchoolName');
 
   try {
     const response = await fetch('./api/schools/list.php', { credentials: 'same-origin', cache: 'no-store' });
@@ -117,33 +126,46 @@ async function loadSchools() {
 
     schoolsCache = data.schools || [];
     const platformAdmin = Boolean(data.is_platform_admin);
-    selector.innerHTML = (platformAdmin ? '<option value="0">Выберите школу</option>' : '<option value="">Выберите школу</option>') +
-      schoolsCache.map(school => {
+    const activeId = Number(data.active_school_id || 0);
+    const activeSchool = schoolsCache.find(school => Number(school.id) === activeId) || null;
+    activeSchoolName = activeSchool?.name || '';
+
+    if (platformAdmin && selector) {
+      selector.innerHTML = '<option value="0">Выберите школу</option>' + schoolsCache.map(school => {
         const city = school.city ? ' · ' + school.city : '';
         return `<option value="${school.id}">${escapeHtml(school.name + city)}</option>`;
       }).join('');
-
-    if (data.active_school_id) {
-      selector.value = String(data.active_school_id);
-    } else if (!platformAdmin && schoolsCache.length === 1) {
-      selector.value = String(schoolsCache[0].id);
-    } else {
-      selector.value = platformAdmin ? '0' : '';
+      selector.value = activeId > 0 ? String(activeId) : '0';
     }
+
+    if (!platformAdmin && fixedSchoolName) {
+      fixedSchoolName.textContent = activeSchoolName || 'Школа не назначена';
+    }
+
+    return data;
   } catch (error) {
-    selector.innerHTML = '<option value="">Школы недоступны</option>';
+    activeSchoolName = '';
+    if (selector && Number(currentUser?.is_platform_admin) === 1) {
+      selector.innerHTML = '<option value="0">Школы недоступны</option>';
+    }
+    if (fixedSchoolName && Number(currentUser?.is_platform_admin) !== 1) {
+      fixedSchoolName.textContent = 'Школа недоступна';
+    }
+    throw error;
   }
 }
 
 async function selectSchool(schoolId) {
   const selector = document.getElementById('schoolSelector');
+  const selectedId = Number(schoolId);
   if (selector) selector.disabled = true;
+
   try {
     const response = await fetch('./api/schools/select.php', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ school_id: Number(schoolId) })
+      body: JSON.stringify({ school_id: selectedId })
     });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось переключить школу.');
@@ -152,10 +174,23 @@ async function selectSchool(schoolId) {
     subjectsCache = [];
     assignmentsCache = [];
     teacherOptionsCache = [];
+    schoolTeachersCache = [];
+    schoolAdminsCache = [];
     currentClass = null;
-    closeModal(classDetailsModal);
+    if (classDetailsModal) closeModal(classDetailsModal);
+
+    if (selectedId === 0) {
+      activeSchoolName = '';
+      showView('teacher-dashboard');
+      return;
+    }
+
+    const selectedSchool = schoolsCache.find(school => Number(school.id) === selectedId);
+    activeSchoolName = selectedSchool?.name || '';
+
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
-    if (currentUser?.role === 'admin') await loadSchoolManagement();
+    await loadSchoolManagement();
+    showView('school-management');
   } catch (error) {
     alert(error.message);
     await loadSchools();
@@ -1185,14 +1220,28 @@ document.getElementById('saveTeacherAssignmentsBtn')?.addEventListener('click', 
 loadSession().then(async user => {
   if (!user) return;
   applyUser(user);
-  if (user.role !== 'student') {
-    await loadSchools();
-    const selector = document.getElementById('schoolSelector');
-    const activeSchool = selector?.value && selector.value !== '0';
-    if (activeSchool) {
-      await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
-      if (user.role === 'admin') await loadSchoolManagement();
+
+  if (user.role === 'student') return;
+
+  try {
+    const schoolsData = await loadSchools();
+    const activeSchool = Number(schoolsData?.active_school_id || 0) > 0;
+
+    if (!activeSchool) {
+      if (Number(user.is_platform_admin) === 1) showView('teacher-dashboard');
+      return;
     }
+
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+
+    if (user.role === 'admin') {
+      await loadSchoolManagement();
+      showView('school-management');
+    } else {
+      showView('teacher-dashboard');
+    }
+  } catch (error) {
+    alert(error.message);
   }
 });
 
