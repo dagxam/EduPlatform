@@ -2,7 +2,10 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-require_user(['admin']);
+$user = require_user(['admin']);
+if (!is_platform_admin($user)) {
+    json_response(['ok' => false, 'error' => 'Этот системный раздел доступен только администратору UVORIA.'], 403);
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
