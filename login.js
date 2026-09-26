@@ -20,20 +20,13 @@ function mixHex(colorA,colorB,weight=.5){
   const ch=i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-w)+parseInt(b.slice(i,i+2),16)*w).toString(16).padStart(2,'0');
   return '#'+ch(0)+ch(2)+ch(4);
 }
-function defaultFaviconData(color='#1d68f0'){
-  const safe=normalizeHexColor(color);
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="${safe}"/><text x="32" y="43" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="800" fill="white">U</text></svg>`;
-  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-}
 function applyBranding(branding=null){
   const color=normalizeHexColor(branding?.theme_color||'#1d68f0');
   document.documentElement.style.setProperty('--brand',color);
   document.documentElement.style.setProperty('--brand-hover',mixHex(color,'#000000',.12));
   document.documentElement.style.setProperty('--brand-soft',mixHex(color,'#ffffff',.90));
-  document.getElementById('themeColorMeta')?.setAttribute('content',color);
-  document.getElementById('dynamicFavicon')?.setAttribute('href',branding?.favicon_data||defaultFaviconData(color));
 }
-applyBranding();
+
 
 function showState(name){
   Object.values(states).forEach(el=>el?.classList.add('hidden'));
