@@ -925,7 +925,7 @@ async function loadSchoolManagement() {
 
   subjectList.innerHTML = '<p>Загрузка предметов...</p>';
   teacherBody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
-  if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+  if (adminsBody) {
     adminsBody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
   }
 
@@ -934,9 +934,7 @@ async function loadSchoolManagement() {
       fetch('./api/subjects/list.php', { credentials: 'same-origin', cache: 'no-store' }),
       fetch('./api/school/teachers/list.php', { credentials: 'same-origin', cache: 'no-store' })
     ];
-    if (Number(currentUser?.is_platform_admin) === 1) {
-      requests.push(fetch('./api/school/admins/list.php', { credentials: 'same-origin', cache: 'no-store' }));
-    }
+    requests.push(fetch('./api/school/admins/list.php', { credentials: 'same-origin', cache: 'no-store' }));
 
     const responses = await Promise.all(requests);
     const subjectsData = await responses[0].json();
@@ -960,26 +958,35 @@ async function loadSchoolManagement() {
           <td><b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b></td>
           <td>${escapeHtml(teacher.email)}</td>
           <td><small>${escapeHtml(assignmentText)}</small></td>
-          <td><button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button></td>
+          <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button>
+            <button class="secondary-btn compact-btn" type="button" data-promote-teacher="${teacher.id}">Сделать администратором</button>
+          </td>
         </tr>`;
     }).join('') : '<tr><td colspan="4">Учителей пока нет.</td></tr>';
 
     teacherBody.querySelectorAll('[data-teacher-assign]').forEach(button => {
       button.addEventListener('click', () => openTeacherAssignments(Number(button.dataset.teacherAssign)));
     });
+    teacherBody.querySelectorAll('[data-promote-teacher]').forEach(button => {
+      button.addEventListener('click', () => promoteTeacherToAdmin(Number(button.dataset.promoteTeacher)));
+    });
 
-    if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+    if (adminsBody) {
       const adminsData = await responses[2].json();
       if (!responses[2].ok || adminsData.ok === false) throw new Error(adminsData.error || 'Не удалось загрузить администраторов.');
       schoolAdminsCache = adminsData.admins || [];
+      const canEditAdminAccounts = Boolean(adminsData.can_edit_admin_accounts);
+
       adminsBody.innerHTML = schoolAdminsCache.length ? schoolAdminsCache.map(admin => `
         <tr>
           <td><b>${escapeHtml(admin.last_name)} ${escapeHtml(admin.first_name)}</b></td>
           <td>${escapeHtml(admin.email)}</td>
           <td><span class="status ${Number(admin.is_active) ? 'green' : 'amber'}">${Number(admin.is_active) ? 'Активен' : 'Отключён'}</span></td>
           <td class="row-actions-cell">
-            <button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>
-            <button class="mini-action danger-action" type="button" data-remove-school-admin="${admin.id}">Снять</button>
+            ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>` : ''}
+            <button class="secondary-btn compact-btn" type="button" data-demote-admin="${admin.id}">Вернуть в учителя</button>
+            ${canEditAdminAccounts ? `<button class="mini-action danger-action" type="button" data-remove-school-admin="${admin.id}">Снять</button>` : ''}
           </td>
         </tr>
       `).join('') : '<tr><td colspan="4">Администраторы не назначены.</td></tr>';
@@ -990,11 +997,14 @@ async function loadSchoolManagement() {
       adminsBody.querySelectorAll('[data-remove-school-admin]').forEach(button => {
         button.addEventListener('click', () => removeSchoolAdmin(Number(button.dataset.removeSchoolAdmin)));
       });
+      adminsBody.querySelectorAll('[data-demote-admin]').forEach(button => {
+        button.addEventListener('click', () => demoteAdminToTeacher(Number(button.dataset.demoteAdmin)));
+      });
     }
   } catch (error) {
     subjectList.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
     teacherBody.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
-    if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+    if (adminsBody) {
       adminsBody.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
     }
   }
@@ -1093,6 +1103,46 @@ async function removeSchoolAdmin(adminId) {
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось снять администратора.');
     await loadSchoolManagement();
     await loadSchools();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function promoteTeacherToAdmin(teacherId) {
+  const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
+  if (!teacher) return;
+  if (!confirm(`Сделать ${teacher.last_name} ${teacher.first_name} администратором этой школы?`)) return;
+
+  try {
+    const response = await fetch('./api/school/teachers/promote.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: teacherId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить роль учителя.');
+    await loadSchoolManagement();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function demoteAdminToTeacher(adminId) {
+  const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
+  if (!admin) return;
+  if (!confirm(`Вернуть ${admin.last_name} ${admin.first_name} в роль учителя?`)) return;
+
+  try {
+    const response = await fetch('./api/school/admins/demote.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_id: adminId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить роль администратора.');
+    await loadSchoolManagement();
   } catch (error) {
     alert(error.message);
   }
