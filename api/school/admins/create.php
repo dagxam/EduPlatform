@@ -29,22 +29,26 @@ $stmt = $pdo->prepare('SELECT id, role, is_platform_admin FROM users WHERE email
 $stmt->execute(['email' => $email]);
 $existing = $stmt->fetch();
 
+if ($existing) {
+    if ((int)$existing['is_platform_admin'] === 1) {
+        json_response(['ok' => false, 'error' => 'Главный администратор UVORIA не назначается администратором отдельной школы.'], 409);
+    }
+    if (($existing['role'] ?? '') !== 'admin') {
+        json_response(['ok' => false, 'error' => 'Этот email уже принадлежит аккаунту с другой ролью.'], 409);
+    }
+} else {
+    $length = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);
+    if ($length < 8) {
+        json_response(['ok' => false, 'error' => 'Для нового администратора пароль должен содержать минимум 8 символов.'], 422);
+    }
+}
+
 $pdo->beginTransaction();
 try {
     if ($existing) {
-        if ((int)$existing['is_platform_admin'] === 1) {
-            json_response(['ok' => false, 'error' => 'Главный администратор UVORIA не назначается администратором отдельной школы.'], 409);
-        }
-        if (($existing['role'] ?? '') !== 'admin') {
-            json_response(['ok' => false, 'error' => 'Этот email уже принадлежит аккаунту с другой ролью.'], 409);
-        }
         $adminId = (int)$existing['id'];
         $pdo->prepare('UPDATE users SET is_active = 1 WHERE id = :id')->execute(['id' => $adminId]);
     } else {
-        $length = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);
-        if ($length < 8) {
-            json_response(['ok' => false, 'error' => 'Для нового администратора пароль должен содержать минимум 8 символов.'], 422);
-        }
         $stmt = $pdo->prepare(
             'INSERT INTO users (first_name, last_name, email, password_hash, role, is_platform_admin)
              VALUES (:first_name, :last_name, :email, :password_hash, "admin", 0)'
