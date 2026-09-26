@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+session_name('urovia_session');
+
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
@@ -17,6 +21,49 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: same-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+if ($secure) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+
+function enforce_same_origin(): void
+{
+    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        return;
+    }
+
+    $fetchSite = strtolower((string)($_SERVER['HTTP_SEC_FETCH_SITE'] ?? ''));
+    if ($fetchSite === 'cross-site') {
+        json_response(['ok' => false, 'error' => 'Запрос отклонён системой безопасности.'], 403);
+    }
+
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    $origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+    if ($origin !== '') {
+        $originHost = strtolower((string)(parse_url($origin, PHP_URL_HOST) ?? ''));
+        $originPort = parse_url($origin, PHP_URL_PORT);
+        $requestHost = preg_replace('/:\\d+$/', '', $host) ?? $host;
+        if ($originHost === '' || $originHost !== $requestHost) {
+            json_response(['ok' => false, 'error' => 'Запрос отклонён системой безопасности.'], 403);
+        }
+        return;
+    }
+
+    $referer = (string)($_SERVER['HTTP_REFERER'] ?? '');
+    if ($referer !== '') {
+        $refererHost = strtolower((string)(parse_url($referer, PHP_URL_HOST) ?? ''));
+        $requestHost = preg_replace('/:\\d+$/', '', $host) ?? $host;
+        if ($refererHost === '' || $refererHost !== $requestHost) {
+            json_response(['ok' => false, 'error' => 'Запрос отклонён системой безопасности.'], 403);
+        }
+    }
+}
+
+enforce_same_origin();
 
 function json_response(array $data, int $status = 200): never
 {
@@ -75,7 +122,70 @@ function app_db(): PDO
     }
 
     $pdo->exec($schema);
+    apply_schema_migrations($pdo);
     return $pdo;
+}
+
+function sqlite_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table) ?? '';
+    if ($table === '') {
+        return false;
+    }
+
+    $rows = $pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll();
+    foreach ($rows as $row) {
+        if (($row['name'] ?? null) === $column) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function add_column_if_missing(PDO $pdo, string $table, string $column, string $definition): void
+{
+    if (sqlite_column_exists($pdo, $table, $column)) {
+        return;
+    }
+
+    $safeTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table) ?? '';
+    $safeColumn = preg_replace('/[^a-zA-Z0-9_]/', '', $column) ?? '';
+    if ($safeTable === '' || $safeColumn === '') {
+        throw new RuntimeException('Некорректная миграция базы данных.');
+    }
+
+    $pdo->exec('ALTER TABLE ' . $safeTable . ' ADD COLUMN ' . $safeColumn . ' ' . $definition);
+}
+
+function apply_schema_migrations(PDO $pdo): void
+{
+    add_column_if_missing($pdo, 'classes', 'school_id', 'INTEGER');
+    add_column_if_missing($pdo, 'assignments', 'school_id', 'INTEGER');
+    add_column_if_missing($pdo, 'assignments', 'focus_policy', "TEXT NOT NULL DEFAULT 'allow'");
+    add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'termination_reason', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'answers', 'updated_at', 'TEXT');
+}
+
+function audit_event(string $eventType, ?string $entityType = null, ?int $entityId = null, array $metadata = [], ?int $schoolId = null, ?int $userId = null): void
+{
+    try {
+        $stmt = app_db()->prepare(
+            'INSERT INTO audit_log (school_id, user_id, event_type, entity_type, entity_id, metadata_json)
+             VALUES (:school_id, :user_id, :event_type, :entity_type, :entity_id, :metadata_json)'
+        );
+        $stmt->execute([
+            'school_id' => $schoolId,
+            'user_id' => $userId,
+            'event_type' => $eventType,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'metadata_json' => $metadata ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+        ]);
+    } catch (Throwable) {
+        // Audit logging must not take the main application down.
+    }
 }
 
 function current_user(): ?array
