@@ -180,6 +180,12 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'questions', 'settings_json', 'TEXT');
     add_column_if_missing($pdo, 'assignment_imports', 'parsed_question_count', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'assignment_imports', 'parser_message', 'TEXT');
+    add_column_if_missing($pdo, 'assignments', 'source_school_id', 'INTEGER');
+    add_column_if_missing($pdo, 'assignments', 'source_assignment_id', 'INTEGER');
+    add_column_if_missing($pdo, 'assignments', 'shared_by_user_id', 'INTEGER');
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_shared_origin
+        ON assignments(school_id, source_school_id, source_assignment_id)
+        WHERE source_assignment_id IS NOT NULL");
 }
 
 function audit_event(string $eventType, ?string $entityType = null, ?int $entityId = null, array $metadata = [], ?int $schoolId = null, ?int $userId = null): void
