@@ -72,23 +72,124 @@ function mixHex(colorA, colorB, weight = 0.5) {
   return '#' + channel(0) + channel(2) + channel(4);
 }
 
-function buildSchoolFavicon(color = '#1d68f0') {
-  const base = normalizeHexColor(color);
-  const light = mixHex(base, '#ffffff', 0.16);
-  const dark = mixHex(base, '#000000', 0.10);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="${light}"/>
-        <stop offset="0.52" stop-color="${base}"/>
-        <stop offset="1" stop-color="${dark}"/>
-      </linearGradient>
-    </defs>
-    <rect x="10" y="10" width="108" height="108" rx="30" fill="url(#g)"/>
-    <path d="M25 28c18-13 57-16 78-5" fill="none" stroke="white" stroke-opacity=".16" stroke-width="7" stroke-linecap="round"/>
-    <text x="64" y="84" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" fill="white">U</text>
-  </svg>`;
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+let faviconBaseImagePromise = null;
+
+function faviconBaseImage() {
+  if (!faviconBaseImagePromise) {
+    faviconBaseImagePromise = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = './favicon.png?v=3';
+    });
+  }
+  return faviconBaseImagePromise;
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+
+  if (d !== 0) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    switch (max) {
+      case r: h = ((g - b) / d) % 6; break;
+      case g: h = (b - r) / d + 2; break;
+      default: h = (r - g) / d + 4;
+    }
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return [h, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  return [
+    Math.round((r + m) * 255),
+    Math.round((g + m) * 255),
+    Math.round((b + m) * 255)
+  ];
+}
+
+function themeHsl(color) {
+  const hex = normalizeHexColor(color).slice(1);
+  return rgbToHsl(
+    parseInt(hex.slice(0, 2), 16),
+    parseInt(hex.slice(2, 4), 16),
+    parseInt(hex.slice(4, 6), 16)
+  );
+}
+
+async function applySchoolFavicon(color) {
+  const favicon = document.getElementById('siteFavicon');
+  if (!favicon) return;
+
+  favicon.setAttribute('href', './favicon.png?v=3');
+  favicon.setAttribute('type', 'image/png');
+
+  try {
+    const image = await faviconBaseImage();
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.drawImage(image, 0, 0, 128, 128);
+
+    const frame = ctx.getImageData(0, 0, 128, 128);
+    const pixels = frame.data;
+    const [targetHue, targetSat, targetLight] = themeHsl(color);
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const alpha = pixels[i + 3];
+      if (alpha < 8) continue;
+
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+
+      // Белая U остаётся белой. Перекрашивается только цветная подложка.
+      if (r > 220 && g > 220 && b > 220) {
+        pixels[i] = 255;
+        pixels[i + 1] = 255;
+        pixels[i + 2] = 255;
+        continue;
+      }
+
+      const [, sourceSat, sourceLight] = rgbToHsl(r, g, b);
+      const light = Math.max(0.12, Math.min(0.88, targetLight + (sourceLight - 0.52) * 1.18));
+      const sat = Math.max(0.25, Math.min(1, targetSat * 0.92 + sourceSat * 0.08));
+      const [nr, ng, nb] = hslToRgb(targetHue, sat, light);
+
+      pixels[i] = nr;
+      pixels[i + 1] = ng;
+      pixels[i + 2] = nb;
+    }
+
+    ctx.putImageData(frame, 0, 0);
+    favicon.setAttribute('href', canvas.toDataURL('image/png'));
+  } catch {
+    // При ошибке остаётся исходный favicon.png.
+  }
 }
 
 function applySchoolBranding(branding = null) {
@@ -102,11 +203,7 @@ function applySchoolBranding(branding = null) {
   root.style.setProperty('--brand-soft-2', mixHex(color, '#ffffff', 0.82));
   root.style.setProperty('--brand-shadow', mixHex(color, '#ffffff', 0.55));
 
-  const favicon = document.getElementById('siteFavicon');
-  if (favicon) {
-    favicon.setAttribute('href', buildSchoolFavicon(color));
-    favicon.setAttribute('type', 'image/svg+xml');
-  }
+  applySchoolFavicon(color);
   const themeMeta = document.getElementById('themeColorMeta');
   if (themeMeta) themeMeta.setAttribute('content', color);
 
