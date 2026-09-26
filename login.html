@@ -43,6 +43,10 @@
           <span class="eyebrow">С возвращением</span>
           <h2>Вход в EduPlatform</h2>
           <p class="subtitle">Введите данные своей учётной записи.</p>
+          <div class="login-mode">
+            <button type="button" class="mode-btn active" id="staffModeBtn">Учитель / Админ</button>
+            <button type="button" class="mode-btn" id="studentModeBtn">Ученик</button>
+          </div>
           <form id="loginForm">
             <label>Email<input name="email" type="email" autocomplete="username" required></label>
             <label>Пароль
@@ -53,6 +57,44 @@
             </label>
             <div class="form-error hidden" id="loginError"></div>
             <button class="primary-btn" type="submit">Войти</button>
+          </form>
+        </div>
+
+        <div id="studentCodeState" class="state-block hidden">
+          <span class="eyebrow">Вход ученика</span>
+          <h2>Введите код класса</h2>
+          <p class="subtitle">Код один для всего класса. Его сообщает учитель.</p>
+          <form id="studentCodeForm">
+            <label>Код класса
+              <input name="code" id="studentClassCode" inputmode="text" autocomplete="off" maxlength="8" placeholder="Например: 7A4821" required>
+            </label>
+            <div class="form-error hidden" id="studentCodeError"></div>
+            <button class="primary-btn" type="submit">Продолжить</button>
+            <button class="secondary-btn" type="button" id="backToStaffLogin">Вход учителя / администратора</button>
+          </form>
+        </div>
+
+        <div id="studentSelectState" class="state-block hidden">
+          <span class="eyebrow">Вход ученика</span>
+          <h2 id="studentClassTitle">Выберите себя</h2>
+          <p class="subtitle">Найдите своё имя в списке класса.</p>
+          <input id="studentNameSearch" class="student-search" type="search" placeholder="Начните вводить фамилию">
+          <div id="studentList" class="student-picker"></div>
+          <div class="form-error hidden" id="studentSelectError"></div>
+          <button class="secondary-btn full-width" type="button" id="backToCode">← Другой код класса</button>
+        </div>
+
+        <div id="studentPinState" class="state-block hidden">
+          <span class="eyebrow">Вход ученика</span>
+          <h2 id="selectedStudentName">Ученик</h2>
+          <p class="subtitle" id="studentPinHint">Введите свой PIN.</p>
+          <form id="studentPinForm">
+            <label>PIN
+              <input name="pin" id="studentPin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="off" placeholder="4–6 цифр" required>
+            </label>
+            <div class="form-error hidden" id="studentPinError"></div>
+            <button class="primary-btn" type="submit">Войти</button>
+            <button class="secondary-btn" type="button" id="backToStudentList">← Выбрать другого ученика</button>
           </form>
         </div>
 
