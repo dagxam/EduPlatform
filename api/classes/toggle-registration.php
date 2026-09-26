@@ -23,7 +23,29 @@ if (!$stmt->fetchColumn()) {
     json_response(['ok' => false, 'error' => 'Класс не найден.'], 404);
 }
 
-$stmt = $pdo->prepare('UPDATE class_access SET registration_open = :open WHERE class_id = :class_id');
-$stmt->execute(['open' => $open, 'class_id' => $classId]);
+if ($open) {
+    $stmt = $pdo->prepare(
+        "UPDATE class_access
+         SET registration_open = 1,
+             registration_expires_at = datetime('now', '+20 minutes')
+         WHERE class_id = :class_id"
+    );
+    $stmt->execute(['class_id' => $classId]);
+    $expiresAt = $pdo->query("SELECT datetime('now', '+20 minutes')")->fetchColumn();
+    audit_event('class_registration_opened', 'class', $classId, ['minutes' => 20], null, (int)$user['id']);
+} else {
+    $stmt = $pdo->prepare(
+        'UPDATE class_access
+         SET registration_open = 0, registration_expires_at = NULL
+         WHERE class_id = :class_id'
+    );
+    $stmt->execute(['class_id' => $classId]);
+    $expiresAt = null;
+    audit_event('class_registration_closed', 'class', $classId, [], null, (int)$user['id']);
+}
 
-json_response(['ok' => true, 'registration_open' => $open]);
+json_response([
+    'ok' => true,
+    'registration_open' => $open,
+    'registration_expires_at' => $expiresAt,
+]);
