@@ -56,11 +56,15 @@
           <h1 id="pageTitle">Добрый день!</h1>
         </div>
         <div class="top-actions">
-          <div class="school-switcher staff-only hidden">
+          <div class="school-switcher platform-admin-only hidden">
             <select id="schoolSelector" aria-label="Выбрать школу">
-              <option value="">Выберите школу</option>
+              <option value="0">Выберите школу</option>
             </select>
-            <button class="secondary-btn compact-btn platform-admin-only hidden" id="createSchoolBtn" type="button">＋ Школа</button>
+            <button class="secondary-btn compact-btn" id="createSchoolBtn" type="button">＋ Школа</button>
+          </div>
+          <div class="fixed-school-badge school-staff-only hidden" id="fixedSchoolBadge">
+            <span>Школа</span>
+            <strong id="fixedSchoolName">—</strong>
           </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
           <button class="primary-btn teacher-only hidden" id="createTaskBtn">＋ Создать задание</button>
