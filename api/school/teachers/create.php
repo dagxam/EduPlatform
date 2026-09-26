@@ -12,7 +12,6 @@ $data = read_json_body();
 $firstName = trim((string)($data['first_name'] ?? ''));
 $lastName = trim((string)($data['last_name'] ?? ''));
 $email = normalize_email((string)($data['email'] ?? ''));
-$password = (string)($data['password'] ?? '');
 
 if ($firstName === '' || $lastName === '') {
     json_response(['ok' => false, 'error' => 'Укажите имя и фамилию учителя.'], 422);
@@ -20,23 +19,25 @@ if ($firstName === '' || $lastName === '') {
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     json_response(['ok' => false, 'error' => 'Укажите корректный email.'], 422);
 }
-$length = function_exists('mb_strlen') ? mb_strlen($password) : strlen($password);
-if ($length < 8) {
-    json_response(['ok' => false, 'error' => 'Пароль должен содержать минимум 8 символов.'], 422);
-}
 
 $pdo = app_db();
+$loginName = generate_staff_login($pdo);
+$temporaryPassword = generate_temporary_password();
+
 $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO users (first_name, last_name, email, password_hash, role, is_platform_admin)
-         VALUES (:first_name, :last_name, :email, :password_hash, "teacher", 0)'
+        'INSERT INTO users
+         (first_name, last_name, email, login_name, password_hash, role, is_platform_admin, must_change_password)
+         VALUES
+         (:first_name, :last_name, :email, :login_name, :password_hash, "teacher", 0, 1)'
     );
     $stmt->execute([
         'first_name' => $firstName,
         'last_name' => $lastName,
         'email' => $email,
-        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+        'login_name' => $loginName,
+        'password_hash' => password_hash($temporaryPassword, PASSWORD_DEFAULT),
     ]);
     $teacherId = (int)$pdo->lastInsertId();
 
@@ -54,7 +55,10 @@ try {
     throw $e;
 }
 
-audit_event('teacher_created', 'user', $teacherId, [], $schoolId, (int)$user['id']);
+audit_event('teacher_created', 'user', $teacherId, [
+    'credentials_sent' => false,
+], $schoolId, (int)$user['id']);
+
 json_response([
     'ok' => true,
     'teacher' => [
@@ -62,5 +66,7 @@ json_response([
         'first_name' => $firstName,
         'last_name' => $lastName,
         'email' => $email,
+        'login_name' => $loginName,
+        'credentials_sent_at' => null,
     ],
 ], 201);
