@@ -225,6 +225,85 @@ function require_user(?array $roles = null): array
     return $user;
 }
 
+function throttle_key(string $scope, string $identifier = ''): string
+{
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $agent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    return hash('sha256', $scope . '|' . $identifier . '|' . $ip . '|' . $agent);
+}
+
+function throttle_check(string $scope, string $identifier = '', int $maxFailures = 6, int $windowSeconds = 900): void
+{
+    $pdo = app_db();
+    $key = throttle_key($scope, $identifier);
+    $now = time();
+
+    $stmt = $pdo->prepare('SELECT failures, window_started, locked_until FROM auth_throttle WHERE key_hash = :key');
+    $stmt->execute(['key' => $key]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return;
+    }
+
+    $lockedUntil = (int)($row['locked_until'] ?? 0);
+    if ($lockedUntil > $now) {
+        json_response([
+            'ok' => false,
+            'error' => 'Слишком много попыток входа. Попробуйте позже.',
+            'code' => 'RATE_LIMITED',
+            'retry_after' => $lockedUntil - $now,
+        ], 429);
+    }
+
+    if (($now - (int)$row['window_started']) > $windowSeconds) {
+        $pdo->prepare('DELETE FROM auth_throttle WHERE key_hash = :key')->execute(['key' => $key]);
+    }
+}
+
+function throttle_failure(string $scope, string $identifier = '', int $maxFailures = 6, int $windowSeconds = 900, int $lockSeconds = 900): void
+{
+    $pdo = app_db();
+    $key = throttle_key($scope, $identifier);
+    $now = time();
+
+    $stmt = $pdo->prepare('SELECT failures, window_started FROM auth_throttle WHERE key_hash = :key');
+    $stmt->execute(['key' => $key]);
+    $row = $stmt->fetch();
+
+    if (!$row || ($now - (int)$row['window_started']) > $windowSeconds) {
+        $failures = 1;
+        $windowStarted = $now;
+    } else {
+        $failures = (int)$row['failures'] + 1;
+        $windowStarted = (int)$row['window_started'];
+    }
+
+    $lockedUntil = $failures >= $maxFailures ? $now + $lockSeconds : null;
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO auth_throttle (key_hash, failures, window_started, locked_until, updated_at)
+         VALUES (:key, :failures, :window_started, :locked_until, :updated_at)
+         ON CONFLICT(key_hash) DO UPDATE SET
+           failures = excluded.failures,
+           window_started = excluded.window_started,
+           locked_until = excluded.locked_until,
+           updated_at = excluded.updated_at'
+    );
+    $stmt->execute([
+        'key' => $key,
+        'failures' => $failures,
+        'window_started' => $windowStarted,
+        'locked_until' => $lockedUntil,
+        'updated_at' => $now,
+    ]);
+}
+
+function throttle_clear(string $scope, string $identifier = ''): void
+{
+    app_db()->prepare('DELETE FROM auth_throttle WHERE key_hash = :key')
+        ->execute(['key' => throttle_key($scope, $identifier)]);
+}
+
 function normalize_email(string $email): string
 {
     $email = trim($email);
