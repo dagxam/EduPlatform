@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['admin', 'teacher']);
+$user = require_user(['teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -28,42 +28,31 @@ if (!in_array($type, ['quiz', 'file', 'independent'], true)) {
 }
 
 $pdo = app_db();
-$schoolId = current_school_id();
-if ($schoolId !== null && !can_access_school($user, $schoolId)) {
-    json_response(['ok' => false, 'error' => 'Нет доступа к выбранной школе.'], 403);
-}
+$schoolId = require_active_school($user, false);
 
-if ($schoolId !== null) {
-    $stmt = $pdo->prepare(
-        'SELECT 1 FROM school_subjects
-         WHERE school_id = :school_id AND subject_id = :subject_id AND is_active = 1'
-    );
-    $stmt->execute(['school_id' => $schoolId, 'subject_id' => $subjectId]);
-} else {
-    $stmt = $pdo->prepare('SELECT 1 FROM subjects WHERE id = :subject_id');
-    $stmt->execute(['subject_id' => $subjectId]);
-}
+$stmt = $pdo->prepare(
+    'SELECT 1
+     FROM teacher_classes tc
+     JOIN school_subjects ss
+       ON ss.school_id = tc.school_id AND ss.subject_id = tc.subject_id AND ss.is_active = 1
+     JOIN classes c ON c.id = tc.class_id AND c.school_id = tc.school_id
+     WHERE tc.school_id = :school_id
+       AND tc.teacher_id = :teacher_id
+       AND tc.subject_id = :subject_id
+       AND tc.class_id = :class_id
+     LIMIT 1'
+);
+$stmt->execute([
+    'school_id' => $schoolId,
+    'teacher_id' => (int)$user['id'],
+    'subject_id' => $subjectId,
+    'class_id' => $classId,
+]);
 if (!$stmt->fetchColumn()) {
-    json_response(['ok' => false, 'error' => 'Предмет недоступен.'], 422);
-}
-
-$sql = 'SELECT id, school_id FROM classes WHERE id = :id';
-$params = ['id' => $classId];
-if ($schoolId !== null) {
-    $sql .= ' AND school_id = :school_id';
-    $params['school_id'] = $schoolId;
-} else {
-    $sql .= ' AND school_id IS NULL';
-}
-if ($user['role'] === 'teacher') {
-    $sql .= ' AND teacher_id = :teacher_id';
-    $params['teacher_id'] = (int)$user['id'];
-}
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$class = $stmt->fetch();
-if (!$class) {
-    json_response(['ok' => false, 'error' => 'Класс недоступен.'], 403);
+    json_response([
+        'ok' => false,
+        'error' => 'Этот предмет и класс не назначены вашему аккаунту администратором школы.',
+    ], 403);
 }
 
 $pdo->beginTransaction();
@@ -76,7 +65,7 @@ try {
     );
     $stmt->execute([
         'teacher_id' => (int)$user['id'],
-        'school_id' => $class['school_id'] !== null ? (int)$class['school_id'] : null,
+        'school_id' => $schoolId,
         'subject_id' => $subjectId,
         'title' => $title,
         'type' => $type,
@@ -86,7 +75,10 @@ try {
     ]);
     $assignmentId = (int)$pdo->lastInsertId();
 
-    $stmt = $pdo->prepare('INSERT INTO assignment_classes (assignment_id, class_id) VALUES (:assignment_id, :class_id)');
+    $stmt = $pdo->prepare(
+        'INSERT INTO assignment_classes (assignment_id, class_id)
+         VALUES (:assignment_id, :class_id)'
+    );
     $stmt->execute(['assignment_id' => $assignmentId, 'class_id' => $classId]);
     $pdo->commit();
 } catch (Throwable $e) {
@@ -98,7 +90,7 @@ audit_event('assignment_created', 'assignment', $assignmentId, [
     'class_id' => $classId,
     'subject_id' => $subjectId,
     'focus_policy' => $focusPolicy,
-], $class['school_id'] !== null ? (int)$class['school_id'] : null, (int)$user['id']);
+], $schoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,
