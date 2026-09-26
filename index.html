@@ -246,7 +246,7 @@
 
       <section class="view" id="classes">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Ученики</span><h2>Классы</h2><p>Создавайте классы, выдавайте общий код и загружайте список учеников из Word.</p></div>
+          <div><span class="section-kicker">Ученики</span><h2>Классы</h2><p>Администратор создаёт классы, а учитель ведёт и загружает список учеников в назначенных ему классах.</p></div>
           <button class="primary-btn admin-only hidden" id="createClassBtn">＋ Добавить класс</button>
         </div>
         <div class="large-class-grid" id="classesGrid">
@@ -481,7 +481,7 @@
         <div><span>Код класса</span><strong id="classJoinCode">—</strong></div>
         <button class="secondary-btn" id="copyClassCodeBtn" type="button">Скопировать код</button>
       </div>
-      <div class="registration-switch">
+      <div class="registration-switch admin-only hidden">
         <div><b>Первичная регистрация</b><small>Администратор школы открывает её на 20 минут. За это время ученики выбирают себя и создают PIN.</small></div>
         <button class="secondary-btn" id="toggleRegistrationBtn" type="button">—</button>
       </div>
