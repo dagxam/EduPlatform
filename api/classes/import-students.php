@@ -16,6 +16,9 @@ $file = $_FILES['file'];
 if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     json_response(['ok' => false, 'error' => 'Не удалось загрузить файл.'], 422);
 }
+if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
+    json_response(['ok' => false, 'error' => 'DOCX слишком большой. Максимальный размер — 5 МБ.'], 413);
+}
 
 $extension = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION));
 if ($extension !== 'docx') {
@@ -57,6 +60,11 @@ if (!$class) {
 $zip = new ZipArchive();
 if ($zip->open($file['tmp_name']) !== true) {
     json_response(['ok' => false, 'error' => 'Не удалось открыть DOCX-файл.'], 422);
+}
+$entry = $zip->statName('word/document.xml');
+if (!$entry || (int)($entry['size'] ?? 0) > 2 * 1024 * 1024) {
+    $zip->close();
+    json_response(['ok' => false, 'error' => 'DOCX имеет слишком большой или некорректный текстовый блок.'], 422);
 }
 $xml = $zip->getFromName('word/document.xml');
 $zip->close();
