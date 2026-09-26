@@ -15,6 +15,7 @@ const shareSubjectModal = document.getElementById('shareSubjectModal');
 const schoolModal = document.getElementById('schoolModal');
 const subjectModal = document.getElementById('subjectModal');
 const teacherModal = document.getElementById('teacherModal');
+const temporaryPasswordModal = document.getElementById('temporaryPasswordModal');
 const schoolAdminModal = document.getElementById('schoolAdminModal');
 const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal');
 const classModal = document.getElementById('classModal');
@@ -284,6 +285,10 @@ function applyUser(user) {
   if (admin) eyebrow.textContent = platformAdmin ? 'Администратор UVORIA' : 'Администратор школы';
 
   showView(student ? 'student-dashboard' : 'teacher-dashboard');
+
+  if (!student && Number(user.must_change_password) === 1 && temporaryPasswordModal) {
+    setTimeout(() => openModal(temporaryPasswordModal), 0);
+  }
 }
 
 async function logout() {
@@ -839,7 +844,7 @@ document.querySelectorAll('[data-close-modal]').forEach(btn => {
 });
 document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
   backdrop.addEventListener('click', e => {
-    if (e.target === backdrop) closeModal(backdrop);
+    if (e.target === backdrop && backdrop.dataset.locked !== '1') closeModal(backdrop);
   });
 });
 
@@ -1673,16 +1678,23 @@ async function loadSchoolManagement() {
         : 'Не назначены';
       const alsoAdmin = ['school_admin', 'owner'].includes(String(teacher.school_role || ''));
       const canManageAdmins = Number(currentUser?.is_platform_admin) === 1;
+      const accessSent = Boolean(teacher.credentials_sent_at);
+      const loginText = teacher.login_name ? `Логин: ${escapeHtml(teacher.login_name)}` : 'Логин будет создан при отправке';
       return `
         <tr>
           <td>
             <b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b>
             ${alsoAdmin ? '<small class="role-note">Администратор + учитель</small>' : ''}
           </td>
-          <td>${escapeHtml(teacher.email)}</td>
+          <td>
+            <span class="teacher-email">${escapeHtml(teacher.email)}</span>
+            <small class="teacher-login">${loginText}</small>
+            <small class="access-state ${accessSent ? 'sent' : 'pending'}">${accessSent ? 'Доступ отправлен' : 'Доступ ещё не отправлен'}</small>
+          </td>
           <td><small>${escapeHtml(assignmentText)}</small></td>
           <td class="row-actions-cell">
             <button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button>
+            <button class="primary-btn compact-btn" type="button" data-send-teacher-access="${teacher.id}">${accessSent ? 'Отправить новый доступ' : 'Отправить доступ'}</button>
             ${canManageAdmins && !alsoAdmin ? `<button class="secondary-btn compact-btn" type="button" data-promote-teacher="${teacher.id}">＋ Права администратора</button>` : ''}
           </td>
         </tr>`;
@@ -1690,6 +1702,9 @@ async function loadSchoolManagement() {
 
     teacherBody.querySelectorAll('[data-teacher-assign]').forEach(button => {
       button.addEventListener('click', () => openTeacherAssignments(Number(button.dataset.teacherAssign)));
+    });
+    teacherBody.querySelectorAll('[data-send-teacher-access]').forEach(button => {
+      button.addEventListener('click', () => sendTeacherAccess(Number(button.dataset.sendTeacherAccess), button));
     });
     teacherBody.querySelectorAll('[data-promote-teacher]').forEach(button => {
       button.addEventListener('click', () => promoteTeacherToAdmin(Number(button.dataset.promoteTeacher)));
@@ -2054,6 +2069,46 @@ document.getElementById('teacherForm')?.addEventListener('submit', async event =
   }
 });
 
+async function sendTeacherAccess(teacherId, button) {
+  const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
+  if (!teacher) return;
+
+  const repeated = Boolean(teacher.credentials_sent_at);
+  const message = repeated
+    ? `Отправить новые данные доступа на ${teacher.email}? Старые логин и пароль перестанут работать.`
+    : `Отправить логин и временный пароль на ${teacher.email}?`;
+  if (!confirm(message)) return;
+
+  const originalText = button?.textContent || 'Отправить доступ';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Отправляем...';
+  }
+
+  try {
+    const response = await fetch('./api/school/teachers/send-access.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: teacherId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось отправить данные доступа.');
+    }
+
+    alert(`Данные доступа отправлены на ${data.email}. Учитель должен войти и сменить временный пароль.`);
+    await loadSchoolManagement();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    if (button && document.body.contains(button)) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
 async function openTeacherAssignments(teacherId) {
   const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
   if (!teacher) return;
@@ -2116,6 +2171,59 @@ document.getElementById('saveTeacherAssignmentsBtn')?.addEventListener('click', 
   } finally {
     button.disabled = false;
     button.textContent = 'Сохранить назначения';
+  }
+});
+
+document.querySelectorAll('[data-app-password-target]').forEach(button => {
+  button.addEventListener('click', () => {
+    const input = document.getElementById(button.dataset.appPasswordTarget);
+    if (!input) return;
+    const visible = input.type === 'text';
+    input.type = visible ? 'password' : 'text';
+    button.textContent = visible ? 'Показать' : 'Скрыть';
+  });
+});
+
+document.getElementById('temporaryPasswordForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('temporaryPasswordError');
+  const button = document.getElementById('temporaryPasswordSaveBtn');
+  const payload = Object.fromEntries(new FormData(form).entries());
+
+  error?.classList.add('hidden');
+  if (payload.new_password !== payload.confirm_password) {
+    if (error) {
+      error.textContent = 'Пароли не совпадают.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/auth/change-password.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить пароль.');
+
+    if (currentUser) currentUser.must_change_password = 0;
+    form.reset();
+    closeModal(temporaryPasswordModal);
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить новый пароль';
   }
 });
 
