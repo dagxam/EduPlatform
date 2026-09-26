@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    display_name TEXT,
     teacher_id INTEGER,
     academic_year TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
