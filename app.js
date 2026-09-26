@@ -1477,6 +1477,7 @@ document.getElementById('schoolThemeColorPicker')?.addEventListener('input', eve
   const color = normalizeHexColor(event.target.value);
   const text = document.getElementById('schoolThemeColor');
   if (text) text.value = color;
+  applySchoolBranding({ theme_color: color });
 });
 
 document.getElementById('schoolThemeColor')?.addEventListener('input', event => {
@@ -1485,6 +1486,7 @@ document.getElementById('schoolThemeColor')?.addEventListener('input', event => 
     const color = value.toLowerCase();
     const picker = document.getElementById('schoolThemeColorPicker');
     if (picker) picker.value = color;
+    applySchoolBranding({ theme_color: color });
     document.querySelectorAll('[data-theme-color]').forEach(button => {
       button.classList.toggle('active', normalizeHexColor(button.dataset.themeColor) === color);
     });
@@ -1498,6 +1500,7 @@ document.querySelectorAll('[data-theme-color]').forEach(button => {
     const text = document.getElementById('schoolThemeColor');
     if (picker) picker.value = color;
     if (text) text.value = color;
+    applySchoolBranding({ theme_color: color });
     document.querySelectorAll('[data-theme-color]').forEach(item => item.classList.toggle('active', item === button));
   });
 });
