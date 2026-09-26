@@ -11,6 +11,9 @@ $data = read_json_body();
 $schoolId = (int)($data['school_id'] ?? 0);
 
 if ($schoolId === 0) {
+    if (!is_platform_admin($user)) {
+        json_response(['ok' => false, 'error' => 'Для этого аккаунта необходимо выбрать школу.'], 403);
+    }
     unset($_SESSION['active_school_id']);
     json_response(['ok' => true, 'active_school_id' => null]);
 }
