@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['admin', 'teacher']);
+$user = require_user(['admin']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -34,24 +34,12 @@ if (!class_exists('ZipArchive')) {
 }
 
 $pdo = app_db();
-$schoolId = current_school_id();
-$sql = 'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id FROM classes c WHERE c.id = :id';
-$params = ['id' => $classId];
-if ($schoolId !== null) {
-    if (!can_access_school($user, $schoolId)) {
-        json_response(['ok' => false, 'error' => 'Нет доступа к выбранной школе.'], 403);
-    }
-    $sql .= ' AND c.school_id = :school_id';
-    $params['school_id'] = $schoolId;
-} else {
-    $sql .= ' AND c.school_id IS NULL';
-}
-if ($user['role'] === 'teacher') {
-    $sql .= ' AND c.teacher_id = :teacher_id';
-    $params['teacher_id'] = (int)$user['id'];
-}
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$schoolId = require_active_school($user, true);
+$stmt = $pdo->prepare(
+    'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.school_id
+     FROM classes c WHERE c.id = :id AND c.school_id = :school_id'
+);
+$stmt->execute(['id' => $classId, 'school_id' => $schoolId]);
 $class = $stmt->fetch();
 if (!$class) {
     json_response(['ok' => false, 'error' => 'Класс не найден.'], 404);
