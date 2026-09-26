@@ -12,7 +12,14 @@ if ($user['role'] === 'teacher') {
 
 $stmt = app_db()->prepare(
     "SELECT c.id, c.name, c.academic_year, c.teacher_id,
-            ca.join_code, COALESCE(ca.registration_open, 0) AS registration_open,
+            ca.join_code,
+            CASE
+              WHEN COALESCE(ca.registration_open, 0) = 1
+               AND ca.registration_expires_at IS NOT NULL
+               AND ca.registration_expires_at > CURRENT_TIMESTAMP
+              THEN 1 ELSE 0
+            END AS registration_open,
+            ca.registration_expires_at,
             COUNT(cs.student_id) AS students_count
      FROM classes c
      LEFT JOIN class_access ca ON ca.class_id = c.id
