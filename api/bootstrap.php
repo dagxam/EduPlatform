@@ -160,6 +160,8 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
 function apply_schema_migrations(PDO $pdo): void
 {
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'school_users', 'can_teach', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("UPDATE school_users SET can_teach = 1 WHERE role = 'teacher' AND can_teach = 0");
     if ((int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_platform_admin = 1")->fetchColumn() === 0) {
         $pdo->exec("UPDATE users SET is_platform_admin = 1 WHERE id = (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)");
     }
@@ -238,6 +240,32 @@ function school_membership_role(int $userId, int $schoolId): ?string
     $stmt->execute(['school_id' => $schoolId, 'user_id' => $userId]);
     $role = $stmt->fetchColumn();
     return $role !== false ? (string)$role : null;
+}
+
+function school_can_teach(int $userId, int $schoolId): bool
+{
+    $stmt = app_db()->prepare(
+        'SELECT can_teach
+         FROM school_users
+         WHERE school_id = :school_id
+           AND user_id = :user_id
+           AND is_active = 1
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'user_id' => $userId,
+    ]);
+    return (int)($stmt->fetchColumn() ?: 0) === 1;
+}
+
+function can_teach_school(array $user, int $schoolId): bool
+{
+    if ($schoolId < 1 || ($user['role'] ?? '') === 'student') {
+        return false;
+    }
+
+    return school_can_teach((int)$user['id'], $schoolId);
 }
 
 function can_access_school(array $user, int $schoolId): bool
