@@ -49,12 +49,23 @@ if ($student['activated_at'] === null) {
         'student_id' => $studentId,
     ]);
 } elseif (!$student['pin_hash'] || !password_verify($pin, $student['pin_hash'])) {
+    throttle_failure('student_login', $throttleId, 5, 900, 900);
+    audit_event('login_failed', 'user', $studentId, ['kind' => 'student_pin']);
     usleep(250000);
     json_response(['ok' => false, 'error' => 'Неверный PIN.'], 401);
 }
 
+throttle_clear('student_login', $throttleId);
 session_regenerate_id(true);
 $_SESSION['user_id'] = $studentId;
+audit_event(
+    $student['activated_at'] === null ? 'student_activated' : 'login_succeeded',
+    'user',
+    $studentId,
+    ['kind' => 'student_pin', 'class_id' => (int)$student['class_id']],
+    null,
+    $studentId
+);
 
 json_response([
     'ok' => true,
