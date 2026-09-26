@@ -63,8 +63,8 @@ try {
     $schoolAdminId = (int)$pdo->lastInsertId();
 
     $stmt = $pdo->prepare(
-        'INSERT INTO school_users (school_id, user_id, role)
-         VALUES (:school_id, :user_id, "school_admin")'
+        'INSERT INTO school_users (school_id, user_id, role, can_teach)
+         VALUES (:school_id, :user_id, "school_admin", 0)'
     );
     $stmt->execute([
         'school_id' => $schoolId,
