@@ -97,6 +97,11 @@ function applySchoolBranding(branding = null) {
   if (picker) picker.value = color;
   if (text) text.value = color;
 
+  const fileInput = document.getElementById('schoolFaviconInput');
+  const remove = document.getElementById('removeSchoolFavicon');
+  if (fileInput) fileInput.value = '';
+  if (remove) remove.checked = false;
+
   renderSchoolFaviconPreview(faviconData, color);
 }
 
