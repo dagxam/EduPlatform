@@ -30,8 +30,8 @@ if ($passwordLength < 8) {
 }
 
 $stmt = $pdo->prepare(
-    'INSERT INTO users (first_name, last_name, email, password_hash, role)
-     VALUES (:first_name, :last_name, :email, :password_hash, :role)'
+    'INSERT INTO users (first_name, last_name, email, password_hash, role, is_platform_admin)
+     VALUES (:first_name, :last_name, :email, :password_hash, :role, 1)'
 );
 $stmt->execute([
     'first_name' => $firstName,
