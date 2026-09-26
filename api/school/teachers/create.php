@@ -41,8 +41,8 @@ try {
     $teacherId = (int)$pdo->lastInsertId();
 
     $stmt = $pdo->prepare(
-        'INSERT INTO school_users (school_id, user_id, role)
-         VALUES (:school_id, :user_id, "teacher")'
+        'INSERT INTO school_users (school_id, user_id, role, can_teach)
+         VALUES (:school_id, :user_id, "teacher", 1)'
     );
     $stmt->execute(['school_id' => $schoolId, 'user_id' => $teacherId]);
     $pdo->commit();
