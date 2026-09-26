@@ -150,6 +150,7 @@ async function selectSchool(schoolId) {
     classesCache = [];
     subjectsCache = [];
     assignmentsCache = [];
+    teacherOptionsCache = [];
     currentClass = null;
     closeModal(classDetailsModal);
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
@@ -487,6 +488,7 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
 
 let subjectsCache = [];
 let assignmentsCache = [];
+let teacherOptionsCache = [];
 
 async function loadSubjects() {
   const select = document.getElementById('taskSubject');
@@ -504,18 +506,50 @@ async function loadSubjects() {
   }
 }
 
-function fillTaskClasses() {
+function fillTaskClasses(subjectId = 0) {
   const select = document.getElementById('taskClass');
   if (!select) return;
-  select.innerHTML = '<option value="">Выберите класс</option>' + classesCache.map(item =>
+
+  const source = Number(subjectId) > 0
+    ? teacherOptionsCache.filter(item => Number(item.subject_id) === Number(subjectId))
+    : [];
+
+  const unique = [];
+  const seen = new Set();
+  source.forEach(item => {
+    if (seen.has(Number(item.class_id))) return;
+    seen.add(Number(item.class_id));
+    unique.push({ id: Number(item.class_id), name: item.class_name });
+  });
+
+  select.innerHTML = '<option value="">Выберите класс</option>' + unique.map(item =>
     `<option value="${item.id}">${escapeHtml(item.name)}</option>`
   ).join('');
 }
 
+async function loadTeacherOptions() {
+  const response = await fetch('./api/teacher/options.php', { credentials: 'same-origin', cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить назначения учителя.');
+  teacherOptionsCache = data.options || [];
+
+  const subjectSelect = document.getElementById('taskSubject');
+  const uniqueSubjects = [];
+  const seen = new Set();
+  teacherOptionsCache.forEach(item => {
+    const id = Number(item.subject_id);
+    if (seen.has(id)) return;
+    seen.add(id);
+    uniqueSubjects.push({ id, name: item.subject_name });
+  });
+  subjectSelect.innerHTML = '<option value="">Выберите предмет</option>' + uniqueSubjects.map(item =>
+    `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+  ).join('');
+  fillTaskClasses(0);
+}
+
 async function prepareTaskForm() {
-  if (!classesCache.length) await loadClasses();
-  if (!subjectsCache.length) await loadSubjects();
-  fillTaskClasses();
+  await loadTeacherOptions();
 }
 
 ['createTaskBtn', 'createTaskBtn2', 'heroCreateBtn'].forEach(id => {
@@ -527,6 +561,10 @@ async function prepareTaskForm() {
     await prepareTaskForm();
     openModal(taskModal);
   });
+});
+
+document.getElementById('taskSubject')?.addEventListener('change', event => {
+  fillTaskClasses(Number(event.target.value));
 });
 
 document.getElementById('focusPolicy')?.addEventListener('change', event => {
