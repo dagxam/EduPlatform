@@ -162,7 +162,6 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'school_users', 'can_teach', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'schools', 'theme_color', "TEXT NOT NULL DEFAULT '#1d68f0'");
-    add_column_if_missing($pdo, 'schools', 'favicon_data', 'TEXT');
     $pdo->exec("UPDATE school_users SET can_teach = 1 WHERE role = 'teacher' AND can_teach = 0");
     if ((int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_platform_admin = 1")->fetchColumn() === 0) {
         $pdo->exec("UPDATE users SET is_platform_admin = 1 WHERE id = (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)");
@@ -224,14 +223,11 @@ function current_user(): ?array
 function school_branding(int $schoolId): array
 {
     if ($schoolId < 1) {
-        return [
-            'theme_color' => '#1d68f0',
-            'favicon_data' => null,
-        ];
+        return ['theme_color' => '#1d68f0'];
     }
 
     $stmt = app_db()->prepare(
-        'SELECT theme_color, favicon_data
+        'SELECT theme_color
          FROM schools
          WHERE id = :id AND status = "active"
          LIMIT 1'
@@ -240,10 +236,7 @@ function school_branding(int $schoolId): array
     $row = $stmt->fetch();
 
     if (!$row) {
-        return [
-            'theme_color' => '#1d68f0',
-            'favicon_data' => null,
-        ];
+        return ['theme_color' => '#1d68f0'];
     }
 
     $color = strtoupper(trim((string)($row['theme_color'] ?? '')));
@@ -251,10 +244,7 @@ function school_branding(int $schoolId): array
         $color = '#1D68F0';
     }
 
-    return [
-        'theme_color' => strtolower($color),
-        'favicon_data' => !empty($row['favicon_data']) ? (string)$row['favicon_data'] : null,
-    ];
+    return ['theme_color' => strtolower($color)];
 }
 
 function current_school_id(): ?int
