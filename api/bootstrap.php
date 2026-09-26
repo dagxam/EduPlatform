@@ -159,6 +159,7 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
 
 function apply_schema_migrations(PDO $pdo): void
 {
+    add_column_if_missing($pdo, 'class_access', 'registration_expires_at', 'TEXT');
     add_column_if_missing($pdo, 'classes', 'school_id', 'INTEGER');
     add_column_if_missing($pdo, 'assignments', 'school_id', 'INTEGER');
     add_column_if_missing($pdo, 'assignments', 'focus_policy', "TEXT NOT NULL DEFAULT 'allow'");
