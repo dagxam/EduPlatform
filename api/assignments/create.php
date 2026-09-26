@@ -29,33 +29,56 @@ if (!in_array($type, ['quiz', 'file', 'independent'], true)) {
 
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
-if (!can_teach_school($user, $schoolId)) {
-    json_response(['ok' => false, 'error' => 'Для этого аккаунта не включена роль учителя.'], 403);
+$isSchoolManager = can_manage_school($user, $schoolId);
+
+if (!$isSchoolManager && !can_teach_school($user, $schoolId)) {
+    json_response(['ok' => false, 'error' => 'Нет прав для создания задания в этой школе.'], 403);
 }
 
-$stmt = $pdo->prepare(
-    'SELECT 1
-     FROM teacher_classes tc
-     JOIN school_subjects ss
-       ON ss.school_id = tc.school_id AND ss.subject_id = tc.subject_id AND ss.is_active = 1
-     JOIN classes c ON c.id = tc.class_id AND c.school_id = tc.school_id
-     WHERE tc.school_id = :school_id
-       AND tc.teacher_id = :teacher_id
-       AND tc.subject_id = :subject_id
-       AND tc.class_id = :class_id
-     LIMIT 1'
-);
-$stmt->execute([
-    'school_id' => $schoolId,
-    'teacher_id' => (int)$user['id'],
-    'subject_id' => $subjectId,
-    'class_id' => $classId,
-]);
-if (!$stmt->fetchColumn()) {
-    json_response([
-        'ok' => false,
-        'error' => 'Этот предмет и класс не назначены вашему аккаунту администратором школы.',
-    ], 403);
+if ($isSchoolManager) {
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM school_subjects ss
+         JOIN classes c ON c.school_id = ss.school_id
+         WHERE ss.school_id = :school_id
+           AND ss.subject_id = :subject_id
+           AND ss.is_active = 1
+           AND c.id = :class_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'subject_id' => $subjectId,
+        'class_id' => $classId,
+    ]);
+    if (!$stmt->fetchColumn()) {
+        json_response(['ok' => false, 'error' => 'Предмет или класс не относится к выбранной школе.'], 422);
+    }
+} else {
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM teacher_classes tc
+         JOIN school_subjects ss
+           ON ss.school_id = tc.school_id AND ss.subject_id = tc.subject_id AND ss.is_active = 1
+         JOIN classes c ON c.id = tc.class_id AND c.school_id = tc.school_id
+         WHERE tc.school_id = :school_id
+           AND tc.teacher_id = :teacher_id
+           AND tc.subject_id = :subject_id
+           AND tc.class_id = :class_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => (int)$user['id'],
+        'subject_id' => $subjectId,
+        'class_id' => $classId,
+    ]);
+    if (!$stmt->fetchColumn()) {
+        json_response([
+            'ok' => false,
+            'error' => 'Этот предмет и класс не назначены вашему аккаунту администратором школы.',
+        ], 403);
+    }
 }
 
 $pdo->beginTransaction();
