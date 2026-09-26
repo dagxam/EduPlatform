@@ -21,3 +21,13 @@
   .student-picker{max-height:45vh}
   .student-option{padding:13px 11px}
 }
+
+
+/* Per-school branding */
+:root{--brand:#1d68f0;--brand-hover:#1559d5;--brand-soft:#edf4ff}
+.primary-btn{background:var(--brand)!important}
+.primary-btn:hover{background:var(--brand-hover)!important}
+.brand-mark,.student-option-avatar{background:var(--brand)!important}
+.eyebrow,.show-password{color:var(--brand)!important}
+.mode-btn.active{color:var(--brand)!important;border-color:var(--brand)!important;background:var(--brand-soft)!important}
+.student-option:hover{border-color:color-mix(in srgb,var(--brand) 45%,white)!important;background:color-mix(in srgb,var(--brand) 4%,white)!important}
