@@ -57,6 +57,22 @@ CREATE TABLE IF NOT EXISTS assignment_classes (
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS assignment_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id INTEGER NOT NULL UNIQUE,
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    source_format TEXT NOT NULL,
+    mime_type TEXT,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    parse_status TEXT NOT NULL DEFAULT 'uploaded',
+    extracted_text TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignment_imports_assignment ON assignment_imports(assignment_id);
+
 CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     assignment_id INTEGER NOT NULL,
