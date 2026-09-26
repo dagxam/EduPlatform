@@ -7,7 +7,7 @@ $pdo = app_db();
 
 if (is_platform_admin($user)) {
     $stmt = $pdo->query(
-        'SELECT s.id, s.name, s.city, s.slug, s.status,
+        'SELECT s.id, s.name, s.city, s.slug, s.status, s.theme_color,
                 COUNT(DISTINCT CASE WHEN su.role = "school_admin" AND su.is_active = 1 THEN su.user_id END) AS admin_count
          FROM schools s
          LEFT JOIN school_users su ON su.school_id = s.id
