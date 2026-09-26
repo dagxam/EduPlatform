@@ -1265,6 +1265,9 @@ document.getElementById('schoolThemeColor')?.addEventListener('input', event => 
     const color = value.toLowerCase();
     const picker = document.getElementById('schoolThemeColorPicker');
     if (picker) picker.value = color;
+    document.querySelectorAll('[data-theme-color]').forEach(button => {
+      button.classList.toggle('active', normalizeHexColor(button.dataset.themeColor) === color);
+    });
   }
 });
 
@@ -1280,28 +1283,6 @@ document.querySelectorAll('[data-theme-color]').forEach(button => {
 });
 
 document.getElementById('schoolBrandingForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  if (Number(currentUser?.is_platform_admin) !== 1) return;
-
-  const form = event.currentTarget;
-  const error = document.getElementById('schoolBrandingError');
-  const result = document.getElementById('schoolBrandingResult');
-  const button = form.querySelector('button[type="submit"]');
-  const color = String(document.getElementById('schoolThemeColor')?.value || '').trim().toLowerCase();
-
-  error?.classList.add('hidden');
-  result?.classList.add('hidden');
-
-  if (!/^#[0-9a-f]{6}$/.test(color)) {
-    if (error) {
-      error.textContent = 'Укажите цвет в формате #RRGGBB.';
-      error.classList.remove('hidden');
-    }
-    return;
-  }
-
-  const data = new FormData();
-  data.append('theme_color', colodocument.getElementById('schoolBrandingForm')?.addEventListener('submit', async event => {
   event.preventDefault();
   if (Number(currentUser?.is_platform_admin) !== 1) return;
 
