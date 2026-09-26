@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS assignment_imports (
     size_bytes INTEGER NOT NULL DEFAULT 0,
     parse_status TEXT NOT NULL DEFAULT 'uploaded',
     extracted_text TEXT,
+    parsed_question_count INTEGER NOT NULL DEFAULT 0,
+    parser_message TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
 );
@@ -81,6 +83,8 @@ CREATE TABLE IF NOT EXISTS questions (
     points REAL NOT NULL DEFAULT 1,
     position INTEGER NOT NULL DEFAULT 0,
     correct_text TEXT,
+    interaction_type TEXT,
+    settings_json TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
 );
@@ -93,6 +97,19 @@ CREATE TABLE IF NOT EXISTS question_options (
     position INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS question_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER NOT NULL,
+    stored_name TEXT NOT NULL,
+    original_name TEXT,
+    mime_type TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_question_assets_question ON question_assets(question_id);
 
 CREATE TABLE IF NOT EXISTS attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
