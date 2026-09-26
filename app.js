@@ -10,6 +10,8 @@ const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
+const assignToClassModal = document.getElementById('assignToClassModal');
+const shareSubjectModal = document.getElementById('shareSubjectModal');
 const schoolModal = document.getElementById('schoolModal');
 const subjectModal = document.getElementById('subjectModal');
 const teacherModal = document.getElementById('teacherModal');
@@ -988,18 +990,10 @@ async function openSubjectDetails(subjectId) {
     await Promise.all([loadTeacherOptions(), loadAssignments()]);
   } catch {}
 
-  const classSelect = document.getElementById('subjectImportClass');
-  const classes = subjectAvailableClasses(subjectId);
-  if (classSelect) {
-    classSelect.innerHTML = '<option value="">Выберите класс</option>' + classes.map(cls =>
-      `<option value="${cls.id}">${escapeHtml(cls.name)}</option>`
-    ).join('');
-  }
-
   const createButton = document.getElementById('subjectCreateTaskBtn');
   if (createButton) {
-    createButton.disabled = classes.length === 0;
-    createButton.title = classes.length ? '' : 'Для этого предмета нет доступных классов.';
+    createButton.disabled = false;
+    createButton.title = '';
   }
 
   renderSubjectAssignments();
@@ -1062,19 +1056,6 @@ async function loadTeacherOptions() {
     subjectSelect.innerHTML = '<option value="">Выберите предмет</option>' + uniqueSubjects.map(item =>
       `<option value="${item.id}">${escapeHtml(item.name)}</option>`
     ).join('');
-    fillTaskClasses(Number(subjectSelect.value || 0));
-  }
-
-  if (selectedSubjectId) {
-    const importClass = document.getElementById('subjectImportClass');
-    const classes = subjectAvailableClasses(selectedSubjectId);
-    if (importClass) {
-      const current = importClass.value;
-      importClass.innerHTML = '<option value="">Выберите класс</option>' + classes.map(cls =>
-        `<option value="${cls.id}">${escapeHtml(cls.name)}</option>`
-      ).join('');
-      if (classes.some(cls => String(cls.id) === String(current))) importClass.value = current;
-    }
   }
 }
 
@@ -1083,7 +1064,6 @@ async function prepareTaskForm(subjectId = null) {
   const subjectSelect = document.getElementById('taskSubject');
   if (subjectId && subjectSelect) {
     subjectSelect.value = String(subjectId);
-    fillTaskClasses(Number(subjectId));
   }
 }
 
@@ -1096,10 +1076,6 @@ async function prepareTaskForm(subjectId = null) {
     await prepareTaskForm();
     openModal(taskModal);
   });
-});
-
-document.getElementById('taskSubject')?.addEventListener('change', event => {
-  fillTaskClasses(Number(event.target.value));
 });
 
 document.getElementById('addSubjectPageBtn')?.addEventListener('click', () => openModal(subjectModal));
@@ -1119,14 +1095,13 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
   const result = document.getElementById('subjectImportResult');
   const button = form.querySelector('button[type="submit"]');
   const file = document.getElementById('subjectImportFile')?.files?.[0];
-  const classId = Number(document.getElementById('subjectImportClass')?.value || 0);
 
   error?.classList.add('hidden');
   result?.classList.add('hidden');
 
-  if (!file || classId < 1) {
+  if (!file) {
     if (error) {
-      error.textContent = 'Выберите класс и файл задания.';
+      error.textContent = 'Выберите файл задания.';
       error.classList.remove('hidden');
     }
     return;
@@ -1134,7 +1109,6 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
 
   const data = new FormData();
   data.append('subject_id', String(selectedSubjectId));
-  data.append('class_id', String(classId));
   data.append('title', document.getElementById('subjectImportTitle')?.value || '');
   data.append('focus_policy', document.getElementById('subjectImportFocus')?.value || 'allow');
   data.append('file', file);
@@ -1191,28 +1165,34 @@ function renderAssignments() {
   const statusFilter = document.getElementById('assignmentStatusFilter')?.value || '';
 
   const rows = assignmentsCache.filter(item => {
-    const haystack = [item.title, item.subject_name, item.class_names].join(' ').toLowerCase();
+    const haystack = [item.title, item.subject_name, item.class_names, item.source_school_name].join(' ').toLowerCase();
     return (!query || haystack.includes(query)) && (!statusFilter || item.status === statusFilter);
   });
 
   body.innerHTML = rows.length ? rows.map(item => {
     const [statusText, statusClass] = assignmentStatusLabel(item.status);
     const strict = item.focus_policy === 'strict';
+    const source = item.source_school_name ? ` · получено из «${escapeHtml(item.source_school_name)}»` : '';
     return `
       <tr>
-        <td><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}</small></td>
-        <td>${escapeHtml(item.class_names || '—')}</td>
+        <td><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small></td>
+        <td>${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
         <td><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
         <td>${Number(item.attempts_count || 0)}</td>
         <td><span class="status ${statusClass}">${statusText}</span></td>
+        <td class="row-actions-cell"><button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button></td>
       </tr>`;
-  }).join('') : '<tr><td colspan="5">Задания не найдены.</td></tr>';
+  }).join('') : '<tr><td colspan="6">Задания не найдены.</td></tr>';
+
+  body.querySelectorAll('[data-assign-class]').forEach(button => {
+    button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
+  });
 }
 
 async function loadAssignments() {
   const body = document.getElementById('assignmentsTableBody');
   if (!body) return;
-  body.innerHTML = '<tr><td colspan="5">Загрузка...</td></tr>';
+  body.innerHTML = '<tr><td colspan="6">Загрузка...</td></tr>';
   try {
     const response = await fetch('./api/assignments/list.php', { credentials: 'same-origin', cache: 'no-store' });
     const data = await response.json();
@@ -1221,7 +1201,7 @@ async function loadAssignments() {
     renderAssignments();
     renderSubjectAssignments();
   } catch (error) {
-    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
