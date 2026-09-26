@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
+    is_platform_admin INTEGER NOT NULL DEFAULT 0,
     class_name TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -135,7 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_class_students_class ON class_students(class_id);
 CREATE INDEX IF NOT EXISTS idx_class_access_code ON class_access(join_code);
 
 
--- Multi-school foundation for Urovia.
+-- Multi-school foundation for UVORIA.
 CREATE TABLE IF NOT EXISTS schools (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
