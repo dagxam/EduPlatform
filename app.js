@@ -22,6 +22,7 @@ let currentBranding = { theme_color: '#1d68f0' };
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
+  subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
   classes: ['Ученики и группы', 'Классы'],
   'school-management': ['Администрирование', 'Управление школой'],
@@ -188,6 +189,11 @@ async function loadSchools() {
     const activeId = Number(data.active_school_id || 0);
     const activeSchool = schoolsCache.find(school => Number(school.id) === activeId) || null;
     activeSchoolName = activeSchool?.name || '';
+    if (activeSchool?.theme_color) {
+      applySchoolBranding({ theme_color: activeSchool.theme_color });
+    } else if (!activeSchool) {
+      applySchoolBranding(null);
+    }
 
     if (platformAdmin && selector) {
       selector.innerHTML = '<option value="0">Выберите школу</option>' + schoolsCache.map(school => {
@@ -247,6 +253,7 @@ async function selectSchool(schoolId) {
 
     const selectedSchool = schoolsCache.find(school => Number(school.id) === selectedId);
     activeSchoolName = selectedSchool?.name || '';
+    applySchoolBranding({ theme_color: selectedSchool?.theme_color || '#1d68f0' });
 
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
     await loadSchoolManagement();
@@ -655,6 +662,7 @@ document.getElementById('confirmStudentsImportBtn')?.addEventListener('click', a
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
+  if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
@@ -711,21 +719,136 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
 let subjectsCache = [];
 let assignmentsCache = [];
 let teacherOptionsCache = [];
+let selectedSubjectId = null;
 
 async function loadSubjects() {
   const select = document.getElementById('taskSubject');
-  if (!select) return;
   try {
     const response = await fetch('./api/subjects/list.php', { credentials: 'same-origin', cache: 'no-store' });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить предметы.');
     subjectsCache = data.subjects || [];
-    select.innerHTML = '<option value="">Выберите предмет</option>' + subjectsCache.map(item =>
-      `<option value="${item.id}">${escapeHtml(item.name)}</option>`
-    ).join('');
+
+    if (select) {
+      select.innerHTML = '<option value="">Выберите предмет</option>' + subjectsCache.map(item =>
+        `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+      ).join('');
+    }
+
+    renderSubjectsPage();
+    return subjectsCache;
   } catch (error) {
-    select.innerHTML = '<option value="">Предметы недоступны</option>';
+    if (select) select.innerHTML = '<option value="">Предметы недоступны</option>';
+    const grid = document.getElementById('subjectsPageGrid');
+    if (grid) grid.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+    throw error;
   }
+}
+
+function renderSubjectsPage() {
+  const grid = document.getElementById('subjectsPageGrid');
+  if (!grid) return;
+
+  if (!subjectsCache.length) {
+    grid.innerHTML = '<div class="subject-empty-list"><b>Предметов пока нет</b><span>Добавьте первый предмет школы.</span></div>';
+    return;
+  }
+
+  grid.innerHTML = subjectsCache.map(subject => {
+    const active = Number(subject.id) === Number(selectedSubjectId);
+    return `
+      <button class="subject-page-card ${active ? 'active' : ''}" type="button" data-open-subject="${subject.id}">
+        <span class="subject-page-icon">${escapeHtml(String(subject.name || '?').charAt(0).toUpperCase())}</span>
+        <span><b>${escapeHtml(subject.name)}</b><small>Открыть задания</small></span>
+        <span class="subject-page-arrow">→</span>
+      </button>`;
+  }).join('');
+
+  grid.querySelectorAll('[data-open-subject]').forEach(button => {
+    button.addEventListener('click', () => openSubjectDetails(Number(button.dataset.openSubject)));
+  });
+}
+
+function subjectAvailableClasses(subjectId) {
+  const unique = [];
+  const seen = new Set();
+  teacherOptionsCache
+    .filter(item => Number(item.subject_id) === Number(subjectId))
+    .forEach(item => {
+      const id = Number(item.class_id);
+      if (seen.has(id)) return;
+      seen.add(id);
+      unique.push({ id, name: item.class_name });
+    });
+  return unique;
+}
+
+function renderSubjectAssignments() {
+  const list = document.getElementById('subjectAssignmentsList');
+  if (!list || !selectedSubjectId) return;
+
+  const rows = assignmentsCache.filter(item => Number(item.subject_id) === Number(selectedSubjectId));
+  list.innerHTML = rows.length ? rows.map(item => {
+    const [statusText, statusClass] = assignmentStatusLabel(item.status);
+    return `
+      <article class="subject-assignment-row">
+        <div>
+          <b>${escapeHtml(item.title)}</b>
+          <small>${escapeHtml(item.class_names || 'Без класса')} · ${item.type === 'file' ? 'Импортированный файл' : 'Задание UVORIA'}</small>
+        </div>
+        <span class="status ${statusClass}">${statusText}</span>
+      </article>`;
+  }).join('') : '<div class="subject-empty-list"><b>Заданий пока нет</b><span>Создайте задание вручную или импортируйте файл.</span></div>';
+}
+
+async function openSubjectDetails(subjectId) {
+  const subject = subjectsCache.find(item => Number(item.id) === Number(subjectId));
+  if (!subject) return;
+
+  selectedSubjectId = Number(subject.id);
+  renderSubjectsPage();
+
+  document.getElementById('subjectEmptyState')?.classList.add('hidden');
+  document.getElementById('subjectDetailContent')?.classList.remove('hidden');
+  const title = document.getElementById('subjectDetailTitle');
+  if (title) title.textContent = subject.name;
+
+  try {
+    await Promise.all([loadTeacherOptions(), loadAssignments()]);
+  } catch {}
+
+  const classSelect = document.getElementById('subjectImportClass');
+  const classes = subjectAvailableClasses(subjectId);
+  if (classSelect) {
+    classSelect.innerHTML = '<option value="">Выберите класс</option>' + classes.map(cls =>
+      `<option value="${cls.id}">${escapeHtml(cls.name)}</option>`
+    ).join('');
+  }
+
+  const createButton = document.getElementById('subjectCreateTaskBtn');
+  if (createButton) {
+    createButton.disabled = classes.length === 0;
+    createButton.title = classes.length ? '' : 'Для этого предмета нет доступных классов.';
+  }
+
+  renderSubjectAssignments();
+}
+
+async function loadSubjectsWorkspace() {
+  const grid = document.getElementById('subjectsPageGrid');
+  if (grid) grid.innerHTML = '<p>Загрузка предметов...</p>';
+
+  try {
+    await Promise.all([loadSubjects(), loadTeacherOptions(), loadAssignments()]);
+    if (selectedSubjectId && subjectsCache.some(item => Number(item.id) === Number(selectedSubjectId))) {
+      await openSubjectDetails(selectedSubjectId);
+    } else {
+      selectedSubjectId = null;
+      document.getElementById('subjectDetailContent')?.classList.add('hidden');
+      document.getElementById('subjectEmptyState')?.classList.remove('hidden');
+      renderSubjectsPage();
+    }
+  } catch {}
 }
 
 function fillTaskClasses(subjectId = 0) {
@@ -764,14 +887,33 @@ async function loadTeacherOptions() {
     seen.add(id);
     uniqueSubjects.push({ id, name: item.subject_name });
   });
-  subjectSelect.innerHTML = '<option value="">Выберите предмет</option>' + uniqueSubjects.map(item =>
-    `<option value="${item.id}">${escapeHtml(item.name)}</option>`
-  ).join('');
-  fillTaskClasses(0);
+  if (subjectSelect) {
+    subjectSelect.innerHTML = '<option value="">Выберите предмет</option>' + uniqueSubjects.map(item =>
+      `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+    ).join('');
+    fillTaskClasses(Number(subjectSelect.value || 0));
+  }
+
+  if (selectedSubjectId) {
+    const importClass = document.getElementById('subjectImportClass');
+    const classes = subjectAvailableClasses(selectedSubjectId);
+    if (importClass) {
+      const current = importClass.value;
+      importClass.innerHTML = '<option value="">Выберите класс</option>' + classes.map(cls =>
+        `<option value="${cls.id}">${escapeHtml(cls.name)}</option>`
+      ).join('');
+      if (classes.some(cls => String(cls.id) === String(current))) importClass.value = current;
+    }
+  }
 }
 
-async function prepareTaskForm() {
+async function prepareTaskForm(subjectId = null) {
   await loadTeacherOptions();
+  const subjectSelect = document.getElementById('taskSubject');
+  if (subjectId && subjectSelect) {
+    subjectSelect.value = String(subjectId);
+    fillTaskClasses(Number(subjectId));
+  }
 }
 
 ['createTaskBtn', 'createTaskBtn2', 'heroCreateBtn'].forEach(id => {
@@ -787,6 +929,77 @@ async function prepareTaskForm() {
 
 document.getElementById('taskSubject')?.addEventListener('change', event => {
   fillTaskClasses(Number(event.target.value));
+});
+
+document.getElementById('addSubjectPageBtn')?.addEventListener('click', () => openModal(subjectModal));
+
+document.getElementById('subjectCreateTaskBtn')?.addEventListener('click', async () => {
+  if (!selectedSubjectId) return;
+  await prepareTaskForm(selectedSubjectId);
+  openModal(taskModal);
+});
+
+document.getElementById('subjectImportForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!selectedSubjectId) return;
+
+  const form = event.currentTarget;
+  const error = document.getElementById('subjectImportError');
+  const result = document.getElementById('subjectImportResult');
+  const button = form.querySelector('button[type="submit"]');
+  const file = document.getElementById('subjectImportFile')?.files?.[0];
+  const classId = Number(document.getElementById('subjectImportClass')?.value || 0);
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  if (!file || classId < 1) {
+    if (error) {
+      error.textContent = 'Выберите класс и файл задания.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  const data = new FormData();
+  data.append('subject_id', String(selectedSubjectId));
+  data.append('class_id', String(classId));
+  data.append('title', document.getElementById('subjectImportTitle')?.value || '');
+  data.append('focus_policy', document.getElementById('subjectImportFocus')?.value || 'allow');
+  data.append('file', file);
+
+  button.disabled = true;
+  button.textContent = 'Загружаем...';
+
+  try {
+    const response = await fetch('./api/assignments/import-file.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: data
+    });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось импортировать задание.');
+
+    const status = payload.import?.parse_status === 'text_extracted'
+      ? 'Текст из файла подготовлен для разбора вопросов.'
+      : 'Файл сохранён в черновике для дальнейшего разбора.';
+    if (result) {
+      result.textContent = `${payload.import?.format || 'Файл'} принят. ${status}`;
+      result.classList.remove('hidden');
+    }
+
+    form.reset();
+    await loadAssignments();
+    renderSubjectAssignments();
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Загрузить и создать черновик';
+  }
 });
 
 document.getElementById('focusPolicy')?.addEventListener('change', event => {
@@ -832,6 +1045,7 @@ async function loadAssignments() {
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить задания.');
     assignmentsCache = data.assignments || [];
     renderAssignments();
+    renderSubjectAssignments();
   } catch (error) {
     body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
   }
@@ -863,8 +1077,14 @@ document.getElementById('taskForm')?.addEventListener('submit', async event => {
     form.reset();
     document.getElementById('strictWarning')?.classList.add('hidden');
     closeModal(taskModal);
-    showView('assignments');
     await loadAssignments();
+    const createdSubjectId = Number(payload.subject_id || 0);
+    if (selectedSubjectId && createdSubjectId === Number(selectedSubjectId)) {
+      showView('subjects');
+      renderSubjectAssignments();
+    } else {
+      showView('assignments');
+    }
   } catch (e) {
     error.textContent = e.message;
     error.classList.remove('hidden');
@@ -1317,6 +1537,8 @@ document.getElementById('schoolBrandingForm')?.addEventListener('submit', async 
     if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось сохранить цвет школы.');
 
     applySchoolBranding(payload.branding);
+    const activeSchool = schoolsCache.find(school => Number(school.id) === Number(document.getElementById('schoolSelector')?.value || 0));
+    if (activeSchool) activeSchool.theme_color = payload.branding?.theme_color || color;
     if (result) {
       result.textContent = 'Цвет школы сохранён.';
       result.classList.remove('hidden');
@@ -1351,7 +1573,11 @@ document.getElementById('subjectForm')?.addEventListener('submit', async event =
     form.reset();
     closeModal(subjectModal);
     subjectsCache = [];
-    await Promise.all([loadSubjects(), loadSchoolManagement()]);
+    await Promise.all([loadSubjects(), currentUser?.role === 'admin' ? loadSchoolManagement() : Promise.resolve()]);
+    if (data.subject?.id) {
+      showView('subjects');
+      await openSubjectDetails(Number(data.subject.id));
+    }
   } catch (e) {
     error.textContent = e.message;
     error.classList.remove('hidden');
