@@ -24,9 +24,9 @@
 
       <nav class="nav teacher-nav">
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
-        <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
-        <button class="nav-item" data-view="classes"><span>👥</span> Классы</button>
-        <button class="nav-item admin-only hidden" data-view="users"><span>◎</span> Пользователи</button>
+        <button class="nav-item teacher-only hidden" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
+        <button class="nav-item admin-only hidden" data-view="classes"><span>👥</span> Классы и ученики</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
       </nav>
 
@@ -56,14 +56,14 @@
           <h1 id="pageTitle">Добрый день!</h1>
         </div>
         <div class="top-actions">
-          <div class="school-switcher teacher-only">
-            <select id="schoolSelector" aria-label="Выбрать рабочее пространство">
-              <option value="0">Личное пространство</option>
+          <div class="school-switcher staff-only hidden">
+            <select id="schoolSelector" aria-label="Выбрать школу">
+              <option value="">Выберите школу</option>
             </select>
-            <button class="secondary-btn compact-btn" id="createSchoolBtn" type="button">＋ Школа</button>
+            <button class="secondary-btn compact-btn platform-admin-only hidden" id="createSchoolBtn" type="button">＋ Школа</button>
           </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
-          <button class="primary-btn teacher-only" id="createTaskBtn">＋ Создать задание</button>
+          <button class="primary-btn teacher-only hidden" id="createTaskBtn">＋ Создать задание</button>
         </div>
       </header>
 
@@ -74,7 +74,7 @@
             <h2>Всё необходимое для заданий и контроля знаний</h2>
             <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
           </div>
-          <button class="hero-action" id="heroCreateBtn">Создать новое задание →</button>
+          <button class="hero-action teacher-only hidden" id="heroCreateBtn">Создать новое задание →</button>
         </div>
 
         <div class="stats-grid">
@@ -148,35 +148,35 @@
       <section class="view" id="classes">
         <div class="section-toolbar">
           <div><span class="section-kicker">Ученики</span><h2>Классы</h2><p>Создавайте классы, выдавайте общий код и загружайте список учеников из Word.</p></div>
-          <button class="primary-btn" id="createClassBtn">＋ Добавить класс</button>
+          <button class="primary-btn admin-only hidden" id="createClassBtn">＋ Добавить класс</button>
         </div>
         <div class="large-class-grid" id="classesGrid">
           <article class="panel"><p>Загрузка классов...</p></article>
         </div>
       </section>
 
-      <section class="view" id="users">
+      <section class="view" id="school-management">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Администрирование</span><h2>Пользователи</h2><p>Создавайте аккаунты учителей и учеников.</p></div>
-          <button class="primary-btn" id="createUserBtn">＋ Добавить пользователя</button>
-        </div>
-        <div class="stats-grid user-stats">
-          <article class="stat-card"><span>Всего</span><strong id="usersTotal">0</strong><small>аккаунтов</small></article>
-          <article class="stat-card"><span>Учителя</span><strong id="teachersTotal">0</strong><small>активных</small></article>
-          <article class="stat-card"><span>Ученики</span><strong id="studentsTotal">0</strong><small>активных</small></article>
-          <article class="stat-card"><span>Администраторы</span><strong id="adminsTotal">0</strong><small>управление</small></article>
-        </div>
-        <div class="panel users-panel">
-          <div class="filters">
-            <input class="search" id="userSearch" type="search" placeholder="Поиск по имени или email">
-            <select id="userRoleFilter"><option value="">Все роли</option><option value="teacher">Учителя</option><option value="student">Ученики</option><option value="admin">Администраторы</option></select>
+          <div><span class="section-kicker">Администрирование</span><h2>Управление школой</h2><p>Предметы, учителя и их назначения по классам.</p></div>
+          <div class="toolbar-actions">
+            <button class="secondary-btn" id="addSubjectBtn">＋ Предмет</button>
+            <button class="primary-btn" id="addTeacherBtn">＋ Учитель</button>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Пользователь</th><th>Email</th><th>Роль</th><th>Класс</th><th>Статус</th></tr></thead>
-              <tbody id="usersTableBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
-            </table>
-          </div>
+        </div>
+        <div class="content-grid school-admin-grid">
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-kicker">Учебный план</span><h3>Предметы</h3></div></div>
+            <div id="schoolSubjectsList" class="subject-admin-list"><p>Загрузка предметов...</p></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-kicker">Сотрудники</span><h3>Учителя</h3></div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Учитель</th><th>Email</th><th>Предметы и классы</th><th></th></tr></thead>
+                <tbody id="schoolTeachersBody"><tr><td colspan="4">Загрузка...</td></tr></tbody>
+              </table>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -304,8 +304,15 @@
       <form id="schoolForm">
         <label>Название школы<input name="name" placeholder="Например: МБОУ СОШ №12" required></label>
         <label>Город / населённый пункт<input name="city" placeholder="Например: Махачкала"></label>
+        <div class="form-section-title">Администратор этой школы</div>
+        <div class="form-row">
+          <label>Имя<input name="admin_first_name" required></label>
+          <label>Фамилия<input name="admin_last_name" required></label>
+        </div>
+        <label>Email администратора<input name="admin_email" type="email" required></label>
+        <label>Пароль администратора<input name="admin_password" type="password" minlength="8" required><small>Минимум 8 символов.</small></label>
         <div class="form-error hidden" id="schoolFormError"></div>
-        <button class="primary-btn full" type="submit">Создать школу</button>
+        <button class="primary-btn full" type="submit">Создать школу и администратора</button>
       </form>
     </div>
   </div>
@@ -335,7 +342,7 @@
         <button class="secondary-btn" id="copyClassCodeBtn" type="button">Скопировать код</button>
       </div>
       <div class="registration-switch">
-        <div><b>Первичная регистрация</b><small>Учитель открывает её на 20 минут. За это время ученики выбирают себя и создают PIN.</small></div>
+        <div><b>Первичная регистрация</b><small>Администратор школы открывает её на 20 минут. За это время ученики выбирают себя и создают PIN.</small></div>
         <button class="secondary-btn" id="toggleRegistrationBtn" type="button">—</button>
       </div>
       <div class="import-box">
@@ -353,29 +360,46 @@
     </div>
   </div>
 
-  <div class="modal-backdrop hidden" id="userModal">
+  <div class="modal-backdrop hidden" id="subjectModal">
     <div class="modal">
-      <button class="modal-close" data-close-modal="userModal">×</button>
-      <span class="section-kicker">Новый аккаунт</span>
-      <h2>Добавить пользователя</h2>
-      <p>Создайте учителя или ученика. Пользователь сможет войти по email и паролю.</p>
-      <form id="userForm">
+      <button class="modal-close" data-close-modal="subjectModal">×</button>
+      <span class="section-kicker">Учебный план</span>
+      <h2>Добавить предмет</h2>
+      <form id="subjectForm">
+        <label>Название предмета<input name="name" placeholder="Например: История Дагестана" required></label>
+        <div class="form-error hidden" id="subjectFormError"></div>
+        <button class="primary-btn full" type="submit">Добавить предмет</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="teacherModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="teacherModal">×</button>
+      <span class="section-kicker">Сотрудник школы</span>
+      <h2>Добавить учителя</h2>
+      <form id="teacherForm">
         <div class="form-row">
           <label>Имя<input name="first_name" required></label>
           <label>Фамилия<input name="last_name" required></label>
         </div>
         <label>Email<input name="email" type="email" required></label>
-        <label>Роль
-          <select name="role" id="newUserRole" required>
-            <option value="teacher">Учитель</option>
-            <option value="student">Ученик</option>
-          </select>
-        </label>
-        <label id="classNameField" class="hidden">Класс<input name="class_name" placeholder="Например, 7А"></label>
-        <label>Пароль<input name="password" type="password" minlength="8" required><small>Минимум 8 символов.</small></label>
-        <div class="form-error hidden" id="userFormError"></div>
-        <button class="primary-btn full" type="submit">Создать пользователя</button>
+        <label>Пароль<input name="password" type="password" minlength="8" required></label>
+        <div class="form-error hidden" id="teacherFormError"></div>
+        <button class="primary-btn full" type="submit">Создать учителя</button>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="teacherAssignmentsModal">
+    <div class="modal class-details-modal">
+      <button class="modal-close" data-close-modal="teacherAssignmentsModal">×</button>
+      <span class="section-kicker">Права учителя</span>
+      <h2 id="teacherAssignmentsTitle">Назначения</h2>
+      <p>Отметьте конкретные сочетания «предмет + класс». Учитель сможет создавать задания только для них.</p>
+      <div id="teacherAssignmentsMatrix" class="assignment-matrix"></div>
+      <div class="form-error hidden" id="teacherAssignmentsError"></div>
+      <button class="primary-btn full" id="saveTeacherAssignmentsBtn" type="button">Сохранить назначения</button>
     </div>
   </div>
 
