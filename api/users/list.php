@@ -2,7 +2,10 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-require_user(['admin']);
+$user = require_user(['admin']);
+if (!is_platform_admin($user)) {
+    json_response(['ok' => false, 'error' => 'Этот системный раздел доступен только администратору UVORIA.'], 403);
+}
 
 $stmt = app_db()->query(
     'SELECT id, first_name, last_name, email, role, class_name, is_active, created_at
