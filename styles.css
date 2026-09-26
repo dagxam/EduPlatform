@@ -75,3 +75,20 @@
 .strict-warning{display:flex;flex-direction:column;gap:4px;background:#fff5df;border:1px solid #f4d48d;color:#805900;border-radius:12px;padding:12px 13px}
 .strict-warning b{font-size:13px}
 .strict-warning span{font-size:12px;line-height:1.45}
+
+
+.school-switcher{display:flex;align-items:center;gap:8px}
+.school-switcher select{max-width:250px;border:1px solid #dfe5eb;background:#fff;border-radius:10px;padding:9px 11px;color:#33404d;font-weight:700}
+.compact-btn{padding:9px 11px;min-height:38px;white-space:nowrap}
+
+@media(max-width:980px){
+  .school-switcher select{max-width:190px}
+  .school-switcher .compact-btn{display:none}
+}
+@media(max-width:780px){
+  .top-actions .school-switcher{display:flex}
+  .school-switcher select{max-width:150px;min-height:42px;font-size:12px}
+}
+@media(max-width:520px){
+  .school-switcher select{max-width:122px;padding:8px}
+}
