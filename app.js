@@ -298,6 +298,32 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
 
+document.getElementById('notificationsBtn')?.addEventListener('click', () => {
+  alert('Новых уведомлений пока нет.');
+});
+
+document.getElementById('openHistoryTaskBtn')?.addEventListener('click', () => showView('student-tasks'));
+document.getElementById('viewResultBtn')?.addEventListener('click', () => showView('student-results'));
+
+document.getElementById('exportResultsBtn')?.addEventListener('click', () => {
+  const table = document.querySelector('#results table');
+  if (!table) return;
+  const rows = [...table.querySelectorAll('tr')].map(row =>
+    [...row.querySelectorAll('th,td')].map(cell =>
+      '"' + cell.innerText.replace(/"/g, '""').replace(/\s+/g, ' ').trim() + '"'
+    ).join(';')
+  );
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'eduplatform-results.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+});
+
 function openModal(modal) {
   modal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
