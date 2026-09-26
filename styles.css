@@ -494,3 +494,54 @@ form select:focus{
   .subject-detail-actions{width:100%}
   .subject-detail-actions .primary-btn,.subject-detail-actions .secondary-btn{flex:1}
 }
+
+
+/* Teacher access delivery */
+.form-hint{
+  margin:-2px 0 12px;
+  padding:10px 12px;
+  border:1px solid color-mix(in srgb,var(--brand) 14%,white);
+  border-radius:10px;
+  background:var(--brand-soft);
+  color:#667482;
+  font-size:12px;
+  line-height:1.5;
+}
+.teacher-email,
+.teacher-login,
+.access-state{
+  display:block;
+}
+.teacher-login{
+  margin-top:4px;
+  color:#73808c;
+  font-size:11px;
+  font-weight:700;
+}
+.access-state{
+  width:max-content;
+  margin-top:5px;
+  padding:4px 7px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:850;
+}
+.access-state.sent{
+  color:#177348;
+  background:#e9f8f0;
+}
+.access-state.pending{
+  color:#a36d16;
+  background:#fff6df;
+}
+#temporaryPasswordModal .modal{
+  max-width:460px;
+}
+#temporaryPasswordModal .password-field{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+#temporaryPasswordModal .password-field input{
+  flex:1;
+}
