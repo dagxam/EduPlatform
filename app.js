@@ -294,6 +294,7 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
+  if (btn.dataset.view === 'assignments') loadAssignments();
 }));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
@@ -345,17 +346,133 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
   });
 });
 
-document.getElementById('taskForm')?.addEventListener('submit', e => {
-  e.preventDefault();
-  const submit = e.currentTarget.querySelector('button[type="submit"]');
-  submit.textContent = 'Черновик создан ✓';
+let subjectsCache = [];
+let assignmentsCache = [];
+
+async function loadSubjects() {
+  const select = document.getElementById('taskSubject');
+  if (!select) return;
+  try {
+    const response = await fetch('./api/subjects/list.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить предметы.');
+    subjectsCache = data.subjects || [];
+    select.innerHTML = '<option value="">Выберите предмет</option>' + subjectsCache.map(item =>
+      `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+    ).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">Предметы недоступны</option>';
+  }
+}
+
+function fillTaskClasses() {
+  const select = document.getElementById('taskClass');
+  if (!select) return;
+  select.innerHTML = '<option value="">Выберите класс</option>' + classesCache.map(item =>
+    `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+  ).join('');
+}
+
+async function prepareTaskForm() {
+  if (!classesCache.length) await loadClasses();
+  if (!subjectsCache.length) await loadSubjects();
+  fillTaskClasses();
+}
+
+['createTaskBtn', 'createTaskBtn2', 'heroCreateBtn'].forEach(id => {
+  const button = document.getElementById(id);
+  if (!button) return;
+  const clone = button.cloneNode(true);
+  button.replaceWith(clone);
+  clone.addEventListener('click', async () => {
+    await prepareTaskForm();
+    openModal(taskModal);
+  });
+});
+
+document.getElementById('focusPolicy')?.addEventListener('change', event => {
+  document.getElementById('strictWarning')?.classList.toggle('hidden', event.target.value !== 'strict');
+});
+
+function assignmentStatusLabel(status) {
+  return status === 'published' ? ['Опубликовано', 'green'] : status === 'closed' ? ['Завершено', 'blue'] : ['Черновик', 'amber'];
+}
+
+function renderAssignments() {
+  const body = document.getElementById('assignmentsTableBody');
+  if (!body) return;
+  const query = (document.getElementById('assignmentSearch')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('assignmentStatusFilter')?.value || '';
+
+  const rows = assignmentsCache.filter(item => {
+    const haystack = [item.title, item.subject_name, item.class_names].join(' ').toLowerCase();
+    return (!query || haystack.includes(query)) && (!statusFilter || item.status === statusFilter);
+  });
+
+  body.innerHTML = rows.length ? rows.map(item => {
+    const [statusText, statusClass] = assignmentStatusLabel(item.status);
+    const strict = item.focus_policy === 'strict';
+    return `
+      <tr>
+        <td><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}</small></td>
+        <td>${escapeHtml(item.class_names || '—')}</td>
+        <td><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
+        <td>${Number(item.attempts_count || 0)}</td>
+        <td><span class="status ${statusClass}">${statusText}</span></td>
+      </tr>`;
+  }).join('') : '<tr><td colspan="5">Задания не найдены.</td></tr>';
+}
+
+async function loadAssignments() {
+  const body = document.getElementById('assignmentsTableBody');
+  if (!body) return;
+  body.innerHTML = '<tr><td colspan="5">Загрузка...</td></tr>';
+  try {
+    const response = await fetch('./api/assignments/list.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить задания.');
+    assignmentsCache = data.assignments || [];
+    renderAssignments();
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('assignmentSearch')?.addEventListener('input', renderAssignments);
+document.getElementById('assignmentStatusFilter')?.addEventListener('change', renderAssignments);
+
+document.getElementById('taskForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('taskFormError');
+  const submit = form.querySelector('button[type="submit"]');
+  error.classList.add('hidden');
   submit.disabled = true;
-  setTimeout(() => {
-    submit.textContent = 'Продолжить';
-    submit.disabled = false;
+  submit.textContent = 'Создаём...';
+
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/assignments/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать задание.');
+
+    form.reset();
+    document.getElementById('strictWarning')?.classList.add('hidden');
     closeModal(taskModal);
     showView('assignments');
-  }, 900);
+    await loadAssignments();
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Создать черновик';
+  }
 });
 
 const quiz = [
@@ -555,7 +672,11 @@ document.querySelector('[data-view="users"]')?.addEventListener('click', loadUse
 loadSession().then(user => {
   if (user) {
     applyUser(user);
-    if (user.role !== 'student') loadClasses();
+    if (user.role !== 'student') {
+      loadClasses();
+      loadSubjects();
+      loadAssignments();
+    }
   }
 });
 
