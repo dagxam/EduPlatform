@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['admin', 'teacher']);
+$user = require_user(['admin']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -11,14 +11,9 @@ $classId = (int)($data['class_id'] ?? 0);
 $open = !empty($data['registration_open']) ? 1 : 0;
 
 $pdo = app_db();
-$sql = 'SELECT 1 FROM classes WHERE id = :id';
-$params = ['id' => $classId];
-if ($user['role'] === 'teacher') {
-    $sql .= ' AND teacher_id = :teacher_id';
-    $params['teacher_id'] = (int)$user['id'];
-}
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$schoolId = require_active_school($user, true);
+$stmt = $pdo->prepare('SELECT 1 FROM classes WHERE id = :id AND school_id = :school_id');
+$stmt->execute(['id' => $classId, 'school_id' => $schoolId]);
 if (!$stmt->fetchColumn()) {
     json_response(['ok' => false, 'error' => 'Класс не найден.'], 404);
 }
@@ -32,7 +27,7 @@ if ($open) {
     );
     $stmt->execute(['class_id' => $classId]);
     $expiresAt = $pdo->query("SELECT datetime('now', '+20 minutes')")->fetchColumn();
-    audit_event('class_registration_opened', 'class', $classId, ['minutes' => 20], null, (int)$user['id']);
+    audit_event('class_registration_opened', 'class', $classId, ['minutes' => 20], $schoolId, (int)$user['id']);
 } else {
     $stmt = $pdo->prepare(
         'UPDATE class_access
@@ -41,7 +36,7 @@ if ($open) {
     );
     $stmt->execute(['class_id' => $classId]);
     $expiresAt = null;
-    audit_event('class_registration_closed', 'class', $classId, [], null, (int)$user['id']);
+    audit_event('class_registration_closed', 'class', $classId, [], $schoolId, (int)$user['id']);
 }
 
 json_response([
