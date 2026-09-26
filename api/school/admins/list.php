@@ -6,7 +6,8 @@ $user = require_user(['admin']);
 $schoolId = require_active_school($user, true);
 
 $stmt = app_db()->prepare(
-    'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, su.created_at
+    'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active,
+            su.created_at, su.can_teach
      FROM school_users su
      JOIN users u ON u.id = su.user_id
      WHERE su.school_id = :school_id
