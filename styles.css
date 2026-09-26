@@ -118,3 +118,24 @@
 @media(max-width:900px){
   .school-admin-grid{grid-template-columns:1fr}
 }
+
+
+.school-admins-panel{grid-column:1/-1}
+.panel-note{margin:-4px 0 14px;color:#7d8995;font-size:13px;line-height:1.5}
+.row-actions-cell{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.danger-action{color:#a63b3b;border-color:#efcccc}
+.danger-action:hover{background:#fff3f3;border-color:#e5aaaa;color:#8b2929}
+
+.student-import-preview{margin-top:16px;border-top:1px solid #e7ecf1;padding-top:14px}
+.preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.preview-toolbar b,.preview-toolbar small{display:block}
+.preview-toolbar small{margin-top:4px;color:#7e8a96}
+.student-preview-table input{width:100%;min-width:130px;border:1px solid #dfe5eb;border-radius:9px;padding:9px 10px;background:#fff}
+.student-preview-table td:first-child{width:42px;color:#8a96a2}
+.student-preview-table td:last-child{width:80px}
+.preview-duplicate-row{background:#fffaf0}
+@media(max-width:780px){
+  .preview-toolbar{align-items:stretch;flex-direction:column}
+  .student-preview-table{min-width:680px}
+  .row-actions-cell{justify-content:flex-start}
+}
