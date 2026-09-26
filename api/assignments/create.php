@@ -28,14 +28,33 @@ if (!in_array($type, ['quiz', 'file', 'independent'], true)) {
 }
 
 $pdo = app_db();
-$stmt = $pdo->prepare('SELECT 1 FROM subjects WHERE id = :id');
-$stmt->execute(['id' => $subjectId]);
+$schoolId = current_school_id();
+if ($schoolId !== null && !can_access_school($user, $schoolId)) {
+    json_response(['ok' => false, 'error' => 'Нет доступа к выбранной школе.'], 403);
+}
+
+if ($schoolId !== null) {
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM school_subjects
+         WHERE school_id = :school_id AND subject_id = :subject_id AND is_active = 1'
+    );
+    $stmt->execute(['school_id' => $schoolId, 'subject_id' => $subjectId]);
+} else {
+    $stmt = $pdo->prepare('SELECT 1 FROM subjects WHERE id = :subject_id');
+    $stmt->execute(['subject_id' => $subjectId]);
+}
 if (!$stmt->fetchColumn()) {
-    json_response(['ok' => false, 'error' => 'Предмет не найден.'], 422);
+    json_response(['ok' => false, 'error' => 'Предмет недоступен.'], 422);
 }
 
 $sql = 'SELECT id, school_id FROM classes WHERE id = :id';
 $params = ['id' => $classId];
+if ($schoolId !== null) {
+    $sql .= ' AND school_id = :school_id';
+    $params['school_id'] = $schoolId;
+} else {
+    $sql .= ' AND school_id IS NULL';
+}
 if ($user['role'] === 'teacher') {
     $sql .= ' AND teacher_id = :teacher_id';
     $params['teacher_id'] = (int)$user['id'];
