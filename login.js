@@ -20,11 +20,24 @@ function mixHex(colorA,colorB,weight=.5){
   const ch=i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-w)+parseInt(b.slice(i,i+2),16)*w).toString(16).padStart(2,'0');
   return '#'+ch(0)+ch(2)+ch(4);
 }
+function buildSchoolFavicon(color='#1d68f0'){
+  const base=normalizeHexColor(color);
+  const light=mixHex(base,'#ffffff',.16);
+  const dark=mixHex(base,'#000000',.10);
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".52" stop-color="${base}"/><stop offset="1" stop-color="${dark}"/></linearGradient></defs><rect x="10" y="10" width="108" height="108" rx="30" fill="url(#g)"/><path d="M25 28c18-13 57-16 78-5" fill="none" stroke="white" stroke-opacity=".16" stroke-width="7" stroke-linecap="round"/><text x="64" y="84" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" fill="white">U</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
 function applyBranding(branding=null){
   const color=normalizeHexColor(branding?.theme_color||'#1d68f0');
   document.documentElement.style.setProperty('--brand',color);
   document.documentElement.style.setProperty('--brand-hover',mixHex(color,'#000000',.12));
   document.documentElement.style.setProperty('--brand-soft',mixHex(color,'#ffffff',.90));
+  const favicon=document.getElementById('siteFavicon');
+  if(favicon){
+    favicon.setAttribute('href',buildSchoolFavicon(color));
+    favicon.setAttribute('type','image/svg+xml');
+  }
+  document.getElementById('themeColorMeta')?.setAttribute('content',color);
 }
 
 
