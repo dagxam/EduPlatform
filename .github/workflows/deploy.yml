@@ -1,4 +1,4 @@
-name: Deploy EduPlatform to hosting
+name: Deploy UVORIA to hosting
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./
-          server-dir: /
+          server-dir: /www/urovia.ru/
           dangerous-clean-slate: false
           exclude: |
             **/.git*
