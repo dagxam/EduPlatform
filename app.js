@@ -18,6 +18,7 @@ const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
 let currentUser = null;
 let activeSchoolName = '';
+let currentBranding = { theme_color: '#1d68f0', favicon_data: null };
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
@@ -51,6 +52,81 @@ function showView(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function normalizeHexColor(value) {
+  const color = String(value || '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(color) ? color : '#1d68f0';
+}
+
+function mixHex(colorA, colorB, weight = 0.5) {
+  const a = normalizeHexColor(colorA).slice(1);
+  const b = normalizeHexColor(colorB).slice(1);
+  const w = Math.max(0, Math.min(1, Number(weight)));
+  const channel = index => Math.round(
+    parseInt(a.slice(index, index + 2), 16) * (1 - w) +
+    parseInt(b.slice(index, index + 2), 16) * w
+  ).toString(16).padStart(2, '0');
+  return '#' + channel(0) + channel(2) + channel(4);
+}
+
+function defaultFaviconData(color = '#1d68f0') {
+  const safe = normalizeHexColor(color);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="${safe}"/><text x="32" y="43" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="800" fill="white">U</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+function applySchoolBranding(branding = null) {
+  const color = normalizeHexColor(branding?.theme_color || '#1d68f0');
+  const faviconData = branding?.favicon_data || null;
+  currentBranding = { theme_color: color, favicon_data: faviconData };
+
+  const root = document.documentElement;
+  root.style.setProperty('--brand', color);
+  root.style.setProperty('--brand-hover', mixHex(color, '#000000', 0.12));
+  root.style.setProperty('--brand-soft', mixHex(color, '#ffffff', 0.90));
+  root.style.setProperty('--brand-soft-2', mixHex(color, '#ffffff', 0.82));
+  root.style.setProperty('--brand-shadow', mixHex(color, '#ffffff', 0.55));
+
+  const meta = document.getElementById('themeColorMeta');
+  if (meta) meta.setAttribute('content', color);
+
+  const favicon = document.getElementById('dynamicFavicon');
+  if (favicon) favicon.setAttribute('href', faviconData || defaultFaviconData(color));
+
+  const picker = document.getElementById('schoolThemeColorPicker');
+  const text = document.getElementById('schoolThemeColor');
+  if (picker) picker.value = color;
+  if (text) text.value = color;
+
+  renderSchoolFaviconPreview(faviconData, color);
+}
+
+function renderSchoolFaviconPreview(faviconData = currentBranding.favicon_data, color = currentBranding.theme_color) {
+  const preview = document.getElementById('schoolFaviconPreview');
+  if (!preview) return;
+
+  preview.style.background = normalizeHexColor(color);
+  preview.style.backgroundImage = faviconData ? `url("${faviconData}")` : 'none';
+  preview.style.backgroundSize = 'cover';
+  preview.style.backgroundPosition = 'center';
+  preview.textContent = faviconData ? '' : 'U';
+}
+
+async function loadSchoolBranding() {
+  try {
+    const response = await fetch('./api/school/branding/get.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить оформление школы.');
+    applySchoolBranding(data.branding);
+    return data;
+  } catch (error) {
+    applySchoolBranding(null);
+    throw error;
+  }
+}
+
 const roleLabels = {
   admin: 'Администратор',
   teacher: 'Учитель',
@@ -65,6 +141,7 @@ async function loadSession() {
       window.location.replace('./login.html');
       return null;
     }
+    applySchoolBranding(data.branding);
     return data.user;
   } catch {
     window.location.replace('./login.html');
@@ -185,6 +262,7 @@ async function selectSchool(schoolId) {
 
     if (selectedId === 0) {
       activeSchoolName = '';
+      applySchoolBranding(null);
       showView('teacher-dashboard');
       return;
     }
@@ -192,7 +270,7 @@ async function selectSchool(schoolId) {
     const selectedSchool = schoolsCache.find(school => Number(school.id) === selectedId);
     activeSchoolName = selectedSchool?.name || '';
 
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
     await loadSchoolManagement();
     showView('school-management');
   } catch (error) {
@@ -233,7 +311,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     assignmentsCache = [];
     teacherOptionsCache = [];
     await loadSchools();
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
     await loadSchoolManagement();
     showView('school-management');
   } catch (e) {
@@ -1197,6 +1275,117 @@ async function demoteAdminToTeacher(adminId) {
   }
 }
 
+document.getElementById('schoolThemeColorPicker')?.addEventListener('input', event => {
+  const color = normalizeHexColor(event.target.value);
+  const text = document.getElementById('schoolThemeColor');
+  if (text) text.value = color;
+  renderSchoolFaviconPreview(
+    document.getElementById('removeSchoolFavicon')?.checked ? null : currentBranding.favicon_data,
+    color
+  );
+});
+
+document.getElementById('schoolThemeColor')?.addEventListener('input', event => {
+  const value = String(event.target.value || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+    const color = value.toLowerCase();
+    const picker = document.getElementById('schoolThemeColorPicker');
+    if (picker) picker.value = color;
+    renderSchoolFaviconPreview(
+      document.getElementById('removeSchoolFavicon')?.checked ? null : currentBranding.favicon_data,
+      color
+    );
+  }
+});
+
+document.getElementById('schoolFaviconInput')?.addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    renderSchoolFaviconPreview(
+      document.getElementById('removeSchoolFavicon')?.checked ? null : currentBranding.favicon_data,
+      document.getElementById('schoolThemeColor')?.value || currentBranding.theme_color
+    );
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => renderSchoolFaviconPreview(
+    String(reader.result || ''),
+    document.getElementById('schoolThemeColor')?.value || currentBranding.theme_color
+  );
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('removeSchoolFavicon')?.addEventListener('change', event => {
+  const fileInput = document.getElementById('schoolFaviconInput');
+  if (event.target.checked && fileInput) fileInput.value = '';
+  renderSchoolFaviconPreview(
+    event.target.checked ? null : currentBranding.favicon_data,
+    document.getElementById('schoolThemeColor')?.value || currentBranding.theme_color
+  );
+});
+
+document.getElementById('schoolBrandingForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const error = document.getElementById('schoolBrandingError');
+  const result = document.getElementById('schoolBrandingResult');
+  const button = form.querySelector('button[type="submit"]');
+  const color = String(document.getElementById('schoolThemeColor')?.value || '').trim().toLowerCase();
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  if (!/^#[0-9a-f]{6}$/.test(color)) {
+    if (error) {
+      error.textContent = 'Укажите цвет в формате #RRGGBB.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  const data = new FormData();
+  data.append('theme_color', color);
+  if (document.getElementById('removeSchoolFavicon')?.checked) {
+    data.append('remove_favicon', '1');
+  }
+  const file = document.getElementById('schoolFaviconInput')?.files?.[0];
+  if (file) data.append('favicon', file);
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/school/branding/update.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: data
+    });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось сохранить оформление.');
+
+    applySchoolBranding(payload.branding);
+    const fileInput = document.getElementById('schoolFaviconInput');
+    const remove = document.getElementById('removeSchoolFavicon');
+    if (fileInput) fileInput.value = '';
+    if (remove) remove.checked = false;
+    if (result) {
+      result.textContent = 'Оформление школы сохранено.';
+      result.classList.remove('hidden');
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить оформление школы';
+  }
+});
+
 document.getElementById('subjectForm')?.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1321,7 +1510,10 @@ loadSession().then(async user => {
   if (!user) return;
   applyUser(user);
 
-  if (user.role === 'student') return;
+  if (user.role === 'student') {
+    try { await loadSchoolBranding(); } catch {}
+    return;
+  }
 
   try {
     const schoolsData = await loadSchools();
@@ -1332,7 +1524,7 @@ loadSession().then(async user => {
       return;
     }
 
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
 
     if (user.role === 'admin') {
       await loadSchoolManagement();
