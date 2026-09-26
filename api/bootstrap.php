@@ -160,6 +160,12 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
 function apply_schema_migrations(PDO $pdo): void
 {
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'users', 'login_name', 'TEXT COLLATE NOCASE');
+    add_column_if_missing($pdo, 'users', 'must_change_password', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'users', 'credentials_sent_at', 'TEXT');
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_login_name
+        ON users(login_name)
+        WHERE login_name IS NOT NULL");
     add_column_if_missing($pdo, 'school_users', 'can_teach', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'schools', 'theme_color', "TEXT NOT NULL DEFAULT '#1d68f0'");
     $pdo->exec("UPDATE school_users SET can_teach = 1 WHERE role = 'teacher' AND can_teach = 0");
@@ -215,7 +221,8 @@ function current_user(): ?array
     }
 
     $stmt = app_db()->prepare(
-        'SELECT id, first_name, last_name, email, role, is_platform_admin, class_name, is_active
+        'SELECT id, first_name, last_name, email, login_name, role, is_platform_admin,
+                class_name, must_change_password, credentials_sent_at, is_active
          FROM users WHERE id = :id LIMIT 1'
     );
     $stmt->execute(['id' => (int) $_SESSION['user_id']]);
@@ -480,4 +487,88 @@ function normalize_email(string $email): string
 {
     $email = trim($email);
     return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
+}
+
+function generate_staff_login(PDO $pdo): string
+{
+    $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+    for ($attempt = 0; $attempt < 30; $attempt++) {
+        $suffix = '';
+        for ($i = 0; $i < 8; $i++) {
+            $suffix .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+        $login = 'uv' . $suffix;
+
+        $stmt = $pdo->prepare('SELECT 1 FROM users WHERE login_name = :login LIMIT 1');
+        $stmt->execute(['login' => $login]);
+        if (!$stmt->fetchColumn()) {
+            return $login;
+        }
+    }
+
+    throw new RuntimeException('Не удалось создать уникальный логин.');
+}
+
+function generate_temporary_password(int $length = 14): string
+{
+    $length = max(12, min(32, $length));
+    $lower = 'abcdefghjkmnpqrstuvwxyz';
+    $upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+    $digits = '23456789';
+    $all = $lower . $upper . $digits;
+
+    $chars = [
+        $lower[random_int(0, strlen($lower) - 1)],
+        $upper[random_int(0, strlen($upper) - 1)],
+        $digits[random_int(0, strlen($digits) - 1)],
+    ];
+
+    while (count($chars) < $length) {
+        $chars[] = $all[random_int(0, strlen($all) - 1)];
+    }
+
+    for ($i = count($chars) - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        [$chars[$i], $chars[$j]] = [$chars[$j], $chars[$i]];
+    }
+
+    return implode('', $chars);
+}
+
+function uvoria_app_url(): string
+{
+    $configured = trim((string)(getenv('UVORIA_APP_URL') ?: ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+
+    return 'https://uvoria.ru';
+}
+
+function send_uvoria_email(string $to, string $subject, string $body): bool
+{
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || !function_exists('mail')) {
+        return false;
+    }
+
+    $from = trim((string)(getenv('UVORIA_MAIL_FROM') ?: 'no-reply@uvoria.ru'));
+    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        $from = 'no-reply@uvoria.ru';
+    }
+
+    $encodedSubject = function_exists('mb_encode_mimeheader')
+        ? mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n")
+        : $subject;
+
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+        'From: UVORIA <' . $from . '>',
+        'Reply-To: ' . $from,
+        'X-Mailer: UVORIA',
+    ];
+
+    return @mail($to, $encodedSubject, $body, implode("\r\n", $headers));
 }
