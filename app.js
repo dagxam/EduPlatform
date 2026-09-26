@@ -12,6 +12,7 @@ const quizModal = document.getElementById('quizModal');
 const schoolModal = document.getElementById('schoolModal');
 const subjectModal = document.getElementById('subjectModal');
 const teacherModal = document.getElementById('teacherModal');
+const schoolAdminModal = document.getElementById('schoolAdminModal');
 const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal');
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
@@ -206,6 +207,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
 
 let classesCache = [];
 let currentClass = null;
+let studentImportPreviewRows = [];
 
 async function loadClasses() {
   const grid = document.getElementById('classesGrid');
@@ -257,6 +259,11 @@ async function openClassDetails(item) {
   updateRegistrationButton();
   document.getElementById('importStudentsResult').classList.add('hidden');
   document.getElementById('importStudentsError').classList.add('hidden');
+  studentImportPreviewRows = [];
+  document.getElementById('studentImportPreview')?.classList.add('hidden');
+  const previewBody = document.getElementById('studentImportPreviewBody');
+  if (previewBody) previewBody.innerHTML = '';
+  document.getElementById('importStudentsForm')?.reset();
   openModal(classDetailsModal);
   await loadClassStudents();
 }
@@ -392,6 +399,66 @@ document.getElementById('toggleRegistrationBtn')?.addEventListener('click', asyn
   updateRegistrationButton();
 });
 
+function renderStudentImportPreview() {
+  const box = document.getElementById('studentImportPreview');
+  const body = document.getElementById('studentImportPreviewBody');
+  const meta = document.getElementById('studentImportPreviewMeta');
+  if (!box || !body || !meta) return;
+
+  if (!studentImportPreviewRows.length) {
+    body.innerHTML = '<tr><td colspan="5">Список пуст. Добавьте строку вручную или загрузите другой DOCX.</td></tr>';
+    meta.textContent = '0 учеников';
+    box.classList.remove('hidden');
+    return;
+  }
+
+  const duplicates = studentImportPreviewRows.filter(row => row.duplicate).length;
+  meta.textContent = `Распознано: ${studentImportPreviewRows.length}${duplicates ? ' · уже есть в классе: ' + duplicates : ''}`;
+
+  body.innerHTML = studentImportPreviewRows.map((row, index) => `
+    <tr data-preview-row="${index}" class="${row.duplicate ? 'preview-duplicate-row' : ''}">
+      <td>${index + 1}</td>
+      <td><input type="text" data-preview-field="last_name" value="${escapeHtml(row.last_name)}" aria-label="Фамилия"></td>
+      <td><input type="text" data-preview-field="first_name" value="${escapeHtml(row.first_name)}" aria-label="Имя"></td>
+      <td><span class="status ${row.duplicate ? 'amber' : 'green'}">${row.duplicate ? 'Уже есть' : 'Новый'}</span></td>
+      <td><button class="mini-action danger-action" type="button" data-remove-preview-row="${index}">Удалить</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('input[data-preview-field]').forEach(input => {
+    input.addEventListener('input', () => {
+      const rowEl = input.closest('[data-preview-row]');
+      const index = Number(rowEl?.dataset.previewRow);
+      if (!Number.isInteger(index) || !studentImportPreviewRows[index]) return;
+      studentImportPreviewRows[index][input.dataset.previewField] = input.value;
+      studentImportPreviewRows[index].duplicate = false;
+      rowEl.classList.remove('preview-duplicate-row');
+      const status = rowEl.querySelector('.status');
+      if (status) {
+        status.className = 'status blue';
+        status.textContent = 'Изменено';
+      }
+    });
+  });
+
+  body.querySelectorAll('[data-remove-preview-row]').forEach(button => {
+    button.addEventListener('click', () => {
+      studentImportPreviewRows.splice(Number(button.dataset.removePreviewRow), 1);
+      renderStudentImportPreview();
+    });
+  });
+
+  box.classList.remove('hidden');
+}
+
+document.getElementById('addPreviewStudentBtn')?.addEventListener('click', () => {
+  studentImportPreviewRows.push({ last_name: '', first_name: '', duplicate: false });
+  renderStudentImportPreview();
+  const rows = document.querySelectorAll('#studentImportPreviewBody tr');
+  const lastRow = rows[rows.length - 1];
+  lastRow?.querySelector('input')?.focus();
+});
+
 document.getElementById('importStudentsForm')?.addEventListener('submit', async event => {
   event.preventDefault();
   if (!currentClass) return;
@@ -410,7 +477,7 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
   data.append('file', fileInput.files[0]);
 
   button.disabled = true;
-  button.textContent = 'Импортируем...';
+  button.textContent = 'Распознаём...';
   try {
     const response = await fetch('./api/classes/import-students.php', {
       method: 'POST',
@@ -418,10 +485,64 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
       body: data
     });
     const payload = await response.json();
-    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось импортировать список.');
-    result.textContent = `Добавлено: ${payload.imported_count}. Пропущено повторов: ${payload.skipped_count}.`;
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось распознать список.');
+
+    studentImportPreviewRows = (payload.students || []).map(row => ({
+      last_name: row.last_name || '',
+      first_name: row.first_name || '',
+      duplicate: Boolean(row.duplicate)
+    }));
+    renderStudentImportPreview();
+    result.textContent = 'Список распознан. Проверьте каждую строку и исправьте ошибки перед добавлением.';
     result.classList.remove('hidden');
-    form.reset();
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Проверить DOCX';
+  }
+});
+
+document.getElementById('confirmStudentsImportBtn')?.addEventListener('click', async () => {
+  if (!currentClass) return;
+  const button = document.getElementById('confirmStudentsImportBtn');
+  const error = document.getElementById('importStudentsError');
+  const result = document.getElementById('importStudentsResult');
+
+  const students = studentImportPreviewRows
+    .map(row => ({
+      last_name: String(row.last_name || '').trim(),
+      first_name: String(row.first_name || '').trim()
+    }))
+    .filter(row => row.last_name || row.first_name);
+
+  if (!students.length) {
+    error.textContent = 'В списке нет учеников для добавления.';
+    error.classList.remove('hidden');
+    return;
+  }
+
+  error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Добавляем...';
+
+  try {
+    const response = await fetch('./api/classes/import-students-commit.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class_id: currentClass.id, students })
+    });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось добавить учеников.');
+
+    result.textContent = `Добавлено: ${payload.imported_count}. Уже были в классе: ${payload.skipped_count}.`;
+    result.classList.remove('hidden');
+    studentImportPreviewRows = [];
+    document.getElementById('studentImportPreview')?.classList.add('hidden');
+    document.getElementById('importStudentsForm')?.reset();
+
     await loadClassStudents();
     await loadClasses();
     const refreshed = classesCache.find(item => Number(item.id) === Number(currentClass.id));
@@ -431,9 +552,10 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
     error.classList.remove('hidden');
   } finally {
     button.disabled = false;
-    button.textContent = 'Импортировать DOCX';
+    button.textContent = 'Добавить проверенный список';
   }
 });
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
@@ -754,26 +876,37 @@ function escapeHtml(value) {
 }
 
 let schoolTeachersCache = [];
+let schoolAdminsCache = [];
 let selectedTeacherForAssignments = null;
+let editingSchoolAdminId = null;
 
 async function loadSchoolManagement() {
   if (currentUser?.role !== 'admin') return;
   const subjectList = document.getElementById('schoolSubjectsList');
   const teacherBody = document.getElementById('schoolTeachersBody');
+  const adminsBody = document.getElementById('schoolAdminsBody');
   if (!subjectList || !teacherBody) return;
 
   subjectList.innerHTML = '<p>Загрузка предметов...</p>';
   teacherBody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
+  if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+    adminsBody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
+  }
 
   try {
-    const [subjectsResponse, teachersResponse] = await Promise.all([
+    const requests = [
       fetch('./api/subjects/list.php', { credentials: 'same-origin', cache: 'no-store' }),
       fetch('./api/school/teachers/list.php', { credentials: 'same-origin', cache: 'no-store' })
-    ]);
-    const subjectsData = await subjectsResponse.json();
-    const teachersData = await teachersResponse.json();
-    if (!subjectsResponse.ok || subjectsData.ok === false) throw new Error(subjectsData.error || 'Не удалось загрузить предметы.');
-    if (!teachersResponse.ok || teachersData.ok === false) throw new Error(teachersData.error || 'Не удалось загрузить учителей.');
+    ];
+    if (Number(currentUser?.is_platform_admin) === 1) {
+      requests.push(fetch('./api/school/admins/list.php', { credentials: 'same-origin', cache: 'no-store' }));
+    }
+
+    const responses = await Promise.all(requests);
+    const subjectsData = await responses[0].json();
+    const teachersData = await responses[1].json();
+    if (!responses[0].ok || subjectsData.ok === false) throw new Error(subjectsData.error || 'Не удалось загрузить предметы.');
+    if (!responses[1].ok || teachersData.ok === false) throw new Error(teachersData.error || 'Не удалось загрузить учителей.');
 
     subjectsCache = subjectsData.subjects || [];
     schoolTeachersCache = teachersData.teachers || [];
@@ -798,14 +931,136 @@ async function loadSchoolManagement() {
     teacherBody.querySelectorAll('[data-teacher-assign]').forEach(button => {
       button.addEventListener('click', () => openTeacherAssignments(Number(button.dataset.teacherAssign)));
     });
+
+    if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+      const adminsData = await responses[2].json();
+      if (!responses[2].ok || adminsData.ok === false) throw new Error(adminsData.error || 'Не удалось загрузить администраторов.');
+      schoolAdminsCache = adminsData.admins || [];
+      adminsBody.innerHTML = schoolAdminsCache.length ? schoolAdminsCache.map(admin => `
+        <tr>
+          <td><b>${escapeHtml(admin.last_name)} ${escapeHtml(admin.first_name)}</b></td>
+          <td>${escapeHtml(admin.email)}</td>
+          <td><span class="status ${Number(admin.is_active) ? 'green' : 'amber'}">${Number(admin.is_active) ? 'Активен' : 'Отключён'}</span></td>
+          <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>
+            <button class="mini-action danger-action" type="button" data-remove-school-admin="${admin.id}">Снять</button>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="4">Администраторы не назначены.</td></tr>';
+
+      adminsBody.querySelectorAll('[data-edit-school-admin]').forEach(button => {
+        button.addEventListener('click', () => openSchoolAdminEditor(Number(button.dataset.editSchoolAdmin)));
+      });
+      adminsBody.querySelectorAll('[data-remove-school-admin]').forEach(button => {
+        button.addEventListener('click', () => removeSchoolAdmin(Number(button.dataset.removeSchoolAdmin)));
+      });
+    }
   } catch (error) {
     subjectList.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
     teacherBody.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+    if (adminsBody && Number(currentUser?.is_platform_admin) === 1) {
+      adminsBody.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+    }
   }
 }
 
 document.getElementById('addSubjectBtn')?.addEventListener('click', () => openModal(subjectModal));
 document.getElementById('addTeacherBtn')?.addEventListener('click', () => openModal(teacherModal));
+
+function openSchoolAdminEditor(adminId = null) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = document.getElementById('schoolAdminForm');
+  const title = document.getElementById('schoolAdminModalTitle');
+  const password = document.getElementById('schoolAdminPassword');
+  const hint = document.getElementById('schoolAdminPasswordHint');
+  const save = document.getElementById('saveSchoolAdminBtn');
+  const error = document.getElementById('schoolAdminFormError');
+
+  form.reset();
+  error.classList.add('hidden');
+  editingSchoolAdminId = adminId ? Number(adminId) : null;
+  document.getElementById('schoolAdminId').value = editingSchoolAdminId || '';
+
+  if (editingSchoolAdminId) {
+    const admin = schoolAdminsCache.find(item => Number(item.id) === editingSchoolAdminId);
+    if (!admin) return;
+    document.getElementById('schoolAdminFirstName').value = admin.first_name || '';
+    document.getElementById('schoolAdminLastName').value = admin.last_name || '';
+    document.getElementById('schoolAdminEmail').value = admin.email || '';
+    title.textContent = 'Изменить администратора';
+    password.required = false;
+    hint.textContent = 'Оставьте пустым, если пароль менять не нужно.';
+    save.textContent = 'Сохранить изменения';
+  } else {
+    title.textContent = 'Назначить администратора';
+    password.required = true;
+    hint.textContent = 'Для нового администратора — минимум 8 символов.';
+    save.textContent = 'Назначить администратора';
+  }
+
+  openModal(schoolAdminModal);
+}
+
+document.getElementById('addSchoolAdminBtn')?.addEventListener('click', () => openSchoolAdminEditor());
+
+document.getElementById('schoolAdminForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const error = document.getElementById('schoolAdminFormError');
+  const button = document.getElementById('saveSchoolAdminBtn');
+  const payload = Object.fromEntries(new FormData(form).entries());
+  const editing = Boolean(editingSchoolAdminId);
+
+  error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = editing ? 'Сохраняем...' : 'Назначаем...';
+
+  try {
+    const response = await fetch(editing ? './api/school/admins/update.php' : './api/school/admins/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить администратора.');
+
+    closeModal(schoolAdminModal);
+    editingSchoolAdminId = null;
+    await loadSchoolManagement();
+    await loadSchools();
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = editing ? 'Сохранить изменения' : 'Назначить администратора';
+  }
+});
+
+async function removeSchoolAdmin(adminId) {
+  const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
+  if (!admin) return;
+  if (!confirm(`Снять права администратора у ${admin.last_name} ${admin.first_name}?`)) return;
+
+  try {
+    const response = await fetch('./api/school/admins/remove.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_id: adminId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось снять администратора.');
+    await loadSchoolManagement();
+    await loadSchools();
+  } catch (error) {
+    alert(error.message);
+  }
+}
 
 document.getElementById('subjectForm')?.addEventListener('submit', async event => {
   event.preventDefault();
