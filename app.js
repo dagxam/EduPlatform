@@ -69,6 +69,25 @@ function mixHex(colorA, colorB, weight = 0.5) {
   return '#' + channel(0) + channel(2) + channel(4);
 }
 
+function buildSchoolFavicon(color = '#1d68f0') {
+  const base = normalizeHexColor(color);
+  const light = mixHex(base, '#ffffff', 0.16);
+  const dark = mixHex(base, '#000000', 0.10);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${light}"/>
+        <stop offset="0.52" stop-color="${base}"/>
+        <stop offset="1" stop-color="${dark}"/>
+      </linearGradient>
+    </defs>
+    <rect x="10" y="10" width="108" height="108" rx="30" fill="url(#g)"/>
+    <path d="M25 28c18-13 57-16 78-5" fill="none" stroke="white" stroke-opacity=".16" stroke-width="7" stroke-linecap="round"/>
+    <text x="64" y="84" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" fill="white">U</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
 function applySchoolBranding(branding = null) {
   const color = normalizeHexColor(branding?.theme_color || '#1d68f0');
   currentBranding = { theme_color: color };
@@ -79,6 +98,14 @@ function applySchoolBranding(branding = null) {
   root.style.setProperty('--brand-soft', mixHex(color, '#ffffff', 0.90));
   root.style.setProperty('--brand-soft-2', mixHex(color, '#ffffff', 0.82));
   root.style.setProperty('--brand-shadow', mixHex(color, '#ffffff', 0.55));
+
+  const favicon = document.getElementById('siteFavicon');
+  if (favicon) {
+    favicon.setAttribute('href', buildSchoolFavicon(color));
+    favicon.setAttribute('type', 'image/svg+xml');
+  }
+  const themeMeta = document.getElementById('themeColorMeta');
+  if (themeMeta) themeMeta.setAttribute('content', color);
 
   const picker = document.getElementById('schoolThemeColorPicker');
   const text = document.getElementById('schoolThemeColor');
