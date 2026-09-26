@@ -50,8 +50,5 @@ json_response([
     'active_school_id' => $activeSchoolId,
     'branding' => $activeSchoolId !== null
         ? school_branding($activeSchoolId)
-        : [
-            'theme_color' => '#1d68f0',
-            'favicon_data' => null,
-        ],
+        : ['theme_color' => '#1d68f0'],
 ]);
