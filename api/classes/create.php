@@ -44,8 +44,8 @@ try {
     $code = generate_join_code($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO class_access (class_id, join_code, registration_open)
-         VALUES (:class_id, :join_code, 1)'
+        'INSERT INTO class_access (class_id, join_code, registration_open, registration_expires_at)
+         VALUES (:class_id, :join_code, 0, NULL)'
     );
     $stmt->execute(['class_id' => $classId, 'join_code' => $code]);
     $pdo->commit();
@@ -64,7 +64,8 @@ json_response([
         'name' => $name,
         'academic_year' => $academicYear,
         'join_code' => $code,
-        'registration_open' => 1,
+        'registration_open' => 0,
+        'registration_expires_at' => null,
         'students_count' => 0,
     ],
 ], 201);
