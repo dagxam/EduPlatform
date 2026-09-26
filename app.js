@@ -9,6 +9,7 @@ const sidebarRole = document.getElementById('sidebarRole');
 const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
+const questionPreviewModal = document.getElementById('questionPreviewModal');
 const schoolModal = document.getElementById('schoolModal');
 const subjectModal = document.getElementById('subjectModal');
 const teacherModal = document.getElementById('teacherModal');
@@ -817,19 +818,158 @@ function renderSubjectAssignments() {
   const rows = assignmentsCache.filter(item => Number(item.subject_id) === Number(selectedSubjectId));
   list.innerHTML = rows.length ? rows.map(item => {
     const [statusText, statusClass] = assignmentStatusLabel(item.status);
+    const questionsCount = Number(item.questions_count || item.parsed_question_count || 0);
+    const importInfo = item.source_format
+      ? escapeHtml(String(item.source_format).toUpperCase()) + (
+          item.parse_status === 'questions_parsed'
+            ? ` · распознано вопросов: ${questionsCount}`
+            : item.parse_status === 'text_extracted'
+              ? ' · текст извлечён'
+              : ' · файл принят'
+        )
+      : `Задание UVORIA${questionsCount ? ' · вопросов: ' + questionsCount : ''}`;
+
     return `
       <article class="subject-assignment-row">
-        <div>
+        <div class="subject-assignment-copy">
           <b>${escapeHtml(item.title)}</b>
-          <small>${escapeHtml(item.class_names || 'Без класса')} · ${
-            item.source_format
-              ? escapeHtml(String(item.source_format).toUpperCase()) + (item.parse_status === 'text_extracted' ? ' · текст подготовлен' : ' · файл принят')
-              : 'Задание UVORIA'
-          }</small>
+          <small>${escapeHtml(item.class_names || 'Без класса')} · ${importInfo}</small>
+          ${item.parser_message ? `<em>${escapeHtml(item.parser_message)}</em>` : ''}
         </div>
-        <span class="status ${statusClass}">${statusText}</span>
+        <div class="subject-assignment-actions">
+          ${questionsCount ? `<button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Проверить вопросы</button>` : ''}
+          <span class="status ${statusClass}">${statusText}</span>
+        </div>
       </article>`;
   }).join('') : '<div class="subject-empty-list"><b>Заданий пока нет</b><span>Создайте задание вручную или импортируйте файл.</span></div>';
+
+  list.querySelectorAll('[data-preview-questions]').forEach(button => {
+    button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
+  });
+}
+
+function questionTypeLabel(type) {
+  const labels = {
+    single: 'Один вариант',
+    multiple: 'Несколько вариантов',
+    true_false: 'Верно / неверно',
+    ordering: 'Хронология / порядок',
+    matching: 'Соответствия',
+    short_answer: 'Короткий ответ',
+    correction: 'Найти и исправить ошибку',
+    image_answer: 'Ответ по изображению',
+    essay: 'Развёрнутый ответ'
+  };
+  return labels[type] || type || 'Вопрос';
+}
+
+function renderQuestionCorrectAnswer(question) {
+  const interaction = question.interaction_type || question.type;
+  if (interaction === 'single' || interaction === 'multiple' || interaction === 'true_false') {
+    const correct = (question.options || []).filter(option => Number(option.is_correct) === 1).map(option => option.text);
+    return correct.length ? correct.join(', ') : 'Не указан';
+  }
+  if (interaction === 'ordering') {
+    const settings = question.settings || {};
+    const items = settings.items || {};
+    const order = settings.correct_order || [];
+    return order.map(key => items[key] || key).join(' → ') || 'Не указан';
+  }
+  if (interaction === 'matching') {
+    const settings = question.settings || {};
+    const left = settings.left || {};
+    const right = settings.right || {};
+    const pairs = settings.pairs || {};
+    const result = Object.entries(pairs).map(([l, r]) => `${left[l] || l} — ${right[r] || r}`);
+    return result.join('; ') || 'Не указан';
+  }
+  return question.correct_text || 'Проверяется учителем';
+}
+
+async function openQuestionPreview(assignmentId) {
+  if (!questionPreviewModal) return;
+
+  const list = document.getElementById('questionPreviewList');
+  const summary = document.getElementById('questionPreviewSummary');
+  const error = document.getElementById('questionPreviewError');
+  const title = document.getElementById('questionPreviewTitle');
+
+  if (list) list.innerHTML = '<p>Загрузка вопросов...</p>';
+  if (summary) summary.innerHTML = '';
+  error?.classList.add('hidden');
+  openModal(questionPreviewModal);
+
+  try {
+    const response = await fetch(`./api/assignments/questions.php?assignment_id=${encodeURIComponent(assignmentId)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить вопросы.');
+
+    const questions = data.questions || [];
+    if (title) title.textContent = data.assignment?.title || 'Распознанные вопросы';
+
+    const counts = {};
+    questions.forEach(question => {
+      const kind = question.interaction_type || question.type;
+      counts[kind] = (counts[kind] || 0) + 1;
+    });
+    if (summary) {
+      summary.innerHTML = `<b>${questions.length} вопросов</b>` +
+        Object.entries(counts).map(([kind, count]) => `<span>${escapeHtml(questionTypeLabel(kind))}: ${count}</span>`).join('');
+    }
+
+    if (!questions.length) {
+      if (list) list.innerHTML = '<div class="subject-empty-list"><b>Вопросы пока не распознаны</b><span>Проверьте структуру исходного файла.</span></div>';
+      return;
+    }
+
+    if (list) {
+      list.innerHTML = questions.map((question, index) => {
+        const interaction = question.interaction_type || question.type;
+        const options = (question.options || []).length
+          ? `<div class="question-preview-options">${question.options.map(option =>
+              `<span class="${Number(option.is_correct) === 1 ? 'correct' : ''}">${escapeHtml(option.text)}</span>`
+            ).join('')}</div>`
+          : '';
+
+        const settings = question.settings || {};
+        let structured = '';
+        if (interaction === 'matching') {
+          structured = `<div class="question-preview-structured"><b>Левый столбец:</b> ${escapeHtml(Object.values(settings.left || {}).join(' · '))}<br><b>Правый столбец:</b> ${escapeHtml(Object.values(settings.right || {}).join(' · '))}</div>`;
+        } else if (interaction === 'ordering') {
+          structured = `<div class="question-preview-structured"><b>Элементы:</b> ${escapeHtml(Object.values(settings.items || {}).join(' · '))}</div>`;
+        } else if (interaction === 'correction' && settings.original_text) {
+          structured = `<div class="question-preview-structured"><b>Текст с ошибкой:</b> ${escapeHtml(settings.original_text)}</div>`;
+        }
+
+        const images = (question.assets || []).map(asset =>
+          `<img class="question-preview-image" src="${escapeHtml(asset.url)}" alt="Изображение к вопросу">`
+        ).join('');
+
+        return `
+          <article class="question-preview-card">
+            <div class="question-preview-head">
+              <span>№ ${index + 1}</span>
+              <b>${escapeHtml(questionTypeLabel(interaction))}</b>
+              <strong>${Number(question.points || 1)} балл.</strong>
+            </div>
+            <h4>${escapeHtml(question.text)}</h4>
+            ${images}
+            ${structured}
+            ${options}
+            <div class="question-preview-answer"><span>Правильный ответ</span><b>${escapeHtml(renderQuestionCorrectAnswer(question))}</b></div>
+          </article>`;
+      }).join('');
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+    if (list) list.innerHTML = '';
+  }
 }
 
 async function openSubjectDetails(subjectId) {
@@ -1011,9 +1151,12 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
     const payload = await response.json();
     if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось импортировать задание.');
 
-    const status = payload.import?.parse_status === 'text_extracted'
-      ? 'Текст из файла подготовлен для разбора вопросов.'
-      : 'Файл сохранён в черновике для дальнейшего разбора.';
+    const parsedCount = Number(payload.import?.parsed_question_count || 0);
+    const status = payload.import?.parse_status === 'questions_parsed'
+      ? `UVORIA распознала ${parsedCount} вопросов. Откройте «Проверить вопросы» перед публикацией.`
+      : payload.import?.parse_status === 'text_extracted'
+        ? 'Текст извлечён, но вопросы по шаблону не распознаны. Проверьте структуру файла.'
+        : 'Файл сохранён в черновике. Для этого файла автоматическое извлечение текста ограничено.';
     if (result) {
       result.textContent = `${payload.import?.format || 'Файл'} принят. ${status}`;
       result.classList.remove('hidden');
