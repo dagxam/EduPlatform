@@ -231,6 +231,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     await loadSchools();
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
     await loadSchoolManagement();
+    showView('school-management');
   } catch (e) {
     error.textContent = e.message;
     error.classList.remove('hidden');
