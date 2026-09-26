@@ -428,7 +428,7 @@ async function loadClassStudents() {
         <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
         <span class="student-row-actions">
           <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
-          ${Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
+          ${currentUser?.role === 'admin' && Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
         </span>
       </div>
     `).join('') : '<div class="empty-students">Учеников пока нет. Загрузите DOCX со списком класса.</div>';
@@ -1018,27 +1018,6 @@ async function loadSubjectsWorkspace() {
       renderSubjectsPage();
     }
   } catch {}
-}
-
-function fillTaskClasses(subjectId = 0) {
-  const select = document.getElementById('taskClass');
-  if (!select) return;
-
-  const source = Number(subjectId) > 0
-    ? teacherOptionsCache.filter(item => Number(item.subject_id) === Number(subjectId))
-    : [];
-
-  const unique = [];
-  const seen = new Set();
-  source.forEach(item => {
-    if (seen.has(Number(item.class_id))) return;
-    seen.add(Number(item.class_id));
-    unique.push({ id: Number(item.class_id), name: item.class_name });
-  });
-
-  select.innerHTML = '<option value="">Выберите класс</option>' + unique.map(item =>
-    `<option value="${item.id}">${escapeHtml(item.name)}</option>`
-  ).join('');
 }
 
 async function loadTeacherOptions() {
