@@ -9,16 +9,19 @@ const sidebarRole = document.getElementById('sidebarRole');
 const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
-const userModal = document.getElementById('userModal');
 const schoolModal = document.getElementById('schoolModal');
+const subjectModal = document.getElementById('subjectModal');
+const teacherModal = document.getElementById('teacherModal');
+const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal');
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
+let currentUser = null;
 
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   assignments: ['Управление обучением', 'Задания'],
   classes: ['Ученики и группы', 'Классы'],
-  users: ['Администрирование', 'Пользователи'],
+  'school-management': ['Администрирование', 'Управление школой'],
   results: ['Журнал успеваемости', 'Результаты'],
   'student-dashboard': ['Кабинет ученика', 'Мои занятия'],
   'student-tasks': ['Учёба', 'Мои задания'],
@@ -60,23 +63,28 @@ async function loadSession() {
 }
 
 function applyUser(user) {
+  currentUser = user;
   const student = user.role === 'student';
+  const teacher = user.role === 'teacher';
+  const admin = user.role === 'admin';
+  const platformAdmin = admin && Number(user.is_platform_admin) === 1;
+
   teacherNav.classList.toggle('hidden', student);
   studentNav.classList.toggle('hidden', !student);
-  document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', student));
+
+  document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', !teacher));
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
+  document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.toggle('hidden', !platformAdmin));
+  document.querySelectorAll('.staff-only').forEach(el => el.classList.toggle('hidden', student));
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   sidebarName.textContent = fullName || 'Пользователь';
-  sidebarRole.textContent = roleLabels[user.role] || user.role;
+  sidebarRole.textContent = platformAdmin ? 'Администратор UVORIA' : (admin ? 'Администратор школы' : (roleLabels[user.role] || user.role));
   sidebarAvatar.textContent = ((user.first_name || 'П').charAt(0) + (user.last_name || '').charAt(0)).toUpperCase();
   const roleBadge = document.getElementById('accountRoleBadge');
-  if (roleBadge) roleBadge.textContent = roleLabels[user.role] || user.role;
+  if (roleBadge) roleBadge.textContent = sidebarRole.textContent;
 
-  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', user.role !== 'admin'));
-
-  if (user.role === 'admin') {
-    eyebrow.textContent = 'Кабинет администратора';
-  }
+  if (admin) eyebrow.textContent = platformAdmin ? 'Администратор UVORIA' : 'Администратор школы';
 
   showView(student ? 'student-dashboard' : 'teacher-dashboard');
 }
@@ -107,13 +115,22 @@ async function loadSchools() {
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить школы.');
 
     schoolsCache = data.schools || [];
-    selector.innerHTML = '<option value="0">Личное пространство</option>' + schoolsCache.map(school => {
-      const city = school.city ? ' · ' + school.city : '';
-      return `<option value="${school.id}">${escapeHtml(school.name + city)}</option>`;
-    }).join('');
-    selector.value = data.active_school_id ? String(data.active_school_id) : '0';
+    const platformAdmin = Boolean(data.is_platform_admin);
+    selector.innerHTML = (platformAdmin ? '<option value="0">Выберите школу</option>' : '<option value="">Выберите школу</option>') +
+      schoolsCache.map(school => {
+        const city = school.city ? ' · ' + school.city : '';
+        return `<option value="${school.id}">${escapeHtml(school.name + city)}</option>`;
+      }).join('');
+
+    if (data.active_school_id) {
+      selector.value = String(data.active_school_id);
+    } else if (!platformAdmin && schoolsCache.length === 1) {
+      selector.value = String(schoolsCache[0].id);
+    } else {
+      selector.value = platformAdmin ? '0' : '';
+    }
   } catch (error) {
-    selector.innerHTML = '<option value="0">Личное пространство</option>';
+    selector.innerHTML = '<option value="">Школы недоступны</option>';
   }
 }
 
@@ -136,6 +153,7 @@ async function selectSchool(schoolId) {
     currentClass = null;
     closeModal(classDetailsModal);
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+    if (currentUser?.role === 'admin') await loadSchoolManagement();
   } catch (error) {
     alert(error.message);
     await loadSchools();
@@ -179,7 +197,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     error.classList.remove('hidden');
   } finally {
     button.disabled = false;
-    button.textContent = 'Создать школу';
+    button.textContent = 'Создать школу и администратора';
   }
 });
 
@@ -415,6 +433,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
@@ -686,115 +705,196 @@ function startQuiz() {
 document.getElementById('startQuizBtn')?.addEventListener('click', startQuiz);
 document.querySelectorAll('.start-quiz').forEach(btn => btn.addEventListener('click', startQuiz));
 
-let usersCache = [];
-
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   })[char]);
 }
 
-function roleLabel(role) {
-  return roleLabels[role] || role;
-}
+let schoolTeachersCache = [];
+let selectedTeacherForAssignments = null;
 
-function renderUsers() {
-  const body = document.getElementById('usersTableBody');
-  if (!body) return;
+async function loadSchoolManagement() {
+  if (currentUser?.role !== 'admin') return;
+  const subjectList = document.getElementById('schoolSubjectsList');
+  const teacherBody = document.getElementById('schoolTeachersBody');
+  if (!subjectList || !teacherBody) return;
 
-  const query = (document.getElementById('userSearch')?.value || '').trim().toLowerCase();
-  const role = document.getElementById('userRoleFilter')?.value || '';
-
-  const filtered = usersCache.filter(user => {
-    const haystack = [user.first_name, user.last_name, user.email, user.class_name].join(' ').toLowerCase();
-    return (!query || haystack.includes(query)) && (!role || user.role === role);
-  });
-
-  body.innerHTML = filtered.length ? filtered.map(user => `
-    <tr>
-      <td><b>${escapeHtml(user.last_name)} ${escapeHtml(user.first_name)}</b></td>
-      <td>${escapeHtml(user.email)}</td>
-      <td><span class="role-chip role-${escapeHtml(user.role)}">${escapeHtml(roleLabel(user.role))}</span></td>
-      <td>${escapeHtml(user.class_name || '—')}</td>
-      <td><span class="status ${Number(user.is_active) ? 'green' : 'amber'}">${Number(user.is_active) ? 'Активен' : 'Отключён'}</span></td>
-    </tr>
-  `).join('') : '<tr><td colspan="5">Пользователи не найдены.</td></tr>';
-}
-
-async function loadUsers() {
-  const body = document.getElementById('usersTableBody');
-  if (!body || document.querySelector('.admin-only:not(.hidden)') === null) return;
-  body.innerHTML = '<tr><td colspan="5">Загрузка...</td></tr>';
+  subjectList.innerHTML = '<p>Загрузка предметов...</p>';
+  teacherBody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
 
   try {
-    const response = await fetch('./api/users/list.php', { credentials: 'same-origin', cache: 'no-store' });
-    const data = await response.json();
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить пользователей.');
-    usersCache = data.users || [];
+    const [subjectsResponse, teachersResponse] = await Promise.all([
+      fetch('./api/subjects/list.php', { credentials: 'same-origin', cache: 'no-store' }),
+      fetch('./api/school/teachers/list.php', { credentials: 'same-origin', cache: 'no-store' })
+    ]);
+    const subjectsData = await subjectsResponse.json();
+    const teachersData = await teachersResponse.json();
+    if (!subjectsResponse.ok || subjectsData.ok === false) throw new Error(subjectsData.error || 'Не удалось загрузить предметы.');
+    if (!teachersResponse.ok || teachersData.ok === false) throw new Error(teachersData.error || 'Не удалось загрузить учителей.');
 
-    document.getElementById('usersTotal').textContent = usersCache.length;
-    document.getElementById('teachersTotal').textContent = usersCache.filter(u => u.role === 'teacher').length;
-    document.getElementById('studentsTotal').textContent = usersCache.filter(u => u.role === 'student').length;
-    document.getElementById('adminsTotal').textContent = usersCache.filter(u => u.role === 'admin').length;
-    renderUsers();
+    subjectsCache = subjectsData.subjects || [];
+    schoolTeachersCache = teachersData.teachers || [];
+
+    subjectList.innerHTML = subjectsCache.length
+      ? subjectsCache.map(subject => `<span class="subject-admin-chip">${escapeHtml(subject.name)}</span>`).join('')
+      : '<p>Предметов пока нет. Добавьте первый предмет.</p>';
+
+    teacherBody.innerHTML = schoolTeachersCache.length ? schoolTeachersCache.map(teacher => {
+      const assignmentText = (teacher.assignments || []).length
+        ? teacher.assignments.map(item => `${item.subject_name} — ${item.class_name}`).join(', ')
+        : 'Не назначены';
+      return `
+        <tr>
+          <td><b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b></td>
+          <td>${escapeHtml(teacher.email)}</td>
+          <td><small>${escapeHtml(assignmentText)}</small></td>
+          <td><button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="4">Учителей пока нет.</td></tr>';
+
+    teacherBody.querySelectorAll('[data-teacher-assign]').forEach(button => {
+      button.addEventListener('click', () => openTeacherAssignments(Number(button.dataset.teacherAssign)));
+    });
   } catch (error) {
-    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+    subjectList.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+    teacherBody.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
-document.getElementById('createUserBtn')?.addEventListener('click', () => openModal(userModal));
-document.getElementById('userSearch')?.addEventListener('input', renderUsers);
-document.getElementById('userRoleFilter')?.addEventListener('change', renderUsers);
+document.getElementById('addSubjectBtn')?.addEventListener('click', () => openModal(subjectModal));
+document.getElementById('addTeacherBtn')?.addEventListener('click', () => openModal(teacherModal));
 
-document.getElementById('newUserRole')?.addEventListener('change', event => {
-  const student = event.target.value === 'student';
-  const field = document.getElementById('classNameField');
-  field.classList.toggle('hidden', !student);
-  field.querySelector('input').required = student;
-});
-
-document.getElementById('userForm')?.addEventListener('submit', async event => {
+document.getElementById('subjectForm')?.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
-  const errorEl = document.getElementById('userFormError');
+  const error = document.getElementById('subjectFormError');
   const button = form.querySelector('button[type="submit"]');
-  errorEl.classList.add('hidden');
+  error.classList.add('hidden');
   button.disabled = true;
-  button.textContent = 'Создаём...';
-
   try {
-    const payload = Object.fromEntries(new FormData(form).entries());
-    const response = await fetch('./api/users/create.php', {
+    const response = await fetch('./api/subjects/create.php', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
     });
     const data = await response.json();
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать пользователя.');
-
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось добавить предмет.');
     form.reset();
-    document.getElementById('classNameField').classList.add('hidden');
-    document.getElementById('classNameField').querySelector('input').required = false;
-    closeModal(userModal);
-    await loadUsers();
-  } catch (error) {
-    errorEl.textContent = error.message;
-    errorEl.classList.remove('hidden');
+    closeModal(subjectModal);
+    subjectsCache = [];
+    await Promise.all([loadSubjects(), loadSchoolManagement()]);
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
   } finally {
     button.disabled = false;
-    button.textContent = 'Создать пользователя';
   }
 });
 
-document.querySelector('[data-view="users"]')?.addEventListener('click', loadUsers);
+document.getElementById('teacherForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('teacherFormError');
+  const button = form.querySelector('button[type="submit"]');
+  error.classList.add('hidden');
+  button.disabled = true;
+  try {
+    const response = await fetch('./api/school/teachers/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать учителя.');
+    form.reset();
+    closeModal(teacherModal);
+    await loadSchoolManagement();
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function openTeacherAssignments(teacherId) {
+  const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
+  if (!teacher) return;
+  selectedTeacherForAssignments = teacher;
+  document.getElementById('teacherAssignmentsTitle').textContent = `Назначения — ${teacher.last_name} ${teacher.first_name}`;
+
+  if (!classesCache.length) await loadClasses();
+  if (!subjectsCache.length) await loadSubjects();
+
+  const selected = new Set((teacher.assignments || []).map(item => `${item.subject_id}:${item.class_id}`));
+  const matrix = document.getElementById('teacherAssignmentsMatrix');
+
+  if (!subjectsCache.length || !classesCache.length) {
+    matrix.innerHTML = '<p>Сначала администратор должен добавить предметы и классы.</p>';
+  } else {
+    matrix.innerHTML = subjectsCache.map(subject => `
+      <div class="assignment-matrix-row">
+        <strong>${escapeHtml(subject.name)}</strong>
+        <div class="assignment-class-options">
+          ${classesCache.map(cls => {
+            const key = `${subject.id}:${cls.id}`;
+            return `<label><input type="checkbox" data-subject-id="${subject.id}" data-class-id="${cls.id}" ${selected.has(key) ? 'checked' : ''}><span>${escapeHtml(cls.name)}</span></label>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('teacherAssignmentsError').classList.add('hidden');
+  openModal(teacherAssignmentsModal);
+}
+
+document.getElementById('saveTeacherAssignmentsBtn')?.addEventListener('click', async () => {
+  if (!selectedTeacherForAssignments) return;
+  const button = document.getElementById('saveTeacherAssignmentsBtn');
+  const error = document.getElementById('teacherAssignmentsError');
+  error.classList.add('hidden');
+  const assignments = [...document.querySelectorAll('#teacherAssignmentsMatrix input[type="checkbox"]:checked')].map(input => ({
+    subject_id: Number(input.dataset.subjectId),
+    class_id: Number(input.dataset.classId)
+  }));
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  try {
+    const response = await fetch('./api/school/teachers/assign.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: selectedTeacherForAssignments.id, assignments })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить назначения.');
+    closeModal(teacherAssignmentsModal);
+    selectedTeacherForAssignments = null;
+    await loadSchoolManagement();
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить назначения';
+  }
+});
 
 loadSession().then(async user => {
-  if (user) {
-    applyUser(user);
-    if (user.role !== 'student') {
-      await loadSchools();
+  if (!user) return;
+  applyUser(user);
+  if (user.role !== 'student') {
+    await loadSchools();
+    const selector = document.getElementById('schoolSelector');
+    const activeSchool = selector?.value && selector.value !== '0';
+    if (activeSchool) {
       await Promise.all([loadClasses(), loadSubjects(), loadAssignments()]);
+      if (user.role === 'admin') await loadSchoolManagement();
     }
   }
 });
