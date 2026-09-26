@@ -74,12 +74,34 @@ try {
         'user_id' => $adminId,
     ]);
 
+    // Возвращаем человека как "чистого" учителя.
+    // Предметы и классы администратор назначит заново.
+    $stmt = $pdo->prepare(
+        'DELETE FROM teacher_classes
+         WHERE school_id = :school_id AND teacher_id = :teacher_id'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => $adminId,
+    ]);
+
+    $stmt = $pdo->prepare(
+        'DELETE FROM teacher_subjects
+         WHERE school_id = :school_id AND teacher_id = :teacher_id'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => $adminId,
+    ]);
+
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     throw $e;
 }
 
-audit_event('school_admin_demoted_to_teacher', 'user', $adminId, [], $schoolId, (int)$user['id']);
+audit_event('school_admin_demoted_to_teacher', 'user', $adminId, [
+    'teacher_assignments_reset' => true,
+], $schoolId, (int)$user['id']);
 
 json_response(['ok' => true, 'teacher_id' => $adminId]);
