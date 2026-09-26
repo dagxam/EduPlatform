@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['admin', 'teacher']);
+$user = require_user(['admin']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -29,11 +29,7 @@ function generate_join_code(PDO $pdo): string
 }
 
 $pdo = app_db();
-$schoolId = current_school_id();
-if ($schoolId !== null && !can_access_school($user, $schoolId)) {
-    unset($_SESSION['active_school_id']);
-    json_response(['ok' => false, 'error' => 'Выбранная школа недоступна.'], 403);
-}
+$schoolId = require_active_school($user, true);
 
 if ($schoolId !== null) {
     $stmt = $pdo->prepare(
@@ -48,8 +44,7 @@ if ($schoolId !== null) {
     }
 }
 
-$storedName = ($schoolId !== null ? 'school-' . $schoolId : 'personal-' . (int)$user['id'])
-    . '-' . bin2hex(random_bytes(5));
+$storedName = 'school-' . $schoolId . '-' . bin2hex(random_bytes(5));
 
 $pdo->beginTransaction();
 try {
@@ -61,7 +56,7 @@ try {
         'name' => $storedName,
         'display_name' => $name,
         'school_id' => $schoolId,
-        'teacher_id' => (int)$user['id'],
+        'teacher_id' => null,
         'academic_year' => $academicYear !== '' ? $academicYear : null,
     ]);
     $classId = (int)$pdo->lastInsertId();
