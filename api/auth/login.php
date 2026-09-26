@@ -32,9 +32,17 @@ if (!$user || !(int) $user['is_active'] || !password_verify($password, $user['pa
 throttle_clear('staff_login', $email);
 session_regenerate_id(true);
 $_SESSION['user_id'] = (int) $user['id'];
-audit_event('login_succeeded', 'user', (int)$user['id'], ['kind' => 'staff'], null, (int)$user['id']);
+unset($_SESSION['active_school_id']);
+
+$fullUser = current_user();
+if ($fullUser && in_array($fullUser['role'], ['admin', 'teacher'], true) && !is_platform_admin($fullUser)) {
+    ensure_staff_school_context($fullUser);
+}
+
+audit_event('login_succeeded', 'user', (int)$user['id'], ['kind' => 'staff'], current_school_id(), (int)$user['id']);
 
 json_response([
     'ok' => true,
-    'user' => current_user(),
+    'user' => $fullUser,
+    'active_school_id' => current_school_id(),
 ]);
