@@ -26,9 +26,9 @@
       <nav class="nav teacher-nav">
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
-        <button class="nav-item teacher-only hidden" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
-        <button class="nav-item admin-only hidden" data-view="classes"><span>👥</span> Классы и ученики</button>
+        <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
       </nav>
 
@@ -69,7 +69,7 @@
             <strong id="fixedSchoolName">—</strong>
           </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
-          <button class="primary-btn teacher-only hidden" id="createTaskBtn">＋ Создать задание</button>
+          <button class="primary-btn" id="createTaskBtn">＋ Создать задание</button>
         </div>
       </header>
 
@@ -80,7 +80,7 @@
             <h2>Всё необходимое для заданий и контроля знаний</h2>
             <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
           </div>
-          <button class="hero-action teacher-only hidden" id="heroCreateBtn">Создать новое задание →</button>
+          <button class="hero-action" id="heroCreateBtn">Создать новое задание →</button>
         </div>
 
         <div class="stats-grid">
@@ -166,7 +166,10 @@
                   <h2 id="subjectDetailTitle">—</h2>
                   <p id="subjectDetailHint">Задания и материалы по выбранному предмету.</p>
                 </div>
-                <button class="primary-btn" id="subjectCreateTaskBtn" type="button">＋ Создать задание</button>
+                <div class="subject-detail-actions">
+                  <button class="secondary-btn admin-only hidden" id="shareSubjectBtn" type="button">↗ Отправить в другую школу</button>
+                  <button class="primary-btn" id="subjectCreateTaskBtn" type="button">＋ Создать задание</button>
+                </div>
               </div>
 
               <div class="subject-import-box">
@@ -177,7 +180,7 @@
                   </div>
                   <span class="file-format-badges"><b>DOCX</b><b>PDF</b><b>PPT</b><b>PPTX</b></span>
                 </div>
-                <p>Выберите класс и файл. UVORIA создаст черновик внутри этого предмета и попробует автоматически распознать вопросы.</p>
+                <p>Загрузите файл в библиотеку предмета. UVORIA создаст черновик задания и попробует автоматически распознать вопросы. Класс выбирается позже — при назначении задания.</p>
                 <details class="import-format-help">
                   <summary>Как оформить файл для точного распознавания</summary>
                   <div class="import-format-grid">
@@ -192,11 +195,6 @@
                 <form id="subjectImportForm" class="subject-import-form">
                   <label>Название задания
                     <input name="title" id="subjectImportTitle" placeholder="Можно оставить пустым — возьмём имя файла">
-                  </label>
-                  <label>Класс
-                    <select name="class_id" id="subjectImportClass" required>
-                      <option value="">Выберите класс</option>
-                    </select>
                   </label>
                   <label class="subject-file-field">Файл задания
                     <input type="file" name="file" id="subjectImportFile" accept=".docx,.pdf,.ppt,.pptx" required>
@@ -229,7 +227,7 @@
 
       <section class="view" id="assignments">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Управление</span><h2>Задания</h2><p>Создавайте тесты, назначайте классы и выбирайте режим контроля.</p></div>
+          <div><span class="section-kicker">Библиотека</span><h2>Задания</h2><p>Сначала создайте задание по предмету, затем отдельным действием назначьте его нужному классу.</p></div>
           <button class="primary-btn" id="createTaskBtn2">＋ Новое задание</button>
         </div>
         <div class="panel">
@@ -239,8 +237,8 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Задание</th><th>Класс</th><th>Режим</th><th>Сдано</th><th>Статус</th></tr></thead>
-              <tbody id="assignmentsTableBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
+              <thead><tr><th>Задание</th><th>Назначено классам</th><th>Режим</th><th>Сдано</th><th>Статус</th><th></th></tr></thead>
+              <tbody id="assignmentsTableBody"><tr><td colspan="6">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -408,13 +406,10 @@
       <button class="modal-close" data-close-modal="taskModal">×</button>
       <span class="section-kicker">Новое задание</span>
       <h2>Создать задание</h2>
-      <p>Создаётся реальный черновик. После этого добавим вопросы вручную или импортируем их из DOCX, PDF, PPT или PPTX.</p>
+      <p>Создайте задание в библиотеке выбранного предмета. Класс назначается отдельно после подготовки задания.</p>
       <form id="taskForm">
         <label>Название<input name="title" required placeholder="Например: Контрольная работа №3"></label>
-        <div class="form-row">
-          <label>Предмет<select name="subject_id" id="taskSubject" required><option value="">Загрузка...</option></select></label>
-          <label>Класс<select name="class_id" id="taskClass" required><option value="">Загрузка...</option></select></label>
-        </div>
+        <label>Предмет<select name="subject_id" id="taskSubject" required><option value="">Загрузка...</option></select></label>
         <label>Тип
           <select name="type">
             <option value="quiz">Онлайн-тест</option>
@@ -579,6 +574,48 @@
       <div id="teacherAssignmentsMatrix" class="assignment-matrix"></div>
       <div class="form-error hidden" id="teacherAssignmentsError"></div>
       <button class="primary-btn full" id="saveTeacherAssignmentsBtn" type="button">Сохранить назначения</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="assignToClassModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="assignToClassModal">×</button>
+      <span class="section-kicker">Публикация</span>
+      <h2 id="assignToClassTitle">Назначить задание классу</h2>
+      <p>Выберите класс. После назначения задание станет доступно ученикам этого класса.</p>
+      <form id="assignToClassForm">
+        <input type="hidden" id="assignToClassAssignmentId">
+        <label>Класс
+          <select id="assignToClassSelect" required>
+            <option value="">Выберите класс</option>
+          </select>
+        </label>
+        <div class="form-error hidden" id="assignToClassError"></div>
+        <button class="primary-btn full" type="submit">Назначить классу</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="shareSubjectModal">
+    <div class="modal class-details-modal">
+      <button class="modal-close" data-close-modal="shareSubjectModal">×</button>
+      <span class="section-kicker">Обмен между школами</span>
+      <h2 id="shareSubjectTitle">Отправить предмет в другую школу</h2>
+      <p>Передаются только предмет и выбранные задания. Классы, ученики, результаты и назначения не копируются.</p>
+      <form id="shareSubjectForm">
+        <label>Школа-получатель
+          <select id="shareTargetSchool" required>
+            <option value="">Выберите школу</option>
+          </select>
+        </label>
+        <div class="share-assignment-picker">
+          <div class="panel-head"><div><span class="section-kicker">Содержимое</span><h3>Какие задания отправить</h3></div></div>
+          <div id="shareAssignmentsList"></div>
+        </div>
+        <div class="form-error hidden" id="shareSubjectError"></div>
+        <div class="import-result hidden" id="shareSubjectResult"></div>
+        <button class="primary-btn full" type="submit">Отправить в школу</button>
+      </form>
     </div>
   </div>
 
