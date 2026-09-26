@@ -122,23 +122,18 @@
 
       <section class="view" id="assignments">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Управление</span><h2>Задания</h2><p>Создавайте тесты, прикрепляйте материалы и назначайте классы.</p></div>
+          <div><span class="section-kicker">Управление</span><h2>Задания</h2><p>Создавайте тесты, назначайте классы и выбирайте режим контроля.</p></div>
           <button class="primary-btn" id="createTaskBtn2">＋ Новое задание</button>
         </div>
         <div class="panel">
           <div class="filters">
-            <input class="search" type="search" placeholder="Поиск задания">
-            <select><option>Все классы</option><option>7А</option><option>6Б</option><option>8А</option></select>
-            <select><option>Все статусы</option><option>Активные</option><option>Завершённые</option></select>
+            <input class="search" id="assignmentSearch" type="search" placeholder="Поиск задания">
+            <select id="assignmentStatusFilter"><option value="">Все статусы</option><option value="draft">Черновики</option><option value="published">Опубликованные</option><option value="closed">Завершённые</option></select>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Задание</th><th>Класс</th><th>Сдали</th><th>Срок</th><th>Статус</th></tr></thead>
-              <tbody>
-                <tr><td><b>Контрольная работа №2</b><small>Математика · 20 вопросов</small></td><td>7А</td><td>18 / 24</td><td>28 сентября</td><td><span class="status amber">Активно</span></td></tr>
-                <tr><td><b>Части речи</b><small>Русский язык · 15 вопросов</small></td><td>6Б</td><td>21 / 21</td><td>24 сентября</td><td><span class="status green">Завершено</span></td></tr>
-                <tr><td><b>История Дагестана</b><small>История · 12 вопросов</small></td><td>8А</td><td>12 / 25</td><td>30 сентября</td><td><span class="status blue">Активно</span></td></tr>
-              </tbody>
+              <thead><tr><th>Задание</th><th>Класс</th><th>Режим</th><th>Сдано</th><th>Статус</th></tr></thead>
+              <tbody id="assignmentsTableBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -262,16 +257,34 @@
       <button class="modal-close" data-close-modal="taskModal">×</button>
       <span class="section-kicker">Новое задание</span>
       <h2>Создать задание</h2>
-      <p>Первый прототип формы. На следующем этапе подключим сохранение в базу.</p>
+      <p>Создаётся реальный черновик. После этого добавим вопросы вручную или импортируем их из PDF/DOCX/PPTX.</p>
       <form id="taskForm">
-        <label>Название<input required placeholder="Например: Контрольная работа №3"></label>
+        <label>Название<input name="title" required placeholder="Например: Контрольная работа №3"></label>
         <div class="form-row">
-          <label>Предмет<select><option>Математика</option><option>Русский язык</option><option>История</option><option>Биология</option></select></label>
-          <label>Класс<select><option>7А</option><option>6Б</option><option>8А</option><option>9Б</option></select></label>
+          <label>Предмет<select name="subject_id" id="taskSubject" required><option value="">Загрузка...</option></select></label>
+          <label>Класс<select name="class_id" id="taskClass" required><option value="">Загрузка...</option></select></label>
         </div>
-        <label>Тип<select><option>Онлайн-тест</option><option>Задание с файлом</option><option>Самостоятельная работа</option></select></label>
-        <label class="file-drop">Перетащите PDF, DOCX, PPT/PPTX сюда или выберите файл<input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx"></label>
-        <button class="primary-btn full" type="submit">Продолжить</button>
+        <label>Тип
+          <select name="type">
+            <option value="quiz">Онлайн-тест</option>
+            <option value="independent">Самостоятельная работа</option>
+            <option value="file">Задание с материалом</option>
+          </select>
+        </label>
+        <div class="form-row">
+          <label>Время, минут<input name="time_limit_minutes" type="number" min="1" max="300" placeholder="Без ограничения"></label>
+          <label>Попыток<input name="max_attempts" type="number" min="1" max="10" value="1" required></label>
+        </div>
+        <label>Режим контроля
+          <select name="focus_policy" id="focusPolicy">
+            <option value="allow">Обычный — можно сворачивать</option>
+            <option value="strict">Строгий — уход со страницы завершает работу</option>
+          </select>
+          <small class="field-help">В строгом режиме при переключении вкладки, сворачивании браузера или переходе в другое приложение попытка автоматически сдаётся с уже сохранёнными ответами.</small>
+        </label>
+        <div class="strict-warning hidden" id="strictWarning"><b>Строгая контрольная</b><span>Предупредите учеников перед началом. Даже блокировка экрана телефона может завершить попытку.</span></div>
+        <div class="form-error hidden" id="taskFormError"></div>
+        <button class="primary-btn full" type="submit">Создать черновик</button>
       </form>
     </div>
   </div>
