@@ -148,10 +148,6 @@ CREATE TABLE IF NOT EXISTS answers (
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_shared_origin
-ON assignments(school_id, source_school_id, source_assignment_id)
-WHERE source_assignment_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
 
 
