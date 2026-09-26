@@ -3,15 +3,30 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 $user = require_user(['admin', 'teacher']);
+$schoolId = current_school_id();
 $params = [];
-$where = '';
+$conditions = [];
+
+if ($schoolId !== null) {
+    if (!can_access_school($user, $schoolId)) {
+        unset($_SESSION['active_school_id']);
+        json_response(['ok' => false, 'error' => 'Выбранная школа недоступна.'], 403);
+    }
+    $conditions[] = 'c.school_id = :school_id';
+    $params['school_id'] = $schoolId;
+} else {
+    $conditions[] = 'c.school_id IS NULL';
+}
+
 if ($user['role'] === 'teacher') {
-    $where = 'WHERE c.teacher_id = :teacher_id';
+    $conditions[] = 'c.teacher_id = :teacher_id';
     $params['teacher_id'] = (int)$user['id'];
 }
 
+$where = 'WHERE ' . implode(' AND ', $conditions);
+
 $stmt = app_db()->prepare(
-    "SELECT c.id, c.name, c.academic_year, c.teacher_id,
+    "SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.academic_year, c.teacher_id, c.school_id,
             ca.join_code,
             CASE
               WHEN COALESCE(ca.registration_open, 0) = 1
@@ -26,7 +41,7 @@ $stmt = app_db()->prepare(
      LEFT JOIN class_students cs ON cs.class_id = c.id
      $where
      GROUP BY c.id
-     ORDER BY c.name COLLATE NOCASE"
+     ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE"
 );
 $stmt->execute($params);
 
