@@ -56,7 +56,37 @@ if ($xml === false || trim($xml) === '') {
 }
 
 $lines = [];
-if (preg_match_all('/<w:p\b[^>]*>(.*?)<\/w:p>/si', $xml, $paragraphs)) {
+
+// Word-таблицы: поддерживаем строки вида "№ | Фамилия | Имя" и "Фамилия | Имя".
+if (preg_match_all('/<w:tr\\b[^>]*>(.*?)<\\/w:tr>/si', $xml, $rows)) {
+    foreach ($rows[1] as $rowXml) {
+        $cells = [];
+        if (preg_match_all('/<w:tc\\b[^>]*>(.*?)<\\/w:tc>/si', $rowXml, $cellMatches)) {
+            foreach ($cellMatches[1] as $cellXml) {
+                $parts = [];
+                if (preg_match_all('/<w:t\\b[^>]*>(.*?)<\\/w:t>/si', $cellXml, $texts)) {
+                    foreach ($texts[1] as $text) {
+                        $parts[] = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_XML1, 'UTF-8');
+                    }
+                }
+                $cell = trim(preg_replace('/\\s+/u', ' ', implode('', $parts)) ?? '');
+                if ($cell !== '') {
+                    $cells[] = $cell;
+                }
+            }
+        }
+
+        if ($cells && preg_match('/^\\d+[.)-]?$/u', $cells[0])) {
+            array_shift($cells);
+        }
+        if (count($cells) >= 2) {
+            $lines[] = implode(' ', array_slice($cells, 0, 3));
+        }
+    }
+}
+
+// Обычные абзацы и нумерованные списки.
+if (preg_match_all('/<w:p\\b[^>]*>(.*?)<\\/w:p>/si', $xml, $paragraphs)) {
     foreach ($paragraphs[1] as $paragraph) {
         $parts = [];
         if (preg_match_all('/<w:t\b[^>]*>(.*?)<\/w:t>/si', $paragraph, $texts)) {
