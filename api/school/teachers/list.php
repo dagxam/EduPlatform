@@ -7,11 +7,12 @@ $schoolId = require_active_school($user, true);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active
+    'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active,
+            su.role AS school_role, su.can_teach
      FROM school_users su
      JOIN users u ON u.id = su.user_id
      WHERE su.school_id = :school_id
-       AND su.role = "teacher"
+       AND su.can_teach = 1
        AND su.is_active = 1
      ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE'
 );
