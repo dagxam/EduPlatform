@@ -7,11 +7,23 @@ $schoolId = require_active_school($user, false);
 $params = ['school_id' => $schoolId];
 $conditions = ['a.school_id = :school_id'];
 
-if (($user['role'] ?? '') === 'teacher') {
-    $conditions[] = 'a.teacher_id = :teacher_id';
+if (!can_manage_school($user, $schoolId)) {
+    if (!can_teach_school($user, $schoolId)) {
+        json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
+    }
+
+    $conditions[] = '(
+        a.teacher_id = :teacher_id
+        OR EXISTS (
+            SELECT 1
+            FROM teacher_subjects ts
+            WHERE ts.school_id = a.school_id
+              AND ts.teacher_id = :teacher_id_subject
+              AND ts.subject_id = a.subject_id
+        )
+    )';
     $params['teacher_id'] = (int)$user['id'];
-} elseif (!can_manage_school($user, $schoolId)) {
-    json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
+    $params['teacher_id_subject'] = (int)$user['id'];
 }
 
 $where = 'WHERE ' . implode(' AND ', $conditions);
@@ -25,10 +37,13 @@ $stmt = app_db()->prepare(
             GROUP_CONCAT(COALESCE(c.display_name, c.name), ', ') AS class_names,
             COUNT(DISTINCT at.id) AS attempts_count,
             u.first_name AS teacher_first_name,
-            u.last_name AS teacher_last_name
+            u.last_name AS teacher_last_name,
+            a.source_school_id, a.source_assignment_id,
+            src.name AS source_school_name
      FROM assignments a
      LEFT JOIN users u ON u.id = a.teacher_id
      LEFT JOIN subjects s ON s.id = a.subject_id
+     LEFT JOIN schools src ON src.id = a.source_school_id
      LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
      LEFT JOIN questions q ON q.assignment_id = a.id
      LEFT JOIN assignment_classes ac ON ac.assignment_id = a.id
