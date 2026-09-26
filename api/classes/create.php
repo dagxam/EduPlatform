@@ -29,14 +29,38 @@ function generate_join_code(PDO $pdo): string
 }
 
 $pdo = app_db();
+$schoolId = current_school_id();
+if ($schoolId !== null && !can_access_school($user, $schoolId)) {
+    unset($_SESSION['active_school_id']);
+    json_response(['ok' => false, 'error' => 'Выбранная школа недоступна.'], 403);
+}
+
+if ($schoolId !== null) {
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM classes
+         WHERE school_id = :school_id
+           AND COALESCE(display_name, name) = :display_name
+         LIMIT 1'
+    );
+    $stmt->execute(['school_id' => $schoolId, 'display_name' => $name]);
+    if ($stmt->fetchColumn()) {
+        json_response(['ok' => false, 'error' => 'В этой школе уже есть класс с таким названием.'], 409);
+    }
+}
+
+$storedName = ($schoolId !== null ? 'school-' . $schoolId : 'personal-' . (int)$user['id'])
+    . '-' . bin2hex(random_bytes(5));
+
 $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO classes (name, teacher_id, academic_year)
-         VALUES (:name, :teacher_id, :academic_year)'
+        'INSERT INTO classes (name, display_name, school_id, teacher_id, academic_year)
+         VALUES (:name, :display_name, :school_id, :teacher_id, :academic_year)'
     );
     $stmt->execute([
-        'name' => $name,
+        'name' => $storedName,
+        'display_name' => $name,
+        'school_id' => $schoolId,
         'teacher_id' => (int)$user['id'],
         'academic_year' => $academicYear !== '' ? $academicYear : null,
     ]);
@@ -56,6 +80,8 @@ try {
     }
     throw $e;
 }
+
+audit_event('class_created', 'class', $classId, ['name' => $name], $schoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,
