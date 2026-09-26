@@ -100,3 +100,21 @@
 @media(max-width:780px){
   .student-row-actions{grid-column:2;justify-content:flex-start;flex-wrap:wrap}
 }
+
+
+.toolbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.form-section-title{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#6b7785;margin:6px 0 2px}
+.school-admin-grid{grid-template-columns:minmax(260px,.75fr) minmax(0,1.6fr)}
+.subject-admin-list{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.subject-admin-chip{display:inline-flex;align-items:center;min-height:36px;padding:8px 12px;border-radius:999px;background:#f3f6fa;border:1px solid #dfe6ee;font-size:13px;font-weight:750;color:#344150}
+.assignment-matrix{display:flex;flex-direction:column;gap:12px;margin:18px 0}
+.assignment-matrix-row{padding:14px;border:1px solid #e1e7ed;border-radius:14px;background:#fafbfc}
+.assignment-matrix-row>strong{display:block;margin-bottom:10px}
+.assignment-class-options{display:flex;gap:8px;flex-wrap:wrap}
+.assignment-class-options label{cursor:pointer;position:relative}
+.assignment-class-options input{position:absolute;opacity:0;pointer-events:none}
+.assignment-class-options span{display:inline-flex;min-width:48px;justify-content:center;padding:8px 11px;border-radius:10px;border:1px solid #dbe2ea;background:#fff;font-size:12px;font-weight:800;transition:.15s ease}
+.assignment-class-options input:checked+span{background:#edf4ff;border-color:#8ab6ff;color:#195fcb}
+@media(max-width:900px){
+  .school-admin-grid{grid-template-columns:1fr}
+}
