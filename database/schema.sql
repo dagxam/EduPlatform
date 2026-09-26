@@ -109,3 +109,25 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
+
+
+CREATE TABLE IF NOT EXISTS class_access (
+    class_id INTEGER PRIMARY KEY,
+    join_code TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    registration_open INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS class_students (
+    student_id INTEGER PRIMARY KEY,
+    class_id INTEGER NOT NULL,
+    pin_hash TEXT,
+    activated_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_class_students_class ON class_students(class_id);
+CREATE INDEX IF NOT EXISTS idx_class_access_code ON class_access(join_code);
