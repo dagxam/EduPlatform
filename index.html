@@ -177,6 +177,19 @@
               </table>
             </div>
           </article>
+          <article class="panel platform-admin-only hidden school-admins-panel">
+            <div class="panel-head">
+              <div><span class="section-kicker">Контроль доступа</span><h3>Администраторы школы</h3></div>
+              <button class="primary-btn compact-btn" id="addSchoolAdminBtn" type="button">＋ Администратор</button>
+            </div>
+            <p class="panel-note">Назначать, изменять и снимать администраторов школы может только главный администратор UVORIA.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Администратор</th><th>Email</th><th>Статус</th><th></th></tr></thead>
+                <tbody id="schoolAdminsBody"><tr><td colspan="4">Загрузка...</td></tr></tbody>
+              </table>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -347,13 +360,27 @@
       </div>
       <div class="import-box">
         <h3>Загрузить учеников из Word</h3>
-        <p>Формат строк: <b>Фамилия Имя</b>. Можно использовать нумерованный список или таблицу Word.</p>
+        <p>Сначала UVORIA распознает список. Перед добавлением можно исправить фамилию или имя, удалить лишнюю строку и добавить пропущенного ученика вручную.</p>
         <form id="importStudentsForm">
           <input type="file" name="file" accept=".docx" required>
-          <button class="primary-btn" type="submit">Импортировать DOCX</button>
+          <button class="primary-btn" type="submit">Проверить DOCX</button>
         </form>
         <div class="form-error hidden" id="importStudentsError"></div>
         <div class="import-result hidden" id="importStudentsResult"></div>
+
+        <div class="student-import-preview hidden" id="studentImportPreview">
+          <div class="preview-toolbar">
+            <div><b>Проверьте список перед добавлением</b><small id="studentImportPreviewMeta">—</small></div>
+            <button class="secondary-btn compact-btn" id="addPreviewStudentBtn" type="button">＋ Строка</button>
+          </div>
+          <div class="table-wrap">
+            <table class="student-preview-table">
+              <thead><tr><th>№</th><th>Фамилия</th><th>Имя</th><th>Проверка</th><th></th></tr></thead>
+              <tbody id="studentImportPreviewBody"></tbody>
+            </table>
+          </div>
+          <button class="primary-btn full" id="confirmStudentsImportBtn" type="button">Добавить проверенный список</button>
+        </div>
       </div>
       <div class="panel-head class-list-head"><div><span class="section-kicker">Состав</span><h3>Ученики</h3></div><strong id="classStudentsCount">0</strong></div>
       <div id="classStudentsList" class="class-students-list"></div>
@@ -387,6 +414,26 @@
         <label>Пароль<input name="password" type="password" minlength="8" required></label>
         <div class="form-error hidden" id="teacherFormError"></div>
         <button class="primary-btn full" type="submit">Создать учителя</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="schoolAdminModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="schoolAdminModal">×</button>
+      <span class="section-kicker">Права школы</span>
+      <h2 id="schoolAdminModalTitle">Назначить администратора</h2>
+      <p id="schoolAdminModalHint">Создайте нового администратора школы или укажите email уже существующего администратора UVORIA.</p>
+      <form id="schoolAdminForm">
+        <input type="hidden" name="admin_id" id="schoolAdminId">
+        <div class="form-row">
+          <label>Имя<input name="first_name" id="schoolAdminFirstName" required></label>
+          <label>Фамилия<input name="last_name" id="schoolAdminLastName" required></label>
+        </div>
+        <label>Email<input name="email" id="schoolAdminEmail" type="email" required></label>
+        <label>Пароль<input name="password" id="schoolAdminPassword" type="password" minlength="8"><small id="schoolAdminPasswordHint">Для нового администратора — минимум 8 символов.</small></label>
+        <div class="form-error hidden" id="schoolAdminFormError"></div>
+        <button class="primary-btn full" id="saveSchoolAdminBtn" type="submit">Назначить администратора</button>
       </form>
     </div>
   </div>
