@@ -1,5 +1,5 @@
-const CACHE = 'uvoria-v14';
-const APP_SHELL = ['./', './index.html', './login.html', './styles.css', './login.css', './app.js', './login.js', './attempt-security.js', './manifest.webmanifest', './favicon.png?v=2'];
+const CACHE = 'uvoria-v15';
+const APP_SHELL = ['./', './index.html', './login.html', './styles.css', './login.css', './app.js', './login.js', './attempt-security.js', './manifest.webmanifest', './favicon.png?v=3'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
