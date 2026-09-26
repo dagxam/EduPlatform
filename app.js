@@ -1043,7 +1043,7 @@ async function loadTeacherOptions() {
 }
 
 async function prepareTaskForm(subjectId = null) {
-  await loadTeacherOptions();
+  await loadSubjects();
   const subjectSelect = document.getElementById('taskSubject');
   if (subjectId && subjectSelect) {
     subjectSelect.value = String(subjectId);
