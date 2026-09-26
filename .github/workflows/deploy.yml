@@ -26,7 +26,7 @@ jobs:
           node --check app.js
           node --check login.js
 
-      - name: Upload site to configured directory
+      - name: Upload site over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: 188.127.241.85
@@ -35,26 +35,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./
-          server-dir: /www/urovia.ru/
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/node_modules/**
-            docs/**
-            README.md
-
-      - name: Upload site to domain-matching directory
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: 188.127.241.85
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
-          port: 21
-          local-dir: ./
-          server-dir: /www/uvoria.ru/
+          server-dir: /
           dangerous-clean-slate: false
           exclude: |
             **/.git*
