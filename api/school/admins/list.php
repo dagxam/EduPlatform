@@ -3,10 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/bootstrap.php';
 
 $user = require_user(['admin']);
-if (!is_platform_admin($user)) {
-    json_response(['ok' => false, 'error' => 'Доступно только администратору UVORIA.'], 403);
-}
-$schoolId = require_active_school($user, false);
+$schoolId = require_active_school($user, true);
 
 $stmt = app_db()->prepare(
     'SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, su.created_at
@@ -19,4 +16,8 @@ $stmt = app_db()->prepare(
 );
 $stmt->execute(['school_id' => $schoolId]);
 
-json_response(['ok' => true, 'admins' => $stmt->fetchAll()]);
+json_response([
+    'ok' => true,
+    'admins' => $stmt->fetchAll(),
+    'can_edit_admin_accounts' => is_platform_admin($user),
+]);
