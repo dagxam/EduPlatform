@@ -57,8 +57,5 @@ json_response([
     'students' => $stmt->fetchAll(),
     'branding' => (int)($class['school_id'] ?? 0) > 0
         ? school_branding((int)$class['school_id'])
-        : [
-            'theme_color' => '#1d68f0',
-            'favicon_data' => null,
-        ],
+        : ['theme_color' => '#1d68f0'],
 ]);
