@@ -194,3 +194,11 @@
   .branding-color-row{grid-template-columns:1fr}
   .branding-favicon-row{align-items:flex-start}
 }
+
+
+.brand-mark,.avatar{background:var(--brand)!important}
+.nav-item.active{background:var(--brand-soft)!important;color:var(--brand)!important}
+.nav-item:hover{color:var(--brand)}
+.account-role{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 18%,white);background:color-mix(in srgb,var(--brand) 5%,white)}
+.status.blue,.role-teacher{background:var(--brand-soft)!important;color:var(--brand)!important}
+.grade-4{background:var(--brand-soft)!important;color:var(--brand)!important}
