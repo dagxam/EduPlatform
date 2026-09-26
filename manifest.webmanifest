@@ -1,6 +1,6 @@
 {
-  "name": "EduPlatform",
-  "short_name": "EduPlatform",
+  "name": "UVORIA",
+  "short_name": "UVORIA",
   "description": "Задания, тесты и результаты для учителей и учеников",
   "start_url": "./",
   "display": "standalone",
