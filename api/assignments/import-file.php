@@ -9,14 +9,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $subjectId = (int)($_POST['subject_id'] ?? 0);
-$classId = (int)($_POST['class_id'] ?? 0);
 $title = trim((string)($_POST['title'] ?? ''));
 $focusPolicy = in_array(($_POST['focus_policy'] ?? 'allow'), ['allow', 'strict'], true)
     ? (string)$_POST['focus_policy']
     : 'allow';
 
-if ($subjectId < 1 || $classId < 1 || empty($_FILES['file'])) {
-    json_response(['ok' => false, 'error' => 'Выберите предмет, класс и файл задания.'], 422);
+if ($subjectId < 1 || empty($_FILES['file'])) {
+    json_response(['ok' => false, 'error' => 'Выберите предмет и файл задания.'], 422);
 }
 
 $file = $_FILES['file'];
@@ -51,42 +50,27 @@ if (!$isSchoolManager && !can_teach_school($user, $schoolId)) {
 
 if ($isSchoolManager) {
     $stmt = $pdo->prepare(
-        'SELECT 1
-         FROM school_subjects ss
-         JOIN classes c ON c.school_id = ss.school_id
-         WHERE ss.school_id = :school_id
-           AND ss.subject_id = :subject_id
-           AND ss.is_active = 1
-           AND c.id = :class_id
-         LIMIT 1'
+        'SELECT 1 FROM school_subjects
+         WHERE school_id = :school_id AND subject_id = :subject_id AND is_active = 1'
     );
     $stmt->execute([
         'school_id' => $schoolId,
         'subject_id' => $subjectId,
-        'class_id' => $classId,
     ]);
 } else {
     $stmt = $pdo->prepare(
-        'SELECT 1
-         FROM teacher_classes tc
-         JOIN school_subjects ss
-           ON ss.school_id = tc.school_id AND ss.subject_id = tc.subject_id AND ss.is_active = 1
-         WHERE tc.school_id = :school_id
-           AND tc.teacher_id = :teacher_id
-           AND tc.subject_id = :subject_id
-           AND tc.class_id = :class_id
-         LIMIT 1'
+        'SELECT 1 FROM teacher_subjects
+         WHERE school_id = :school_id AND teacher_id = :teacher_id AND subject_id = :subject_id'
     );
     $stmt->execute([
         'school_id' => $schoolId,
         'teacher_id' => (int)$user['id'],
         'subject_id' => $subjectId,
-        'class_id' => $classId,
     ]);
 }
 
 if (!$stmt->fetchColumn()) {
-    json_response(['ok' => false, 'error' => 'Этот предмет и класс недоступны для создания задания.'], 403);
+    json_response(['ok' => false, 'error' => 'Этот предмет недоступен для создания задания.'], 403);
 }
 
 $storageDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'assignment-imports';
@@ -144,15 +128,6 @@ try {
     $assignmentId = (int)$pdo->lastInsertId();
 
     $stmt = $pdo->prepare(
-        'INSERT INTO assignment_classes (assignment_id, class_id)
-         VALUES (:assignment_id, :class_id)'
-    );
-    $stmt->execute([
-        'assignment_id' => $assignmentId,
-        'class_id' => $classId,
-    ]);
-
-    $stmt = $pdo->prepare(
         'INSERT INTO assignment_imports
          (assignment_id, original_name, stored_name, source_format, mime_type, size_bytes,
           parse_status, extracted_text, parsed_question_count, parser_message)
@@ -198,7 +173,6 @@ try {
 
 audit_event('assignment_file_imported', 'assignment', $assignmentId, [
     'subject_id' => $subjectId,
-    'class_id' => $classId,
     'format' => $extension,
     'parse_status' => $parseStatus,
     'parsed_question_count' => (int)($stored['count'] ?? 0),
@@ -212,7 +186,6 @@ json_response([
         'title' => $title,
         'status' => 'draft',
         'subject_id' => $subjectId,
-        'class_id' => $classId,
     ],
     'import' => [
         'format' => strtoupper($extension),
