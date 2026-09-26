@@ -176,6 +176,10 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'attempts', 'attempt_session_hash', 'TEXT');
     add_column_if_missing($pdo, 'answers', 'updated_at', 'TEXT');
+    add_column_if_missing($pdo, 'questions', 'interaction_type', 'TEXT');
+    add_column_if_missing($pdo, 'questions', 'settings_json', 'TEXT');
+    add_column_if_missing($pdo, 'assignment_imports', 'parsed_question_count', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'assignment_imports', 'parser_message', 'TEXT');
 }
 
 function audit_event(string $eventType, ?string $entityType = null, ?int $entityId = null, array $metadata = [], ?int $schoolId = null, ?int $userId = null): void
