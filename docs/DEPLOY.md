@@ -1,13 +1,13 @@
-# Автоматический деплой EduPlatform на edu.dagstudio.ru
+# Автоматический деплой UVORIA на uvoria.ru
 
-EduPlatform публикуется из ветки `main` через GitHub Actions на обычный FTP-хостинг.
+UVORIA публикуется из ветки `main` через GitHub Actions на обычный FTP-хостинг.
 
 ## DNS
 
 Сохраняем существующую A-запись:
 
 ```
-edu.dagstudio.ru -> 188.127.241.85
+uvoria.ru -> 188.127.241.85
 ```
 
 GitHub Pages для этого варианта не используется.
@@ -25,7 +25,7 @@ GitHub Pages для этого варианта не используется.
 | `FTP_SERVER` | FTP-сервер хостинга. Если FTP работает на основном IP, используйте `188.127.241.85` |
 | `FTP_USERNAME` | FTP-логин |
 | `FTP_PASSWORD` | Новый FTP-пароль |
-| `FTP_SERVER_DIR` | Папка сайта, например `/public_html/edu/` или значение из панели хостинга |
+| `FTP_SERVER_DIR` | Не используется — каталог задан в workflow как `/www/urovia.ru/` |
 
 Пароли нельзя добавлять в файлы репозитория.
 
@@ -39,7 +39,7 @@ GitHub скачивает актуальную версию репозитори
 
 Также workflow можно запустить вручную:
 
-`Actions -> Deploy EduPlatform to hosting -> Run workflow`
+`Actions -> Deploy UVORIA to hosting -> Run workflow`
 
 ## Что публикуется
 
@@ -47,4 +47,4 @@ GitHub скачивает актуальную версию репозитори
 
 ## Важно
 
-Перед первой публикацией нужно точно узнать корневую FTP-папку поддомена `edu.dagstudio.ru`. Не следует указывать корень аккаунта наугад.
+Рабочий каталог домена `uvoria.ru` задан в workflow как `/www/urovia.ru/`.
