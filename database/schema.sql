@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS school_users (
     school_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('owner', 'school_admin', 'teacher')),
+    can_teach INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (school_id, user_id),
