@@ -184,16 +184,9 @@
 .branding-form{margin-top:14px}
 .branding-color-row{display:grid;grid-template-columns:minmax(170px,240px) minmax(180px,260px);gap:12px;align-items:end}
 .branding-color-row input[type=color]{width:100%;height:48px;padding:4px;cursor:pointer}
-.branding-favicon-row{display:flex;align-items:center;gap:18px;padding:16px;border:1px solid #e5eaf0;border-radius:14px;background:#fafbfd}
-.favicon-preview{width:72px;height:72px;flex:0 0 72px;border-radius:18px;display:grid;place-items:center;color:#fff;font-size:38px;font-weight:900;box-shadow:0 8px 22px rgba(30,45,62,.12);overflow:hidden}
-.favicon-controls{min-width:0;flex:1;display:flex;flex-direction:column;gap:10px}
-.favicon-controls input[type=file]{width:100%}
-.favicon-remove-check{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;font-weight:600!important}
-.favicon-remove-check input{width:auto}
 @media(max-width:700px){
   .branding-color-row{grid-template-columns:1fr}
-  .branding-favicon-row{align-items:flex-start}
-}
+  }
 
 
 .brand-mark,.avatar{background:var(--brand)!important}
@@ -202,3 +195,8 @@
 .account-role{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 18%,white);background:color-mix(in srgb,var(--brand) 5%,white)}
 .status.blue,.role-teacher{background:var(--brand-soft)!important;color:var(--brand)!important}
 .grade-4{background:var(--brand-soft)!important;color:var(--brand)!important}
+
+.branding-presets{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.branding-swatch{width:34px;height:34px;border-radius:10px;border:2px solid #fff;background:var(--swatch);box-shadow:0 0 0 1px #d8e0e8;cursor:pointer;padding:0}
+.branding-swatch:hover{transform:translateY(-1px)}
+.branding-swatch.active{box-shadow:0 0 0 3px color-mix(in srgb,var(--swatch) 32%,white)}
