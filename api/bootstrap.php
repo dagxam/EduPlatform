@@ -161,6 +161,7 @@ function apply_schema_migrations(PDO $pdo): void
 {
     add_column_if_missing($pdo, 'class_access', 'registration_expires_at', 'TEXT');
     add_column_if_missing($pdo, 'classes', 'school_id', 'INTEGER');
+    add_column_if_missing($pdo, 'classes', 'display_name', 'TEXT');
     add_column_if_missing($pdo, 'assignments', 'school_id', 'INTEGER');
     add_column_if_missing($pdo, 'assignments', 'focus_policy', "TEXT NOT NULL DEFAULT 'allow'");
     add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
@@ -210,6 +211,31 @@ function current_user(): ?array
 
     unset($user['is_active']);
     return $user;
+}
+
+function current_school_id(): ?int
+{
+    $value = (int)($_SESSION['active_school_id'] ?? 0);
+    return $value > 0 ? $value : null;
+}
+
+function can_access_school(array $user, int $schoolId): bool
+{
+    if ($schoolId < 1) {
+        return false;
+    }
+    if (($user['role'] ?? '') === 'admin') {
+        $stmt = app_db()->prepare('SELECT 1 FROM schools WHERE id = :id AND status = "active"');
+        $stmt->execute(['id' => $schoolId]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    $stmt = app_db()->prepare(
+        'SELECT 1 FROM school_users
+         WHERE school_id = :school_id AND user_id = :user_id AND is_active = 1'
+    );
+    $stmt->execute(['school_id' => $schoolId, 'user_id' => (int)$user['id']]);
+    return (bool)$stmt->fetchColumn();
 }
 
 function require_user(?array $roles = null): array
