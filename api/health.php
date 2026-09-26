@@ -7,7 +7,7 @@ try {
     $pdo->query('SELECT 1');
     json_response([
         'ok' => true,
-        'service' => 'EduPlatform API',
+        'service' => 'UVORIA API',
         'database' => 'sqlite',
         'php' => PHP_VERSION,
     ]);
