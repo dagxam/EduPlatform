@@ -538,9 +538,34 @@
           <label>Фамилия<input name="last_name" required></label>
         </div>
         <label>Email<input name="email" type="email" required></label>
-        <label>Пароль<input name="password" type="password" minlength="8" required></label>
+        <p class="form-hint">Пароль вручную задавать не нужно. После создания нажмите «Отправить доступ» — UVORIA сгенерирует логин и временный пароль и отправит их на email учителя.</p>
         <div class="form-error hidden" id="teacherFormError"></div>
         <button class="primary-btn full" type="submit">Создать учителя</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="temporaryPasswordModal" data-locked="1">
+    <div class="modal">
+      <span class="section-kicker">Безопасность</span>
+      <h2>Создайте новый пароль</h2>
+      <p>Вы вошли с временным паролем из письма. Перед продолжением установите свой постоянный пароль.</p>
+      <form id="temporaryPasswordForm">
+        <label>Новый пароль
+          <div class="password-field">
+            <input name="new_password" id="temporaryNewPassword" type="password" minlength="8" autocomplete="new-password" required>
+            <button type="button" class="show-password" data-app-password-target="temporaryNewPassword">Показать</button>
+          </div>
+        </label>
+        <label>Повторите пароль
+          <div class="password-field">
+            <input name="confirm_password" id="temporaryConfirmPassword" type="password" minlength="8" autocomplete="new-password" required>
+            <button type="button" class="show-password" data-app-password-target="temporaryConfirmPassword">Показать</button>
+          </div>
+        </label>
+        <small>Минимум 8 символов. Это окно нельзя закрыть до смены временного пароля.</small>
+        <div class="form-error hidden" id="temporaryPasswordError"></div>
+        <button class="primary-btn full" id="temporaryPasswordSaveBtn" type="submit">Сохранить новый пароль</button>
       </form>
     </div>
   </div>
