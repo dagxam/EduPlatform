@@ -142,6 +142,8 @@ CREATE TABLE IF NOT EXISTS schools (
     name TEXT NOT NULL,
     slug TEXT UNIQUE COLLATE NOCASE,
     city TEXT,
+    theme_color TEXT NOT NULL DEFAULT '#1d68f0',
+    favicon_data TEXT,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'archived')),
     created_by INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
