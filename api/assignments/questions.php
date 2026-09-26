@@ -12,7 +12,7 @@ $schoolId = require_active_school($user, false);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT id, teacher_id, school_id, title, status
+    'SELECT id, teacher_id, school_id, subject_id, title, status
      FROM assignments
      WHERE id = :id AND school_id = :school_id
      LIMIT 1'
@@ -28,7 +28,21 @@ if (!$assignment) {
 }
 
 if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (int)$user['id']) {
-    json_response(['ok' => false, 'error' => 'Нет доступа к этому заданию.'], 403);
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM teacher_subjects
+         WHERE school_id = :school_id
+           AND teacher_id = :teacher_id
+           AND subject_id = :subject_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => (int)$user['id'],
+        'subject_id' => (int)$assignment['subject_id'],
+    ]);
+    if (!$stmt->fetchColumn()) {
+        json_response(['ok' => false, 'error' => 'Нет доступа к этому заданию.'], 403);
+    }
 }
 
 $stmt = $pdo->prepare(
