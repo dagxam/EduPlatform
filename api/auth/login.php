@@ -14,6 +14,8 @@ if ($email === '' || $password === '') {
     json_response(['ok' => false, 'error' => 'Введите email и пароль.'], 422);
 }
 
+throttle_check('staff_login', $email);
+
 $stmt = app_db()->prepare(
     'SELECT id, password_hash, is_active FROM users WHERE email = :email LIMIT 1'
 );
@@ -21,12 +23,16 @@ $stmt->execute(['email' => $email]);
 $user = $stmt->fetch();
 
 if (!$user || !(int) $user['is_active'] || !password_verify($password, $user['password_hash'])) {
+    throttle_failure('staff_login', $email);
+    audit_event('login_failed', 'user', $user ? (int)$user['id'] : null, ['kind' => 'staff']);
     usleep(250000);
     json_response(['ok' => false, 'error' => 'Неверный email или пароль.'], 401);
 }
 
+throttle_clear('staff_login', $email);
 session_regenerate_id(true);
 $_SESSION['user_id'] = (int) $user['id'];
+audit_event('login_succeeded', 'user', (int)$user['id'], ['kind' => 'staff'], null, (int)$user['id']);
 
 json_response([
     'ok' => true,
