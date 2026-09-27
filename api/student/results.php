@@ -8,6 +8,7 @@ $user = require_user(['student']);
 $pdo = app_db();
 
 repair_imported_answer_keys_and_scores($pdo, (int)$user['id'], null);
+repair_zero_total_attempts($pdo, (int)$user['id'], null);
 
 $stmt = $pdo->prepare(
     'SELECT at.id AS attempt_id, at.assignment_id, at.submitted_at, at.variant_label,
