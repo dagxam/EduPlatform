@@ -27,12 +27,14 @@
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item" data-view="uvoria-library"><span>◇</span> Библиотека UVORIA</button>
         <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
         <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span>⛁</span> Резервные копии</button>
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
+        <button class="nav-item" data-view="staff-profile"><span>●</span> Профиль</button>
       </nav>
 
       <nav class="nav student-nav hidden">
@@ -257,6 +259,135 @@
               <tbody id="assignmentsTableBody"><tr><td colspan="6">Загрузка...</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section class="view" id="staff-profile">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Сотрудник</span>
+            <h2 id="profilePageTitle">Мой профиль</h2>
+            <p id="profilePageHint">Личные данные, фото, безопасность, роль и учебные назначения.</p>
+          </div>
+          <button class="secondary-btn hidden" id="profileBackBtn" type="button">← К сотрудникам школы</button>
+        </div>
+
+        <div class="profile-shell">
+          <aside class="panel profile-card">
+            <div class="profile-photo" id="profilePhoto"><span id="profilePhotoInitials">У</span></div>
+            <h3 id="profileDisplayName">Сотрудник UVORIA</h3>
+            <span class="status blue" id="profileRoleBadge">Сотрудник</span>
+            <p id="profileSchoolSummary">Загрузка...</p>
+          </aside>
+
+          <div class="panel profile-workspace">
+            <div class="profile-tabs" id="profileTabs">
+              <button class="active" type="button" data-profile-tab="main">Основное</button>
+              <button type="button" data-profile-tab="photo">Фото</button>
+              <button type="button" data-profile-tab="security">Безопасность</button>
+              <button type="button" data-profile-tab="access">Роль и доступ</button>
+              <button type="button" data-profile-tab="teaching">Предметы и классы</button>
+              <button type="button" data-profile-tab="school">Школа</button>
+            </div>
+
+            <div class="profile-pane active" data-profile-pane="main">
+              <form id="profileBasicForm" class="profile-form">
+                <input type="hidden" id="profileUserId" name="user_id">
+                <div class="form-row">
+                  <label>Фамилия<input id="profileLastName" name="last_name" required></label>
+                  <label>Имя<input id="profileFirstName" name="first_name" required></label>
+                </div>
+                <label>Отчество<input id="profileMiddleName" name="middle_name" placeholder="Если есть"></label>
+                <div class="form-row">
+                  <label>Email<input id="profileEmail" name="email" type="email" required></label>
+                  <label>Телефон<input id="profilePhone" name="phone" type="tel" placeholder="+7 ..."></label>
+                </div>
+                <div class="form-error hidden" id="profileBasicError"></div>
+                <div class="import-result hidden" id="profileBasicResult"></div>
+                <button class="primary-btn" id="profileBasicSaveBtn" type="submit">Сохранить профиль</button>
+              </form>
+            </div>
+
+            <div class="profile-pane" data-profile-pane="photo">
+              <div class="profile-pane-copy">
+                <h3>Фото сотрудника</h3>
+                <p>PNG, JPG или WebP до 5 МБ. UVORIA подготовит квадратную версию для аватара.</p>
+              </div>
+              <form id="profileAvatarForm" class="profile-form" enctype="multipart/form-data">
+                <input type="hidden" id="profileAvatarUserId" name="user_id">
+                <label>Выберите фото<input id="profileAvatarFile" name="avatar" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required></label>
+                <div class="form-error hidden" id="profileAvatarError"></div>
+                <button class="primary-btn" id="profileAvatarSaveBtn" type="submit">Загрузить фото</button>
+              </form>
+            </div>
+
+            <div class="profile-pane" data-profile-pane="security">
+              <div class="profile-security-grid">
+                <div class="profile-info-card"><span>Логин</span><strong id="profileLoginName">—</strong></div>
+                <div class="profile-info-card"><span>Доступ</span><strong id="profileCredentialsState">—</strong></div>
+              </div>
+              <form id="profilePasswordForm" class="profile-form">
+                <h3>Изменить мой пароль</h3>
+                <label>Текущий пароль<input name="current_password" type="password" autocomplete="current-password" required></label>
+                <div class="form-row">
+                  <label>Новый пароль<input name="new_password" type="password" minlength="8" autocomplete="new-password" required></label>
+                  <label>Повторите пароль<input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></label>
+                </div>
+                <div class="form-error hidden" id="profilePasswordError"></div>
+                <div class="import-result hidden" id="profilePasswordResult"></div>
+                <button class="primary-btn" type="submit">Изменить пароль</button>
+              </form>
+              <div class="profile-managed-security hidden" id="profileManagedSecurity">
+                <p>Пароль другого сотрудника здесь не показывается и не задаётся. Для учителя используйте безопасную повторную отправку временного доступа из управления школой.</p>
+              </div>
+            </div>
+
+            <div class="profile-pane" data-profile-pane="access">
+              <div id="profileAccessInfo" class="profile-info-list"></div>
+            </div>
+
+            <div class="profile-pane" data-profile-pane="teaching">
+              <div class="profile-teaching-grid">
+                <div><span class="section-kicker">Предметы</span><div id="profileSubjects" class="profile-chip-list"></div></div>
+                <div><span class="section-kicker">Классы</span><div id="profileClasses" class="profile-assignment-list"></div></div>
+              </div>
+            </div>
+
+            <div class="profile-pane" data-profile-pane="school">
+              <div id="profileSchools" class="profile-school-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="uvoria-library">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Обмен опытом</span>
+            <h2>Библиотека UVORIA</h2>
+            <p>Проверенные задания, которыми школы добровольно делятся друг с другом. Импорт создаёт независимый черновик.</p>
+          </div>
+          <button class="secondary-btn" id="refreshLibraryBtn" type="button">↻ Обновить</button>
+        </div>
+
+        <div class="panel library-filter-panel">
+          <div class="filters library-filters">
+            <input class="search" id="librarySearch" type="search" placeholder="Название, предмет или школа">
+            <select id="librarySubjectFilter"><option value="">Все предметы</option></select>
+          </div>
+        </div>
+
+        <div class="library-layout">
+          <section>
+            <div class="panel-head standalone"><div><span class="section-kicker">Все школы</span><h3>Опубликованные материалы</h3></div></div>
+            <div class="library-grid" id="libraryGrid"><div class="history-empty">Загрузка библиотеки...</div></div>
+          </section>
+
+          <aside class="panel library-own-panel">
+            <div class="panel-head"><div><span class="section-kicker">Наша школа</span><h3>Публикации</h3></div></div>
+            <p class="panel-note">Учитель отправляет задание на публикацию. Администратор школы подтверждает его перед появлением в общей библиотеке.</p>
+            <div id="libraryOwnList" class="library-own-list"><p>Загрузка...</p></div>
+          </aside>
         </div>
       </section>
 
@@ -557,6 +688,17 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="libraryPreviewModal">
+    <div class="modal class-details-modal library-preview-modal">
+      <button class="modal-close" data-close-modal="libraryPreviewModal">×</button>
+      <span class="section-kicker">Библиотека UVORIA</span>
+      <h2 id="libraryPreviewTitle">Материал</h2>
+      <p id="libraryPreviewMeta"></p>
+      <div id="libraryPreviewQuestions" class="library-preview-questions"></div>
+      <div class="modal-actions" id="libraryPreviewActions"></div>
+    </div>
   </div>
 
   <div class="modal-backdrop hidden" id="taskModal">
