@@ -162,6 +162,101 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
     return $correctIds;
 }
 
+function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null, ?int $schoolId = null): int
+{
+    $sql =
+        'SELECT DISTINCT q.id
+         FROM questions q
+         JOIN assignments ass ON ass.id = q.assignment_id
+         JOIN assignment_imports ai ON ai.assignment_id = ass.id
+         WHERE q.type IN ("single", "multiple", "true_false")
+           AND trim(COALESCE(ai.extracted_text, "")) <> ""
+           AND NOT EXISTS (
+             SELECT 1 FROM question_options qo
+             WHERE qo.question_id = q.id AND qo.is_correct = 1
+           )';
+    $params = [];
+
+    if ($schoolId !== null) {
+        $sql .= ' AND ass.school_id = :school_id';
+        $params['school_id'] = $schoolId;
+    }
+    if ($studentId !== null) {
+        $sql .= ' AND EXISTS (
+          SELECT 1 FROM attempts at
+          WHERE at.assignment_id = ass.id AND at.student_id = :student_id
+        )';
+        $params['student_id'] = $studentId;
+    }
+    $sql .= ' ORDER BY q.id LIMIT 500';
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $questionIds = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+    if (!$questionIds) return 0;
+
+    $affectedAttempts = [];
+    $repairedQuestions = 0;
+
+    foreach ($questionIds as $questionId) {
+        $correctIds = repair_missing_correct_options($pdo, $questionId);
+        if (!$correctIds) continue;
+        $repairedQuestions++;
+
+        $stmt = $pdo->prepare(
+            'SELECT a.id, a.attempt_id, a.answer_text, q.points
+             FROM answers a
+             JOIN questions q ON q.id = a.question_id
+             WHERE a.question_id = :question_id'
+        );
+        $stmt->execute(['question_id' => $questionId]);
+
+        $update = $pdo->prepare(
+            'UPDATE answers
+             SET score = :score,
+                 is_correct = :is_correct,
+                 needs_review = 0,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+
+        foreach ($stmt->fetchAll() as $answer) {
+            $selected = json_decode((string)($answer['answer_text'] ?? '[]'), true);
+            $selected = is_array($selected)
+                ? array_values(array_unique(array_map('intval', $selected)))
+                : [];
+            sort($selected, SORT_NUMERIC);
+
+            $correct = $correctIds;
+            sort($correct, SORT_NUMERIC);
+            $isCorrect = ($selected && $selected === $correct) ? 1 : 0;
+
+            $update->execute([
+                'score' => $isCorrect ? (float)$answer['points'] : 0.0,
+                'is_correct' => $isCorrect,
+                'id' => (int)$answer['id'],
+            ]);
+            $affectedAttempts[(int)$answer['attempt_id']] = true;
+        }
+    }
+
+    foreach (array_keys($affectedAttempts) as $attemptId) {
+        $stmt = $pdo->prepare('SELECT status, termination_reason FROM attempts WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $attemptId]);
+        $attempt = $stmt->fetch();
+        if (!$attempt || (string)$attempt['status'] === 'in_progress') continue;
+        finalize_attempt(
+            $pdo,
+            (int)$attemptId,
+            trim((string)($attempt['termination_reason'] ?? '')) !== ''
+                ? (string)$attempt['termination_reason']
+                : null
+        );
+    }
+
+    return $repairedQuestions;
+}
+
 function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
 {
     $stmt = $pdo->prepare('SELECT id, type, points, correct_text, interaction_type, settings_json FROM questions WHERE id = :id LIMIT 1');
