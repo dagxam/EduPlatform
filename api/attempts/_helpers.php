@@ -252,6 +252,26 @@ function deterministic_variant_order(array $values, string $seed): array
     return array_values(array_map(static fn(array $row) => $row['value'], $decorated));
 }
 
+function variant_permutation(array $values, string $seed, int $variantIndex): array
+{
+    $base = deterministic_variant_order($values, $seed);
+    $count = count($base);
+    if ($count <= 1 || $variantIndex <= 0) {
+        return $base;
+    }
+
+    $round = intdiv($variantIndex, $count);
+    $shift = $variantIndex % $count;
+    if ($shift > 0) {
+        $base = array_merge(array_slice($base, $shift), array_slice($base, 0, $shift));
+    }
+    if ($round % 2 === 1) {
+        $base = array_reverse($base);
+    }
+
+    return array_values($base);
+}
+
 function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
 {
     $stmt = $pdo->prepare(
@@ -271,7 +291,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
         ? (int)(sprintf('%u', crc32($assignmentId . ':' . $studentId)) % $variantCount)
         : 0;
     $variantLabel = variant_label_from_index($variantIndex);
-    $seedBase = 'assignment:' . $assignmentId . '|variant:' . $variantIndex;
+    $seedBase = 'assignment:' . $assignmentId;
 
     $stmt = $pdo->prepare(
         'SELECT id, interaction_type, settings_json
@@ -284,7 +304,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
 
     $questionOrder = array_map('intval', array_column($questions, 'id'));
     if ($variantCount > 1 && (int)($settings['shuffle_questions'] ?? 0) === 1) {
-        $questionOrder = deterministic_variant_order($questionOrder, $seedBase . '|questions');
+        $questionOrder = variant_permutation($questionOrder, $seedBase . '|questions', $variantIndex);
     }
 
     $optionOrder = [];
@@ -307,7 +327,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
             && (int)($settings['shuffle_options'] ?? 0) === 1
             && count($optionIds) > 1
         ) {
-            $optionIds = deterministic_variant_order($optionIds, $seedBase . '|options:' . $questionId);
+            $optionIds = variant_permutation($optionIds, $seedBase . '|options:' . $questionId, $variantIndex);
         }
         if ($optionIds) {
             $optionOrder[(string)$questionId] = $optionIds;
@@ -322,7 +342,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
                 $keys = array_map('strval', array_keys($questionSettings['items']));
                 if (count($keys) > 1) {
                     $structuredOrder[(string)$questionId] = [
-                        'items' => deterministic_variant_order($keys, $seedBase . '|ordering:' . $questionId),
+                        'items' => variant_permutation($keys, $seedBase . '|ordering:' . $questionId, $variantIndex),
                     ];
                 }
             } elseif ($interaction === 'matching') {
@@ -336,7 +356,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
                 $structuredOrder[(string)$questionId] = [
                     'left' => $leftKeys,
                     'right' => count($rightKeys) > 1
-                        ? deterministic_variant_order($rightKeys, $seedBase . '|matching-right:' . $questionId)
+                        ? variant_permutation($rightKeys, $seedBase . '|matching-right:' . $questionId, $variantIndex)
                         : $rightKeys,
                 ];
             }
