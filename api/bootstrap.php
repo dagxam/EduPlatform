@@ -667,16 +667,22 @@ function uvoria_app_url(): string
     return 'https://uvoria.ru';
 }
 
+function uvoria_mail_from(): string
+{
+    $from = trim((string)(getenv('UVORIA_MAIL_FROM') ?: 'info@urovia.ru'));
+    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        $from = 'info@urovia.ru';
+    }
+    return $from;
+}
+
 function send_uvoria_email(string $to, string $subject, string $body): bool
 {
     if (!filter_var($to, FILTER_VALIDATE_EMAIL) || !function_exists('mail')) {
         return false;
     }
 
-    $from = trim((string)(getenv('UVORIA_MAIL_FROM') ?: 'no-reply@uvoria.ru'));
-    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
-        $from = 'no-reply@uvoria.ru';
-    }
+    $from = uvoria_mail_from();
 
     $encodedSubject = function_exists('mb_encode_mimeheader')
         ? mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n")
@@ -688,8 +694,16 @@ function send_uvoria_email(string $to, string $subject, string $body): bool
         'Content-Transfer-Encoding: 8bit',
         'From: UVORIA <' . $from . '>',
         'Reply-To: ' . $from,
+        'Sender: ' . $from,
         'X-Mailer: UVORIA',
     ];
 
-    return @mail($to, $encodedSubject, $body, implode("\r\n", $headers));
+    $headerString = implode("\r\n", $headers);
+    $envelopeSender = '-f' . escapeshellarg($from);
+
+    if (@mail($to, $encodedSubject, $body, $headerString, $envelopeSender)) {
+        return true;
+    }
+
+    return @mail($to, $encodedSubject, $body, $headerString);
 }
