@@ -10,6 +10,7 @@ const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
+const libraryPreviewModal = document.getElementById('libraryPreviewModal');
 const duplicateAssignmentModal = document.getElementById('duplicateAssignmentModal');
 const assignToClassModal = document.getElementById('assignToClassModal');
 const shareSubjectModal = document.getElementById('shareSubjectModal');
@@ -29,6 +30,8 @@ const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
+  'uvoria-library': ['Обмен опытом', 'Библиотека UVORIA'],
+  'staff-profile': ['Учётная запись', 'Профиль сотрудника'],
   'activity-history': ['Контроль изменений', 'История действий'],
   'system-backups': ['Защита данных', 'Резервные копии'],
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
@@ -1236,6 +1239,472 @@ async function deleteBackup(file) {
 document.getElementById('createBackupBtn')?.addEventListener('click', createBackupNow);
 document.getElementById('refreshBackupsBtn')?.addEventListener('click', () => loadBackups().catch(() => {}));
 
+
+let activeProfileUserId = null;
+let libraryItemsCache = [];
+let libraryOwnCache = [];
+let libraryCanManage = false;
+let libraryActiveSchoolId = 0;
+
+function profileRoleText(data) {
+  if (Number(data?.profile?.is_platform_admin) === 1) return 'Главный администратор UVORIA';
+  const membership = data?.active_school;
+  if (!membership) return roleLabels[data?.profile?.role] || 'Сотрудник';
+  const admin = ['owner', 'school_admin'].includes(String(membership.role || ''));
+  const teacher = Number(membership.can_teach || 0) === 1;
+  if (admin && teacher) return 'Администратор школы · Учитель';
+  if (admin) return 'Администратор школы';
+  return 'Учитель';
+}
+
+function profileInitials(profile) {
+  return ((profile?.first_name || 'У').charAt(0) + (profile?.last_name || '').charAt(0)).toUpperCase();
+}
+
+function selectProfileTab(name) {
+  document.querySelectorAll('[data-profile-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.profileTab === name);
+  });
+  document.querySelectorAll('[data-profile-pane]').forEach(pane => {
+    pane.classList.toggle('active', pane.dataset.profilePane === name);
+  });
+}
+
+document.querySelectorAll('[data-profile-tab]').forEach(button => {
+  button.addEventListener('click', () => selectProfileTab(String(button.dataset.profileTab || 'main')));
+});
+
+async function loadStaffProfile(userId = null, openView = false) {
+  const targetId = Number(userId || currentUser?.id || 0);
+  if (!targetId) return;
+
+  const response = await fetch('./api/profile/get.php?user_id=' + encodeURIComponent(targetId), {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить профиль.');
+
+  activeProfileUserId = Number(data.profile.id);
+  const self = Boolean(data.permissions?.self);
+  const editable = Boolean(data.permissions?.can_edit_basic);
+  const roleText = profileRoleText(data);
+  const fullName = [data.profile.last_name, data.profile.first_name, data.profile.middle_name].filter(Boolean).join(' ');
+
+  document.getElementById('profilePageTitle').textContent = self ? 'Мой профиль' : 'Профиль сотрудника';
+  document.getElementById('profilePageHint').textContent = self
+    ? 'Личные данные, фото, безопасность, роль и учебные назначения.'
+    : 'Карточка сотрудника выбранной школы.';
+  document.getElementById('profileBackBtn')?.classList.toggle('hidden', self);
+  document.getElementById('profileDisplayName').textContent = fullName || 'Сотрудник UVORIA';
+  document.getElementById('profileRoleBadge').textContent = roleText;
+  document.getElementById('profileSchoolSummary').textContent = data.active_school?.name || (Number(data.profile.is_platform_admin) === 1 ? 'Платформа UVORIA' : 'Школа не выбрана');
+
+  const photo = document.getElementById('profilePhoto');
+  const initials = document.getElementById('profilePhotoInitials');
+  if (photo) {
+    photo.style.backgroundImage = data.profile.avatar_url ? `url("${data.profile.avatar_url}")` : '';
+    photo.classList.toggle('has-photo', Boolean(data.profile.avatar_url));
+  }
+  if (initials) {
+    initials.textContent = profileInitials(data.profile);
+    initials.classList.toggle('hidden', Boolean(data.profile.avatar_url));
+  }
+
+  document.getElementById('profileUserId').value = String(data.profile.id);
+  document.getElementById('profileAvatarUserId').value = String(data.profile.id);
+  document.getElementById('profileLastName').value = data.profile.last_name || '';
+  document.getElementById('profileFirstName').value = data.profile.first_name || '';
+  document.getElementById('profileMiddleName').value = data.profile.middle_name || '';
+  document.getElementById('profileEmail').value = data.profile.email || '';
+  document.getElementById('profilePhone').value = data.profile.phone || '';
+
+  document.querySelectorAll('#profileBasicForm input:not([type="hidden"])').forEach(input => input.disabled = !editable);
+  document.getElementById('profileBasicSaveBtn')?.classList.toggle('hidden', !editable);
+  document.getElementById('profileAvatarFile').disabled = !editable;
+  document.getElementById('profileAvatarSaveBtn')?.classList.toggle('hidden', !editable);
+
+  document.getElementById('profileLoginName').textContent = data.profile.login_name || 'Вход по email';
+  document.getElementById('profileCredentialsState').textContent = Number(data.profile.must_change_password) === 1
+    ? 'Нужно сменить временный пароль'
+    : (data.profile.credentials_sent_at ? 'Доступ активирован' : 'Обычный доступ');
+  document.getElementById('profilePasswordForm')?.classList.toggle('hidden', !self);
+  document.getElementById('profileManagedSecurity')?.classList.toggle('hidden', self);
+
+  const access = document.getElementById('profileAccessInfo');
+  if (access) {
+    access.innerHTML = `
+      <div class="profile-info-card"><span>Роль</span><strong>${escapeHtml(roleText)}</strong></div>
+      <div class="profile-info-card"><span>Email входа</span><strong>${escapeHtml(data.profile.email || '—')}</strong></div>
+      <div class="profile-info-card"><span>Логин</span><strong>${escapeHtml(data.profile.login_name || 'не задан')}</strong></div>
+      <div class="profile-info-card"><span>Аккаунт создан</span><strong>${escapeHtml(historyDateTime(data.profile.created_at))}</strong></div>`;
+  }
+
+  const subjects = document.getElementById('profileSubjects');
+  if (subjects) {
+    subjects.innerHTML = (data.subjects || []).length
+      ? data.subjects.map(item => `<span class="subject-admin-chip">${escapeHtml(item.name)}</span>`).join('')
+      : '<span class="profile-empty-value">Предметы не назначены</span>';
+  }
+
+  const classes = document.getElementById('profileClasses');
+  if (classes) {
+    classes.innerHTML = (data.classes || []).length
+      ? data.classes.map(item => `<div class="profile-assignment-item"><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.subject_name || '')}${item.academic_year ? ' · ' + escapeHtml(item.academic_year) : ''}</span></div>`).join('')
+      : '<span class="profile-empty-value">Классы не назначены</span>';
+  }
+
+  const schools = document.getElementById('profileSchools');
+  if (schools) {
+    schools.innerHTML = (data.schools || []).length
+      ? data.schools.map(item => {
+          const admin = ['owner', 'school_admin'].includes(String(item.role || ''));
+          const teacher = Number(item.can_teach || 0) === 1;
+          const label = admin && teacher ? 'Администратор · Учитель' : (admin ? 'Администратор' : 'Учитель');
+          return `<div class="profile-school-item"><div><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.city || '')}</span></div><span class="status blue">${escapeHtml(label)}</span></div>`;
+        }).join('')
+      : '<span class="profile-empty-value">Нет активных школ</span>';
+  }
+
+  selectProfileTab('main');
+  if (openView) showView('staff-profile');
+}
+
+document.getElementById('profileBackBtn')?.addEventListener('click', () => {
+  activeProfileUserId = null;
+  showView('school-management');
+  loadSchoolManagement().catch(() => {});
+});
+
+document.getElementById('profileBasicForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('profileBasicError');
+  const result = document.getElementById('profileBasicResult');
+  const button = document.getElementById('profileBasicSaveBtn');
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  button.disabled = true;
+
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/profile/update.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить профиль.');
+    if (Number(payload.user_id) === Number(currentUser?.id)) {
+      currentUser.first_name = payload.first_name;
+      currentUser.last_name = payload.last_name;
+      currentUser.middle_name = payload.middle_name;
+      currentUser.email = payload.email;
+      sidebarName.textContent = [payload.first_name, payload.last_name].filter(Boolean).join(' ');
+      sidebarAvatar.textContent = ((payload.first_name || 'П').charAt(0) + (payload.last_name || '').charAt(0)).toUpperCase();
+    }
+    if (result) {
+      result.textContent = 'Профиль сохранён.';
+      result.classList.remove('hidden');
+    }
+    await loadStaffProfile(Number(payload.user_id));
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('profileAvatarForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('profileAvatarError');
+  const button = document.getElementById('profileAvatarSaveBtn');
+  error?.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Загружаем...';
+
+  try {
+    const data = new FormData(form);
+    const response = await fetch('./api/profile/upload-avatar.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: data
+    });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось загрузить фото.');
+    form.reset();
+    document.getElementById('profileAvatarUserId').value = String(activeProfileUserId || currentUser?.id || '');
+    await loadStaffProfile(activeProfileUserId || currentUser?.id);
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Загрузить фото';
+  }
+});
+
+document.getElementById('profilePasswordForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('profilePasswordError');
+  const result = document.getElementById('profilePasswordResult');
+  const button = form.querySelector('button[type="submit"]');
+  const payload = Object.fromEntries(new FormData(form).entries());
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  if (payload.new_password !== payload.confirm_password) {
+    error.textContent = 'Новые пароли не совпадают.';
+    error.classList.remove('hidden');
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  try {
+    const response = await fetch('./api/auth/change-password.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить пароль.');
+    form.reset();
+    result.textContent = 'Пароль изменён. Другие старые сессии завершены.';
+    result.classList.remove('hidden');
+  } catch (e) {
+    error.textContent = e.message;
+    error.classList.remove('hidden');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Изменить пароль';
+  }
+});
+
+function libraryStatusLabel(status) {
+  const map = {
+    pending: ['amber', 'На согласовании'],
+    published: ['green', 'Опубликовано'],
+    rejected: ['red', 'Отклонено'],
+    withdrawn: ['blue', 'Снято с публикации']
+  };
+  return map[String(status || '')] || ['blue', String(status || '—')];
+}
+
+function libraryAssignmentAction(item) {
+  const status = String(item.library_status || '');
+  if (!status || ['rejected', 'withdrawn'].includes(status)) {
+    return `<button class="secondary-btn compact-btn" type="button" data-library-submit="${item.id}">◇ В библиотеку</button>`;
+  }
+  const [cls, label] = libraryStatusLabel(status);
+  return `<span class="status ${cls}" title="Библиотека UVORIA">${label}</span>`;
+}
+
+async function submitAssignmentToLibrary(assignmentId) {
+  const item = assignmentsCache.find(row => Number(row.id) === Number(assignmentId));
+  if (!item) return;
+  if (!confirm(`Отправить «${item.title}» в библиотеку UVORIA? Учителя отправляют материал на согласование администратору школы.`)) return;
+
+  try {
+    const response = await fetch('./api/library/request.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: assignmentId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось отправить материал.');
+    alert(data.message || 'Материал отправлен.');
+    await Promise.all([loadAssignments(), loadLibrary().catch(() => {})]);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function renderLibrary() {
+  const grid = document.getElementById('libraryGrid');
+  const own = document.getElementById('libraryOwnList');
+  if (!grid || !own) return;
+
+  const query = (document.getElementById('librarySearch')?.value || '').trim().toLowerCase();
+  const subjectId = Number(document.getElementById('librarySubjectFilter')?.value || 0);
+  const items = libraryItemsCache.filter(item => {
+    const haystack = [item.title_snapshot, item.description_snapshot, item.subject_name, item.school_name].join(' ').toLowerCase();
+    return (!query || haystack.includes(query)) && (!subjectId || Number(item.subject_id) === subjectId);
+  });
+
+  grid.innerHTML = items.length ? items.map(item => {
+    const ownSchool = Number(item.source_school_id) === Number(libraryActiveSchoolId);
+    const author = [item.author_last_name, item.author_first_name].filter(Boolean).join(' ');
+    return `
+      <article class="panel library-card">
+        <div class="library-card-head">
+          <span class="status blue">${escapeHtml(item.subject_name || 'Без предмета')}</span>
+          ${ownSchool ? '<span class="status green">Наша школа</span>' : ''}
+        </div>
+        <h3>${escapeHtml(item.title_snapshot)}</h3>
+        <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
+        <div class="library-card-meta">
+          <span><b>${Number(item.questions_count_snapshot || 0)}</b> вопросов</span>
+          <span>${escapeHtml(item.school_name || '')}</span>
+          ${author ? `<span>${escapeHtml(author)}</span>` : ''}
+        </div>
+        <div class="library-card-actions">
+          <button class="secondary-btn compact-btn" type="button" data-library-preview="${item.id}">Посмотреть</button>
+          ${!ownSchool && libraryCanManage
+            ? (Number(item.imported) === 1
+              ? '<span class="status green">Уже импортировано</span>'
+              : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ В нашу школу</button>`)
+            : ''}
+        </div>
+      </article>`;
+  }).join('') : '<div class="history-empty"><b>Материалы не найдены</b><span>Измените поиск или фильтр предмета.</span></div>';
+
+  own.innerHTML = libraryOwnCache.length ? libraryOwnCache.map(item => {
+    const [cls, label] = libraryStatusLabel(item.status);
+    return `
+      <div class="library-own-item">
+        <div><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов</span></div>
+        <div class="library-own-actions">
+          <span class="status ${cls}">${label}</span>
+          ${libraryCanManage && item.status === 'pending' ? `
+            <button class="mini-action" type="button" data-library-moderate="${item.id}" data-action="approve">Одобрить</button>
+            <button class="mini-action danger-action" type="button" data-library-moderate="${item.id}" data-action="reject">Отклонить</button>` : ''}
+          ${libraryCanManage && item.status === 'published' ? `
+            <button class="mini-action danger-action" type="button" data-library-moderate="${item.id}" data-action="withdraw">Снять</button>` : ''}
+        </div>
+      </div>`;
+  }).join('') : '<p>Школа пока ничего не отправляла в библиотеку.</p>';
+
+  grid.querySelectorAll('[data-library-preview]').forEach(button => {
+    button.addEventListener('click', () => openLibraryPreview(Number(button.dataset.libraryPreview)));
+  });
+  grid.querySelectorAll('[data-library-import]').forEach(button => {
+    button.addEventListener('click', () => importLibraryItem(Number(button.dataset.libraryImport)));
+  });
+  own.querySelectorAll('[data-library-moderate]').forEach(button => {
+    button.addEventListener('click', () => moderateLibraryItem(
+      Number(button.dataset.libraryModerate),
+      String(button.dataset.action || '')
+    ));
+  });
+}
+
+async function loadLibrary() {
+  const response = await fetch('./api/library/list.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить библиотеку.');
+
+  libraryItemsCache = data.items || [];
+  libraryOwnCache = data.own_items || [];
+  libraryCanManage = Boolean(data.can_manage);
+  libraryActiveSchoolId = Number(data.active_school_id || 0);
+
+  const select = document.getElementById('librarySubjectFilter');
+  if (select) {
+    const current = select.value;
+    const subjectMap = new Map();
+    [...libraryItemsCache, ...libraryOwnCache].forEach(item => {
+      if (item.subject_id && item.subject_name) subjectMap.set(Number(item.subject_id), item.subject_name);
+    });
+    select.innerHTML = '<option value="">Все предметы</option>' + [...subjectMap.entries()]
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ru'))
+      .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`).join('');
+    if ([...subjectMap.keys()].includes(Number(current))) select.value = current;
+  }
+  renderLibrary();
+}
+
+async function openLibraryPreview(itemId) {
+  const response = await fetch('./api/library/preview.php?item_id=' + encodeURIComponent(itemId), {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    alert(data.error || 'Не удалось открыть материал.');
+    return;
+  }
+
+  document.getElementById('libraryPreviewTitle').textContent = data.item.title;
+  document.getElementById('libraryPreviewMeta').textContent =
+    [data.item.subject_name, data.item.school_name, data.item.questions_count + ' вопросов'].filter(Boolean).join(' · ');
+
+  const list = document.getElementById('libraryPreviewQuestions');
+  list.innerHTML = (data.questions || []).length ? data.questions.map((q, index) => `
+    <article class="library-preview-question">
+      <span>${index + 1}</span>
+      <div>
+        <b>${escapeHtml(q.text)}</b>
+        ${(q.options || []).length ? `<ul>${q.options.map(opt => `<li>${escapeHtml(opt.text)}</li>`).join('')}</ul>` : '<small>Открытый ответ</small>'}
+      </div>
+    </article>`).join('') : '<div class="history-empty">Вопросы не распознаны. Материал может содержаться в исходном файле.</div>';
+
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  const actions = document.getElementById('libraryPreviewActions');
+  const ownSchool = Number(item?.source_school_id) === Number(libraryActiveSchoolId);
+  actions.innerHTML = !ownSchool && libraryCanManage && Number(item?.imported) !== 1
+    ? `<button class="primary-btn" type="button" id="libraryPreviewImportBtn">＋ Добавить в нашу школу</button>`
+    : '';
+  document.getElementById('libraryPreviewImportBtn')?.addEventListener('click', () => importLibraryItem(itemId));
+  openModal(libraryPreviewModal);
+}
+
+async function importLibraryItem(itemId) {
+  if (!libraryCanManage) return;
+  if (!confirm('Импортировать материал в выбранную школу? Будет создан независимый черновик без классов, учеников и результатов.')) return;
+
+  try {
+    const response = await fetch('./api/library/import.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось импортировать материал.');
+    closeModal(libraryPreviewModal);
+    alert(data.message || 'Материал импортирован.');
+    await Promise.all([loadLibrary(), loadAssignments(), loadSubjects()]);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function moderateLibraryItem(itemId, action) {
+  const labels = { approve: 'опубликовать', reject: 'отклонить', withdraw: 'снять с публикации' };
+  if (!confirm(`Подтвердить действие: ${labels[action] || action}?`)) return;
+  try {
+    const response = await fetch('./api/library/moderate.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, action })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить публикацию.');
+    await Promise.all([loadLibrary(), loadAssignments()]);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+document.getElementById('librarySearch')?.addEventListener('input', renderLibrary);
+document.getElementById('librarySubjectFilter')?.addEventListener('change', renderLibrary);
+document.getElementById('refreshLibraryBtn')?.addEventListener('click', () => loadLibrary().catch(error => alert(error.message)));
+
 const historyEventLabels = {
   assignment_created: 'Задание создано',
   assignment_imported: 'Задание импортировано',
@@ -1470,6 +1939,8 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
+  if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
   if (btn.dataset.view === 'system-backups') loadBackups().catch(() => {});
   if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
