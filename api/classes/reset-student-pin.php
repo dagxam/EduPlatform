@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
-$user = require_user(['admin']);
+$user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
@@ -15,23 +15,48 @@ if ($classId < 1 || $studentId < 1) {
 }
 
 $pdo = app_db();
-$schoolId = require_active_school($user, true);
-$stmt = $pdo->prepare(
-    'SELECT 1
-     FROM classes c
-     JOIN class_students cs ON cs.class_id = c.id
-     WHERE c.id = :class_id
-       AND c.school_id = :school_id
-       AND cs.student_id = :student_id'
-);
-$stmt->execute([
-    'class_id' => $classId,
-    'school_id' => $schoolId,
-    'student_id' => $studentId,
-]);
+$schoolId = require_active_school($user, false);
+
+if (($user['role'] ?? '') === 'teacher') {
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM teacher_classes tc
+         JOIN class_students cs ON cs.class_id = tc.class_id
+         WHERE tc.school_id = :school_id
+           AND tc.teacher_id = :teacher_id
+           AND tc.class_id = :class_id
+           AND cs.student_id = :student_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'teacher_id' => (int)$user['id'],
+        'class_id' => $classId,
+        'student_id' => $studentId,
+    ]);
+} else {
+    if (!can_manage_school($user, $schoolId)) {
+        json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM classes c
+         JOIN class_students cs ON cs.class_id = c.id
+         WHERE c.id = :class_id
+           AND c.school_id = :school_id
+           AND cs.student_id = :student_id
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'class_id' => $classId,
+        'school_id' => $schoolId,
+        'student_id' => $studentId,
+    ]);
+}
 
 if (!$stmt->fetchColumn()) {
-    json_response(['ok' => false, 'error' => 'Ученик не найден в этом классе.'], 404);
+    json_response(['ok' => false, 'error' => 'Ученик не найден или класс не назначен этому сотруднику.'], 404);
 }
 
 $stmt = $pdo->prepare(
