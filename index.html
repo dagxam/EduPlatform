@@ -684,13 +684,22 @@
             <div><span class="section-kicker">История</span><h3>Все работы</h3></div>
           </div>
           <div class="table-wrap">
-            <table class="student-results-table"><thead><tr><th>Дата</th><th>Предмет</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th><th>Комментарий</th></tr></thead>
-              <tbody id="studentResultsBody"><tr><td colspan="7">Загрузка...</td></tr></tbody>
+            <table class="student-results-table"><thead><tr><th>Дата</th><th>Предмет</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th><th>Комментарий</th><th>Разбор</th></tr></thead>
+              <tbody id="studentResultsBody"><tr><td colspan="8">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="attemptReviewModal">
+    <div class="modal attempt-review-modal">
+      <button class="modal-close" data-close-modal="attemptReviewModal">×</button>
+      <div id="attemptReviewContent">
+        <div class="attempt-review-loading">Загрузка разбора работы...</div>
+      </div>
+    </div>
   </div>
 
   <div class="modal-backdrop hidden" id="resultEditModal">
