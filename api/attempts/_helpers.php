@@ -691,6 +691,7 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
     ]);
 
     return [
+        'attempt_id' => $attemptId,
         'score' => $score,
         'max_score' => $maxScore,
         'percent' => $percent,
