@@ -251,6 +251,17 @@ function apply_schema_migrations(PDO $pdo): void
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_shared_origin
         ON assignments(school_id, source_school_id, source_assignment_id)
         WHERE source_assignment_id IS NOT NULL");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        used_at INTEGER,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user
+        ON password_reset_tokens(user_id, expires_at)");
 }
 
 function audit_event(string $eventType, ?string $entityType = null, ?int $entityId = null, array $metadata = [], ?int $schoolId = null, ?int $userId = null): void
