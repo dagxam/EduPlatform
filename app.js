@@ -13,6 +13,7 @@ const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
 const libraryPreviewModal = document.getElementById('libraryPreviewModal');
 const resultEditModal = document.getElementById('resultEditModal');
+const attemptReviewModal = document.getElementById('attemptReviewModal');
 const duplicateAssignmentModal = document.getElementById('duplicateAssignmentModal');
 const assignToClassModal = document.getElementById('assignToClassModal');
 const shareSubjectModal = document.getElementById('shareSubjectModal');
@@ -2532,6 +2533,195 @@ function resultGradeClass(grade) {
   return ['2','3','4','5'].includes(value) ? 'grade-' + value : '';
 }
 
+function attemptReviewStatusMeta(status) {
+  const map = {
+    correct: { label:'Правильно', icon:'✓', className:'correct' },
+    incorrect: { label:'Неправильно', icon:'×', className:'incorrect' },
+    unanswered: { label:'Нет ответа', icon:'—', className:'unanswered' },
+    review: { label:'Нужна проверка', icon:'?', className:'review' }
+  };
+  return map[String(status || '')] || map.unanswered;
+}
+
+function attemptReviewAnswerList(values, emptyText = 'Нет ответа') {
+  const list = Array.isArray(values) ? values.filter(value => String(value || '').trim() !== '') : [];
+  if (!list.length) return `<span class="attempt-review-empty">${escapeHtml(emptyText)}</span>`;
+  return `<ol class="attempt-review-answer-list">${list.map(value => `<li>${escapeHtml(String(value))}</li>`).join('')}</ol>`;
+}
+
+function renderAttemptReviewQuestion(question, index) {
+  const meta = attemptReviewStatusMeta(question.status);
+  const earned = Number(question.earned_points || 0).toLocaleString('ru-RU');
+  const max = Number(question.points || 0).toLocaleString('ru-RU');
+  const assets = Array.isArray(question.assets) ? question.assets : [];
+  const assetHtml = assets.map(asset =>
+    `<img class="attempt-review-image" src="${escapeHtml(asset.url || '')}" alt="${escapeHtml(asset.original_name || 'Изображение к вопросу')}" loading="lazy">`
+  ).join('');
+
+  let answerHtml = '';
+
+  if (['single','multiple','true_false'].includes(String(question.type))) {
+    const options = Array.isArray(question.options) ? question.options : [];
+    answerHtml = `
+      <div class="attempt-review-options">
+        ${options.map(option => {
+          const selected = Boolean(option.selected);
+          const correct = Boolean(option.correct);
+          const classes = [
+            'attempt-review-option',
+            selected ? 'selected' : '',
+            correct ? 'correct' : '',
+            selected && !correct ? 'wrong-selected' : ''
+          ].filter(Boolean).join(' ');
+          const badges = [
+            selected ? '<span class="attempt-review-option-badge student">Ответ ученика</span>' : '',
+            correct ? '<span class="attempt-review-option-badge correct">Правильный</span>' : ''
+          ].join('');
+          return `<div class="${classes}">
+            <span class="attempt-review-option-mark">${correct ? '✓' : (selected ? '×' : '')}</span>
+            <span class="attempt-review-option-text">${escapeHtml(option.text || '')}</span>
+            <span class="attempt-review-option-badges">${badges}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } else if (String(question.type) === 'matching') {
+    const rows = Array.isArray(question.matching) ? question.matching : [];
+    answerHtml = `
+      <div class="attempt-review-matching">
+        ${rows.map(row => `
+          <div class="attempt-review-match-row ${row.is_correct ? 'correct' : 'incorrect'}">
+            <div><span>Элемент</span><b>${escapeHtml(row.left || '')}</b></div>
+            <div><span>Ответ ученика</span><b>${escapeHtml(row.student || 'Нет ответа')}</b></div>
+            <div><span>Правильно</span><b>${escapeHtml(row.correct || '—')}</b></div>
+          </div>`).join('')}
+      </div>`;
+  } else if (String(question.type) === 'order') {
+    answerHtml = `
+      <div class="attempt-review-compare">
+        <div>
+          <span class="attempt-review-compare-label">Ответ ученика</span>
+          ${attemptReviewAnswerList(question.student_answer)}
+        </div>
+        <div>
+          <span class="attempt-review-compare-label">Правильный порядок</span>
+          ${attemptReviewAnswerList(question.correct_answer, 'Ключ не задан')}
+        </div>
+      </div>`;
+  } else {
+    const studentText = Array.isArray(question.student_answer)
+      ? question.student_answer.join(' · ')
+      : String(question.student_answer || '');
+    const correctValues = Array.isArray(question.correct_answer) ? question.correct_answer : [];
+    answerHtml = `
+      <div class="attempt-review-compare">
+        <div>
+          <span class="attempt-review-compare-label">Ответ ученика</span>
+          <div class="attempt-review-text-answer ${studentText ? '' : 'empty'}">${escapeHtml(studentText || 'Нет ответа')}</div>
+        </div>
+        <div>
+          <span class="attempt-review-compare-label">${question.needs_review ? 'Ориентир / ключ' : 'Правильный ответ'}</span>
+          ${correctValues.length
+            ? `<div class="attempt-review-text-answer correct">${correctValues.map(value => escapeHtml(String(value))).join('<br>')}</div>`
+            : '<div class="attempt-review-text-answer neutral">Проверяется учителем</div>'}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <article class="attempt-review-question ${meta.className}">
+      <div class="attempt-review-question-head">
+        <div>
+          <span class="attempt-review-number">Вопрос ${index + 1}</span>
+          <span class="attempt-review-type">${escapeHtml(question.type_label || 'Вопрос')}</span>
+        </div>
+        <div class="attempt-review-question-result">
+          <span class="attempt-review-status ${meta.className}">${meta.icon} ${meta.label}</span>
+          <b>${earned} / ${max} балл.</b>
+        </div>
+      </div>
+      <h3>${escapeHtml(question.text || '')}</h3>
+      ${question.original_text ? `<div class="attempt-review-original"><span>Исходный текст</span>${escapeHtml(question.original_text)}</div>` : ''}
+      ${assetHtml}
+      ${answerHtml}
+    </article>`;
+}
+
+async function openAttemptReview(attemptId) {
+  const id = Number(attemptId || 0);
+  if (!id || !attemptReviewModal) return;
+
+  const content = document.getElementById('attemptReviewContent');
+  if (!content) return;
+  content.innerHTML = '<div class="attempt-review-loading">Загрузка разбора работы...</div>';
+  openModal(attemptReviewModal);
+
+  try {
+    const response = await fetch('./api/results/review.php?attempt_id=' + encodeURIComponent(id), {
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось открыть разбор работы.');
+    }
+
+    const attempt = data.attempt || {};
+    const summary = data.summary || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    const studentMeta = attempt.student_name
+      ? `<span>${escapeHtml(attempt.student_name)}${attempt.class_name ? ' · ' + escapeHtml(attempt.class_name) : ''}</span>`
+      : '';
+    const adjusted = attempt.adjusted
+      ? '<span class="attempt-review-adjusted">Оценка скорректирована учителем</span>'
+      : '';
+    const staffActions = currentUser?.role !== 'student' && resultsCache.some(item => Number(item.attempt_id) === id)
+      ? `<button class="secondary-btn" type="button" data-review-edit="${id}">Редактировать оценку</button>`
+      : '';
+
+    content.innerHTML = `
+      <div class="attempt-review-head">
+        <span class="section-kicker">Разбор выполненной работы</span>
+        <h2>${escapeHtml(attempt.assignment_title || 'Результат')}</h2>
+        <div class="attempt-review-meta">
+          <span>${escapeHtml(attempt.subject_name || 'Предмет')}</span>
+          ${studentMeta}
+          <span>${escapeHtml(resultDateTime(attempt.submitted_at))}</span>
+          ${adjusted}
+        </div>
+        <div class="attempt-review-scoreboard">
+          <div><span>Результат</span><strong>${Math.round(Number(attempt.percent || 0))}%</strong></div>
+          <div><span>Баллы</span><strong>${Number(attempt.score || 0).toLocaleString('ru-RU')} / ${Number(attempt.max_score || 0).toLocaleString('ru-RU')}</strong></div>
+          <div><span>Оценка</span><strong class="grade ${resultGradeClass(attempt.grade)}">${escapeHtml(attempt.grade || '—')}</strong></div>
+          <div><span>Правильно</span><strong>${Number(summary.correct || 0)} / ${Number(summary.total || questions.length)}</strong></div>
+        </div>
+        <div class="attempt-review-summary-pills">
+          <span class="correct">✓ Правильно: ${Number(summary.correct || 0)}</span>
+          <span class="incorrect">× Неправильно: ${Number(summary.incorrect || 0)}</span>
+          <span class="unanswered">— Без ответа: ${Number(summary.unanswered || 0)}</span>
+          ${Number(summary.needs_review || 0) ? `<span class="review">? На проверке: ${Number(summary.needs_review || 0)}</span>` : ''}
+        </div>
+        ${attempt.comment ? `<div class="attempt-review-comment"><b>Комментарий учителя</b><span>${escapeHtml(attempt.comment)}</span></div>` : ''}
+        <div class="attempt-review-actions">
+          ${staffActions}
+          <button class="primary-btn" type="button" data-review-close>Закрыть разбор</button>
+        </div>
+      </div>
+      <div class="attempt-review-list">
+        ${questions.map((question,index) => renderAttemptReviewQuestion(question,index)).join('')}
+      </div>`;
+
+    content.querySelector('[data-review-close]')?.addEventListener('click', () => closeModal(attemptReviewModal));
+    content.querySelector('[data-review-edit]')?.addEventListener('click', event => {
+      const editId = Number(event.currentTarget.dataset.reviewEdit || 0);
+      closeModal(attemptReviewModal);
+      openResultEditor(editId);
+    });
+  } catch (error) {
+    content.innerHTML = `<div class="attempt-review-error"><b>Не удалось открыть разбор</b><span>${escapeHtml(error.message)}</span><button class="secondary-btn" type="button" data-review-close>Закрыть</button></div>`;
+    content.querySelector('[data-review-close]')?.addEventListener('click', () => closeModal(attemptReviewModal));
+  }
+}
+
 function renderResults() {
   const body = document.getElementById('resultsBody');
   const summary = document.getElementById('resultsSummary');
@@ -2592,6 +2782,7 @@ function renderResults() {
         <td>${statusHtml}</td>
         <td>
           <div class="result-row-actions">
+            <button class="secondary-btn compact-btn result-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Разбор работы</button>
             <button class="secondary-btn compact-btn" type="button" data-edit-result="${Number(item.attempt_id)}">Редактировать</button>
             <button class="danger-outline-btn compact-btn" type="button" data-reset-result="${Number(item.attempt_id)}">Сбросить результат</button>
           </div>
@@ -2599,6 +2790,9 @@ function renderResults() {
       </tr>`;
   }).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
 
+  body.querySelectorAll('[data-review-attempt]').forEach(button => {
+    button.addEventListener('click', () => openAttemptReview(Number(button.dataset.reviewAttempt)));
+  });
   body.querySelectorAll('[data-edit-result]').forEach(button => {
     button.addEventListener('click', () => openResultEditor(Number(button.dataset.editResult)));
   });
@@ -2815,7 +3009,7 @@ async function loadStudentResults() {
   const cards = document.getElementById('studentResultsCards');
   const recent = document.getElementById('studentRecentGrades');
 
-  if (body) body.innerHTML = '<tr><td colspan="7">Загрузка реальных оценок...</td></tr>';
+  if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных оценок...</td></tr>';
   if (cards) cards.innerHTML = '<article class="student-result-card loading-card">Загрузка результатов...</article>';
   if (recent) recent.innerHTML = '<div class="dashboard-empty">Загрузка оценок...</div>';
 
@@ -2850,7 +3044,8 @@ async function loadStudentResults() {
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
           <td><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span></td>
           <td>${item.comment ? '<span class="student-result-comment">' + escapeHtml(item.comment) + '</span>' : '—'}</td>
-        </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
+          <td><button class="secondary-btn compact-btn student-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Посмотреть ответы</button></td>
+        </tr>`).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
     }
 
     if (cards) {
@@ -2876,6 +3071,7 @@ async function loadStudentResults() {
             <div class="student-result-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
             ${item.comment ? `<div class="student-result-message"><b>Комментарий учителя</b><span>${escapeHtml(item.comment)}</span></div>` : ''}
             ${item.adjusted ? '<div class="student-result-adjusted">Оценка была пересмотрена и опубликована учителем.</div>' : ''}
+            <button class="secondary-btn student-result-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Посмотреть разбор ответов</button>
           </article>`;
       }).join('') : '<article class="student-result-card student-results-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></article>';
     }
@@ -2887,8 +3083,14 @@ async function loadStudentResults() {
           <span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
     }
+
+    [body, cards].forEach(container => {
+      container?.querySelectorAll('[data-review-attempt]').forEach(button => {
+        button.addEventListener('click', () => openAttemptReview(Number(button.dataset.reviewAttempt)));
+      });
+    });
   } catch (error) {
-    if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="8">' + escapeHtml(error.message) + '</td></tr>';
     if (cards) cards.innerHTML = '<article class="student-result-card student-results-empty">' + escapeHtml(error.message) + '</article>';
     if (recent) recent.innerHTML = '<div class="dashboard-empty">' + escapeHtml(error.message) + '</div>';
   }
@@ -5315,10 +5517,14 @@ function renderRealAttemptResult(result, note = '') {
         <span>Оценку и историю выполненных работ всегда можно посмотреть в разделе «Мои оценки».</span>
       </div>
       <div class="student-finish-actions">
+        ${Number(result?.attempt_id || 0) ? `<button class="secondary-btn finish-review-btn" id="finishReviewAnswersBtn" type="button">Разобрать ответы</button>` : ''}
         <button class="secondary-btn" id="finishOpenGradesBtn" type="button">Мои оценки</button>
         <button class="primary-btn" id="finishRealResultBtn" type="button">К заданиям</button>
       </div>
     </div>`;
+  document.getElementById('finishReviewAnswersBtn')?.addEventListener('click', () => {
+    openAttemptReview(Number(result?.attempt_id || 0));
+  });
   document.getElementById('finishOpenGradesBtn')?.addEventListener('click', async () => {
     closeModal(quizModal);
     await Promise.all([loadStudentAssignments(), loadStudentResults()]);
