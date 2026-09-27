@@ -1343,3 +1343,38 @@ form select:focus{
     flex:1;
   }
 }
+
+
+/* Assignment duplication */
+.duplicate-assignment-modal{
+  max-width:620px;
+}
+.duplicate-copy-summary{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:12px 0 4px;
+  padding:12px;
+  border:1px solid #e2e8ef;
+  border-radius:12px;
+  background:#fafbfd;
+}
+.duplicate-copy-summary span{
+  padding:8px 9px;
+  border-radius:9px;
+  background:#fff;
+  color:#75828e;
+  font-size:11px;
+  line-height:1.4;
+}
+.duplicate-copy-summary b{
+  color:#36424e;
+}
+.duplicate-btn{
+  white-space:nowrap;
+}
+@media(max-width:620px){
+  .duplicate-copy-summary{
+    grid-template-columns:1fr;
+  }
+}
