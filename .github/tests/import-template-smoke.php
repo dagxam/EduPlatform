@@ -187,3 +187,41 @@ if (strpos((string)$teacherQuestions[2]['correct_text'], 'совместный �
 }
 
 echo "Teacher-style unnumbered assignment parser OK\n";
+
+
+$mixedAlphabet = <<<'TXT'
+Какой вариант правильный?
+А) первый
+Б) второй
+В) третий
+Г) четвёртый
+TYPE: single
+ANSWER: C
+POINTS: 1
+
+Выберите два правильных варианта.
+A) первый
+B) второй
+C) третий
+D) четвёртый
+TYPE: multiple
+ANSWER: Б | Г
+POINTS: 2
+TXT;
+
+$mixedQuestions = import_parse_questions($mixedAlphabet);
+if (count($mixedQuestions) !== 2) {
+    fwrite(STDERR, 'Mixed alphabet parser expected 2 questions.' . PHP_EOL);
+    exit(1);
+}
+if (($mixedQuestions[0]['options'][2]['is_correct'] ?? false) !== true) {
+    fwrite(STDERR, 'Cyrillic options + Latin answer label were not normalized by position.' . PHP_EOL);
+    exit(1);
+}
+if (($mixedQuestions[1]['options'][1]['is_correct'] ?? false) !== true
+    || ($mixedQuestions[1]['options'][3]['is_correct'] ?? false) !== true) {
+    fwrite(STDERR, 'Latin options + Cyrillic answer labels were not normalized by position.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Mixed Cyrillic/Latin answer labels OK\n";
