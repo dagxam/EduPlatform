@@ -34,7 +34,7 @@ const AttemptSecurity = (() => {
       if (data?.active === false) {
         const callback = state.onTerminated;
         stop();
-        callback?.(null);
+        callback?.(data?.result || null, data?.reason || null);
       }
     } catch {
       // Temporary connection errors must not destroy a valid attempt locally.
