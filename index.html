@@ -93,7 +93,7 @@
       <section class="view active" id="teacher-dashboard">
         <div class="hero-card">
           <div>
-            <span class="pill">2026 / 2027 учебный год</span>
+            <span class="pill" id="dashboardAcademicYear">Учебный год</span>
             <h2>Всё необходимое для заданий и контроля знаний</h2>
             <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
           </div>
@@ -101,10 +101,10 @@
         </div>
 
         <div class="stats-grid">
-          <article class="stat-card"><span>Ученики</span><strong>84</strong><small>в 4 классах</small></article>
-          <article class="stat-card"><span>Активные задания</span><strong>7</strong><small>3 со сроком на этой неделе</small></article>
-          <article class="stat-card"><span>Работ сдано</span><strong>126</strong><small>+18 за последние 7 дней</small></article>
-          <article class="stat-card"><span>Средний результат</span><strong>82%</strong><small>оценка 4,2</small></article>
+          <article class="stat-card"><span>Ученики</span><strong id="dashboardStudents">—</strong><small id="dashboardStudentsHint">загрузка...</small></article>
+          <article class="stat-card"><span>Активные задания</span><strong id="dashboardActiveAssignments">—</strong><small id="dashboardActiveHint">загрузка...</small></article>
+          <article class="stat-card"><span>Работ сдано</span><strong id="dashboardSubmitted">—</strong><small id="dashboardSubmittedHint">загрузка...</small></article>
+          <article class="stat-card"><span>Средний результат</span><strong id="dashboardAverage">—</strong><small id="dashboardAverageHint">загрузка...</small></article>
         </div>
 
         <div class="content-grid">
@@ -113,25 +113,8 @@
               <div><span class="section-kicker">Сейчас</span><h3>Активные задания</h3></div>
               <button class="text-btn" data-view-jump="assignments">Все задания</button>
             </div>
-            <div class="task-list">
-              <div class="task-row">
-                <div class="subject-icon">М</div>
-                <div class="task-main"><strong>Контрольная работа №2</strong><span>Математика · 7А</span></div>
-                <div class="task-progress"><strong>18/24</strong><span>сдали</span></div>
-                <span class="status amber">до 28 сен.</span>
-              </div>
-              <div class="task-row">
-                <div class="subject-icon">Р</div>
-                <div class="task-main"><strong>Части речи</strong><span>Русский язык · 6Б</span></div>
-                <div class="task-progress"><strong>21/21</strong><span>сдали</span></div>
-                <span class="status green">завершено</span>
-              </div>
-              <div class="task-row">
-                <div class="subject-icon">И</div>
-                <div class="task-main"><strong>История Дагестана</strong><span>История · 8А</span></div>
-                <div class="task-progress"><strong>12/25</strong><span>сдали</span></div>
-                <span class="status blue">до 30 сен.</span>
-              </div>
+            <div class="task-list" id="teacherDashboardTasks">
+              <div class="dashboard-empty">Загрузка активных заданий...</div>
             </div>
           </article>
 
@@ -139,11 +122,8 @@
             <div class="panel-head">
               <div><span class="section-kicker">Классы</span><h3>Быстрый доступ</h3></div>
             </div>
-            <div class="class-grid">
-              <button class="class-card" data-view-jump="classes"><strong>7А</strong><span>24 ученика</span><b>86%</b></button>
-              <button class="class-card" data-view-jump="classes"><strong>6Б</strong><span>21 ученик</span><b>79%</b></button>
-              <button class="class-card" data-view-jump="classes"><strong>8А</strong><span>25 учеников</span><b>83%</b></button>
-              <button class="class-card" data-view-jump="classes"><strong>9Б</strong><span>14 учеников</span><b>81%</b></button>
+            <div class="class-grid" id="teacherDashboardClasses">
+              <div class="dashboard-empty">Загрузка классов...</div>
             </div>
           </article>
         </div>
