@@ -30,7 +30,7 @@ const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
-  'uvoria-library': ['Обмен опытом', 'Библиотека UVORIA'],
+  'uvoria-library': ['Обмен опытом', 'Библиотека UROVIA'],
   'staff-profile': ['Учётная запись', 'Профиль сотрудника'],
   'activity-history': ['Контроль изменений', 'История действий'],
   'system-backups': ['Защита данных', 'Резервные копии'],
@@ -49,7 +49,7 @@ function showView(id) {
   if (view) view.classList.add('active');
 
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === id));
-  const [small, title] = titles[id] || ['', 'UVORIA'];
+  const [small, title] = titles[id] || ['', 'UROVIA'];
   if (activeSchoolName && id === 'school-management') {
     eyebrow.textContent = activeSchoolName;
     pageTitle.textContent = 'Управление школой';
@@ -283,7 +283,7 @@ function applyUser(user) {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   sidebarName.textContent = fullName || 'Пользователь';
   sidebarRole.textContent = platformAdmin
-    ? 'Администратор UVORIA'
+    ? 'Администратор UROVIA'
     : (admin && teacher
       ? 'Администратор школы · Учитель'
       : (admin ? 'Администратор школы' : (roleLabels[user.role] || user.role)));
@@ -295,7 +295,7 @@ function applyUser(user) {
   const roleBadge = document.getElementById('accountRoleBadge');
   if (roleBadge) roleBadge.textContent = sidebarRole.textContent;
 
-  if (admin) eyebrow.textContent = platformAdmin ? 'Администратор UVORIA' : 'Администратор школы';
+  if (admin) eyebrow.textContent = platformAdmin ? 'Администратор UROVIA' : 'Администратор школы';
 
   showView(student ? 'student-dashboard' : 'teacher-dashboard');
 
@@ -872,7 +872,7 @@ function renderIncomingMaterials() {
       ? assignments.map(assignment => {
           const format = assignment.source_format_snapshot
             ? String(assignment.source_format_snapshot).toUpperCase()
-            : 'UVORIA';
+            : 'UROVIA';
           return `
             <div class="incoming-assignment-row">
               <div>
@@ -1253,7 +1253,7 @@ let libraryCanManage = false;
 let libraryActiveSchoolId = 0;
 
 function profileRoleText(data) {
-  if (Number(data?.profile?.is_platform_admin) === 1) return 'Главный администратор UVORIA';
+  if (Number(data?.profile?.is_platform_admin) === 1) return 'Главный администратор UROVIA';
   const membership = data?.active_school;
   if (!membership) return roleLabels[data?.profile?.role] || 'Сотрудник';
   const admin = ['owner', 'school_admin'].includes(String(membership.role || ''));
@@ -1302,9 +1302,9 @@ async function loadStaffProfile(userId = null, openView = false) {
     ? 'Личные данные, фото, безопасность, роль и учебные назначения.'
     : 'Карточка сотрудника выбранной школы.';
   document.getElementById('profileBackBtn')?.classList.toggle('hidden', self);
-  document.getElementById('profileDisplayName').textContent = fullName || 'Сотрудник UVORIA';
+  document.getElementById('profileDisplayName').textContent = fullName || 'Сотрудник UROVIA';
   document.getElementById('profileRoleBadge').textContent = roleText;
-  document.getElementById('profileSchoolSummary').textContent = data.active_school?.name || (Number(data.profile.is_platform_admin) === 1 ? 'Платформа UVORIA' : 'Школа не выбрана');
+  document.getElementById('profileSchoolSummary').textContent = data.active_school?.name || (Number(data.profile.is_platform_admin) === 1 ? 'Платформа UROVIA' : 'Школа не выбрана');
 
   const photo = document.getElementById('profilePhoto');
   const initials = document.getElementById('profilePhotoInitials');
@@ -1562,13 +1562,13 @@ function libraryAssignmentAction(item) {
     return `<button class="secondary-btn compact-btn" type="button" data-library-submit="${item.id}">◇ В библиотеку</button>`;
   }
   const [cls, label] = libraryStatusLabel(status);
-  return `<span class="status ${cls}" title="Библиотека UVORIA">${label}</span>`;
+  return `<span class="status ${cls}" title="Библиотека UROVIA">${label}</span>`;
 }
 
 async function submitAssignmentToLibrary(assignmentId) {
   const item = assignmentsCache.find(row => Number(row.id) === Number(assignmentId));
   if (!item) return;
-  if (!confirm(`Отправить «${item.title}» в библиотеку UVORIA? Учителя отправляют материал на согласование администратору школы.`)) return;
+  if (!confirm(`Отправить «${item.title}» в библиотеку UROVIA? Учителя отправляют материал на согласование администратору школы.`)) return;
 
   try {
     const response = await fetch('./api/library/request.php', {
@@ -1827,7 +1827,7 @@ const historyEventLabels = {
   library_item_withdrawn: 'Материал снят с публикации',
   library_item_imported: 'Материал импортирован из библиотеки',
   assignment_deleted: 'Задание удалено',
-  mail_test_sent: 'Отправлено тестовое письмо UVORIA'
+  mail_test_sent: 'Отправлено тестовое письмо UROVIA'
 };
 
 const historyEntityLabels = {
@@ -1888,7 +1888,7 @@ function historyEventLabel(eventType) {
     [/school.*brand/i, 'Оформление школы изменено']
   ];
   const match = patterns.find(([pattern]) => pattern.test(type));
-  return match ? match[1] : 'Действие в UVORIA';
+  return match ? match[1] : 'Действие в UROVIA';
 }
 
 function historyDateTime(value) {
@@ -2254,14 +2254,14 @@ function renderSubjectAssignments() {
   list.innerHTML = rows.length ? rows.map(item => {
     const [statusText, statusClass] = assignmentStatusLabel(item);
     const questionsCount = Number(item.questions_count || item.parsed_question_count || 0);
-    const formatLabel = item.source_format ? String(item.source_format).toUpperCase() : 'UVORIA';
+    const formatLabel = item.source_format ? String(item.source_format).toUpperCase() : 'UROVIA';
     const parseLabel = item.source_format
       ? (item.parse_status === 'questions_parsed'
           ? 'Файл распознан'
           : item.parse_status === 'text_extracted'
             ? 'Текст извлечён'
             : 'Файл загружен')
-      : 'Создано в UVORIA';
+      : 'Создано в UROVIA';
     const variantsCount = Math.max(1, Number(item.variant_count || 1));
     const variantsLabel = variantsCount > 1
       ? ['A','B','C','D'].slice(0, variantsCount).join('/')
@@ -2594,7 +2594,7 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
 
     const parsedCount = Number(payload.import?.parsed_question_count || 0);
     const status = payload.import?.parse_status === 'questions_parsed'
-      ? `UVORIA распознала ${parsedCount} вопросов. Откройте «Конструктор» и проверьте вопросы перед публикацией.`
+      ? `UROVIA распознала ${parsedCount} вопросов. Откройте «Конструктор» и проверьте вопросы перед публикацией.`
       : payload.import?.parse_status === 'text_extracted'
         ? 'Текст извлечён, но вопросы по шаблону не распознаны. Проверьте структуру файла.'
         : 'Файл сохранён в черновике. Для этого файла автоматическое извлечение текста ограничено.';
