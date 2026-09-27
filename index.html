@@ -206,6 +206,19 @@
                       <option value="strict">Строгий — уход со страницы завершает попытку</option>
                     </select>
                   </label>
+                  <label>Варианты контрольной
+                    <select id="subjectImportVariantCount">
+                      <option value="1">Один вариант</option>
+                      <option value="2">A / B</option>
+                      <option value="3">A / B / C</option>
+                      <option value="4">A / B / C / D</option>
+                    </select>
+                  </label>
+                  <div class="variant-checks compact hidden" id="subjectImportVariantChecks">
+                    <label><input type="checkbox" id="subjectImportShuffleQuestions" checked> Вопросы</label>
+                    <label><input type="checkbox" id="subjectImportShuffleOptions" checked> Ответы</label>
+                    <label><input type="checkbox" id="subjectImportShuffleStructured" checked> Порядок / соответствия</label>
+                  </div>
                   <div class="form-error hidden" id="subjectImportError"></div>
                   <div class="import-result hidden" id="subjectImportResult"></div>
                   <button class="primary-btn" type="submit">Загрузить и создать черновик</button>
@@ -429,6 +442,29 @@
           <small class="field-help">В строгом режиме при переключении вкладки, сворачивании браузера или переходе в другое приложение попытка автоматически сдаётся с уже сохранёнными ответами.</small>
         </label>
         <div class="strict-warning hidden" id="strictWarning"><b>Строгая контрольная</b><span>Предупредите учеников перед началом. Даже блокировка экрана телефона может завершить попытку.</span></div>
+
+        <div class="variant-settings">
+          <label class="variant-toggle">
+            <input type="checkbox" id="taskVariantsEnabled">
+            <span><b>Варианты контрольной</b><small>Создать варианты A/B/C/D с разным порядком вопросов и ответов.</small></span>
+          </label>
+          <div class="variant-settings-body hidden" id="taskVariantSettingsBody">
+            <label>Количество вариантов
+              <select name="variant_count" id="taskVariantCount">
+                <option value="2">A / B</option>
+                <option value="3">A / B / C</option>
+                <option value="4" selected>A / B / C / D</option>
+              </select>
+            </label>
+            <div class="variant-checks">
+              <label><input type="checkbox" name="shuffle_questions" value="1" checked> Перемешивать вопросы</label>
+              <label><input type="checkbox" name="shuffle_options" value="1" checked> Перемешивать варианты ответа</label>
+              <label><input type="checkbox" name="shuffle_structured" value="1" checked> Перемешивать даты, порядок и правый столбец соответствий</label>
+            </div>
+            <small class="field-help">Каждому ученику сервер закрепляет один вариант. При обновлении страницы вариант и порядок не меняются.</small>
+          </div>
+        </div>
+
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
       </form>
