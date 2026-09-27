@@ -24,6 +24,7 @@ $stmt = $pdo->prepare(
     'UPDATE users
      SET password_hash = :password_hash,
          must_change_password = 0,
+         session_version = session_version + 1,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = :id'
 );
