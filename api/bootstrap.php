@@ -196,6 +196,38 @@ function apply_schema_migrations(PDO $pdo): void
         WHERE status = 'closed' AND workflow_status <> 'completed'");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignments_workflow_status
         ON assignments(school_id, workflow_status)");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS school_material_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_school_id INTEGER NOT NULL,
+        target_school_id INTEGER NOT NULL,
+        subject_id INTEGER NOT NULL,
+        sender_user_id INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TEXT,
+        resolved_by INTEGER,
+        FOREIGN KEY (source_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+        FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+    )");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS school_material_transfer_assignments (
+        transfer_id INTEGER NOT NULL,
+        assignment_id INTEGER NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        title_snapshot TEXT NOT NULL,
+        type_snapshot TEXT,
+        questions_count_snapshot INTEGER NOT NULL DEFAULT 0,
+        source_format_snapshot TEXT,
+        PRIMARY KEY (transfer_id, assignment_id),
+        FOREIGN KEY (transfer_id) REFERENCES school_material_transfers(id) ON DELETE CASCADE,
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_material_transfers_target
+        ON school_material_transfers(target_school_id, status, created_at)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_material_transfers_source
+        ON school_material_transfers(source_school_id, created_at)");
     add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'termination_reason', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
