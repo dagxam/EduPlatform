@@ -27,6 +27,7 @@
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
@@ -254,6 +255,48 @@
               <thead><tr><th>Задание</th><th>Назначено классам</th><th>Режим</th><th>Сдано</th><th>Статус</th><th></th></tr></thead>
               <tbody id="assignmentsTableBody"><tr><td colspan="6">Загрузка...</td></tr></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="activity-history">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Журнал школы</span>
+            <h2>История действий</h2>
+            <p>Изменения заданий, материалов, пользователей и других объектов UVORIA в хронологическом порядке.</p>
+          </div>
+          <button class="secondary-btn" id="refreshHistoryBtn" type="button">↻ Обновить</button>
+        </div>
+
+        <div class="panel history-panel">
+          <form class="history-filters" id="historyFilters">
+            <label>Поиск
+              <input id="historySearch" type="search" placeholder="Событие, сотрудник или ID">
+            </label>
+            <label>Раздел
+              <select id="historyEntityFilter">
+                <option value="">Все действия</option>
+                <option value="assignment">Задания</option>
+                <option value="question">Вопросы</option>
+                <option value="subject">Предметы</option>
+                <option value="class">Классы</option>
+                <option value="student">Ученики</option>
+                <option value="teacher">Сотрудники</option>
+                <option value="school">Школа</option>
+                <option value="material">Материалы между школами</option>
+              </select>
+            </label>
+            <button class="primary-btn compact-btn" type="submit">Показать</button>
+          </form>
+
+          <div class="history-summary">
+            <span id="historyScopeHint">Загрузка журнала...</span>
+            <strong id="historyTotal"></strong>
+          </div>
+
+          <div class="activity-history-list" id="activityHistoryList">
+            <div class="history-empty">Загрузка истории действий...</div>
           </div>
         </div>
       </section>
