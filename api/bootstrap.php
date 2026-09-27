@@ -168,6 +168,7 @@ function apply_schema_migrations(PDO $pdo): void
         WHERE login_name IS NOT NULL");
     add_column_if_missing($pdo, 'school_users', 'can_teach', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'schools', 'theme_color', "TEXT NOT NULL DEFAULT '#1d68f0'");
+    add_column_if_missing($pdo, 'schools', 'assignment_review_required', 'INTEGER NOT NULL DEFAULT 0');
     $pdo->exec("UPDATE school_users SET can_teach = 1 WHERE role = 'teacher' AND can_teach = 0");
     if ((int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_platform_admin = 1")->fetchColumn() === 0) {
         $pdo->exec("UPDATE users SET is_platform_admin = 1 WHERE id = (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)");
@@ -181,6 +182,20 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'assignments', 'shuffle_questions', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'assignments', 'shuffle_options', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'assignments', 'shuffle_structured', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'assignments', 'workflow_status', "TEXT NOT NULL DEFAULT 'draft'");
+    add_column_if_missing($pdo, 'assignments', 'review_submitted_at', 'TEXT');
+    add_column_if_missing($pdo, 'assignments', 'reviewed_at', 'TEXT');
+    add_column_if_missing($pdo, 'assignments', 'reviewed_by', 'INTEGER');
+    add_column_if_missing($pdo, 'assignments', 'review_comment', 'TEXT');
+    add_column_if_missing($pdo, 'assignments', 'completed_at', 'TEXT');
+    $pdo->exec("UPDATE assignments
+        SET workflow_status = 'assigned'
+        WHERE status = 'published' AND workflow_status = 'draft'");
+    $pdo->exec("UPDATE assignments
+        SET workflow_status = 'completed', completed_at = COALESCE(completed_at, updated_at)
+        WHERE status = 'closed' AND workflow_status <> 'completed'");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignments_workflow_status
+        ON assignments(school_id, workflow_status)");
     add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'termination_reason', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
