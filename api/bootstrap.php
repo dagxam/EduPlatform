@@ -195,6 +195,8 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'assignments', 'reviewed_by', 'INTEGER');
     add_column_if_missing($pdo, 'assignments', 'review_comment', 'TEXT');
     add_column_if_missing($pdo, 'assignments', 'completed_at', 'TEXT');
+    add_column_if_missing($pdo, 'assignment_classes', 'time_limit_minutes', 'INTEGER');
+
     $pdo->exec("UPDATE assignments
         SET workflow_status = 'assigned'
         WHERE status = 'published' AND workflow_status = 'draft'");
@@ -244,6 +246,7 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'question_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'option_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'structured_order_json', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'time_limit_snapshot', 'INTEGER');
     add_column_if_missing($pdo, 'attempts', 'manual_score', 'REAL');
     add_column_if_missing($pdo, 'attempts', 'manual_percent', 'REAL');
     add_column_if_missing($pdo, 'attempts', 'manual_grade', 'TEXT');
