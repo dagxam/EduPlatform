@@ -10,6 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
+$finishReason = trim((string)($data['finish_reason'] ?? 'student_submit'));
+if (!in_array($finishReason, ['student_submit', 'window_closed'], true)) {
+    $finishReason = 'student_submit';
+}
 $pdo = app_db();
 $attempt = attempt_for_student($pdo, $attemptId, (int)$user['id']);
 
@@ -55,7 +59,10 @@ foreach ($answersSnapshot as $answer) {
     save_attempt_answer($pdo, $attemptId, $questionId, $payload);
 }
 
-$result = finalize_attempt($pdo, $attemptId, 'student_submit');
-audit_event('attempt_submitted', 'attempt', $attemptId, [], null, (int)$user['id']);
+$result = finalize_attempt($pdo, $attemptId, $finishReason);
+audit_event('attempt_submitted', 'attempt', $attemptId, [
+    'reason' => $finishReason,
+    'submitted_answers' => count($answersSnapshot),
+], null, (int)$user['id']);
 
-json_response(['ok' => true, 'result' => $result]);
+json_response(['ok' => true, 'result' => $result, 'reason' => $finishReason]);
