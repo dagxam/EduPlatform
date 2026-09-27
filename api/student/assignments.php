@@ -7,7 +7,8 @@ $pdo = app_db();
 
 $stmt = $pdo->prepare(
     'SELECT a.id, a.title, a.description, a.type, a.status, a.max_attempts,
-            a.time_limit_minutes, a.focus_policy, a.starts_at, a.due_at,
+            COALESCE(ac.time_limit_minutes, a.time_limit_minutes) AS time_limit_minutes,
+            a.focus_policy, a.starts_at, a.due_at,
             a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured,
             s.name AS subject_name,
             COALESCE(c.display_name, c.name) AS class_name,
