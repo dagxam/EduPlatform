@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     credentials_sent_at TEXT,
     role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
     is_platform_admin INTEGER NOT NULL DEFAULT 0,
+    session_version INTEGER NOT NULL DEFAULT 0,
     class_name TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
