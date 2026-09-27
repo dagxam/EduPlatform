@@ -28,6 +28,7 @@ const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
+  'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
   classes: ['Ученики и группы', 'Классы'],
   'school-management': ['Администрирование', 'Управление школой'],
   results: ['Журнал успеваемости', 'Результаты'],
@@ -370,6 +371,7 @@ async function selectSchool(schoolId) {
     classesCache = [];
     subjectsCache = [];
     assignmentsCache = [];
+    incomingMaterialsCache = [];
     teacherOptionsCache = [];
     schoolTeachersCache = [];
     schoolAdminsCache = [];
@@ -791,11 +793,209 @@ document.getElementById('confirmStudentsImportBtn')?.addEventListener('click', a
   }
 });
 
+let incomingMaterialsCache = [];
+let incomingMaterialsFilter = 'pending';
+
+function formatIncomingDate(value) {
+  if (!value) return '—';
+  const normalized = String(value).replace(' ', 'T');
+  const date = new Date(normalized.endsWith('Z') ? normalized : normalized + 'Z');
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function incomingStatusLabel(status) {
+  if (status === 'accepted') return ['Принято', 'green'];
+  if (status === 'rejected') return ['Отклонено', 'red'];
+  return ['Ожидает решения', 'amber'];
+}
+
+function renderIncomingMaterials() {
+  const list = document.getElementById('incomingMaterialsList');
+  if (!list) return;
+
+  const pending = incomingMaterialsCache.filter(item => item.status === 'pending');
+  const accepted = incomingMaterialsCache.filter(item => item.status === 'accepted');
+  const rejected = incomingMaterialsCache.filter(item => item.status === 'rejected');
+
+  const pendingCount = document.getElementById('incomingPendingCount');
+  const acceptedCount = document.getElementById('incomingAcceptedCount');
+  const rejectedCount = document.getElementById('incomingRejectedCount');
+  if (pendingCount) pendingCount.textContent = String(pending.length);
+  if (acceptedCount) acceptedCount.textContent = String(accepted.length);
+  if (rejectedCount) rejectedCount.textContent = String(rejected.length);
+
+  const badge = document.getElementById('incomingMaterialsBadge');
+  if (badge) {
+    badge.textContent = String(pending.length);
+    badge.classList.toggle('hidden', pending.length === 0);
+  }
+
+  let rows = incomingMaterialsCache;
+  if (incomingMaterialsFilter === 'pending') rows = pending;
+  if (incomingMaterialsFilter === 'history') rows = incomingMaterialsCache.filter(item => item.status !== 'pending');
+
+  if (!rows.length) {
+    const message = incomingMaterialsFilter === 'pending'
+      ? 'Новых входящих материалов нет.'
+      : incomingMaterialsFilter === 'history'
+        ? 'История входящих пока пуста.'
+        : 'Материалы из других школ пока не поступали.';
+    list.innerHTML = `<article class="panel incoming-empty"><div class="incoming-empty-icon">⇩</div><h3>${escapeHtml(message)}</h3><p>Когда другая школа отправит предмет или задания, они появятся здесь.</p></article>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(item => {
+    const [statusText, statusClass] = incomingStatusLabel(item.status);
+    const sender = [item.sender_last_name, item.sender_first_name].filter(Boolean).join(' ');
+    const assignments = Array.isArray(item.assignments) ? item.assignments : [];
+
+    const assignmentHtml = assignments.length
+      ? assignments.map(assignment => {
+          const format = assignment.source_format_snapshot
+            ? String(assignment.source_format_snapshot).toUpperCase()
+            : 'UVORIA';
+          return `
+            <div class="incoming-assignment-row">
+              <div>
+                <b>${escapeHtml(assignment.title_snapshot || 'Задание')}</b>
+                <small>${escapeHtml(format)} · вопросов: ${Number(assignment.questions_count_snapshot || 0)}</small>
+              </div>
+              <span class="incoming-copy-note">будет создан черновик</span>
+            </div>`;
+        }).join('')
+      : '<div class="incoming-subject-only">Передан только предмет — без заданий.</div>';
+
+    const actions = item.status === 'pending'
+      ? `
+        <button class="primary-btn" type="button" data-incoming-action="accept" data-transfer-id="${item.id}">Принять</button>
+        <button class="secondary-btn" type="button" data-incoming-action="reject" data-transfer-id="${item.id}">Отклонить</button>`
+      : '';
+
+    return `
+      <article class="panel incoming-material-card" data-transfer-card="${item.id}">
+        <div class="incoming-material-head">
+          <div>
+            <span class="section-kicker">Из школы</span>
+            <h3>${escapeHtml(item.source_school_name || 'Другая школа')}</h3>
+            <p>Отправлено: ${escapeHtml(formatIncomingDate(item.created_at))}${sender ? ' · ' + escapeHtml(sender) : ''}</p>
+          </div>
+          <span class="status ${statusClass}">${statusText}</span>
+        </div>
+
+        <div class="incoming-subject-box">
+          <span>Предмет</span>
+          <strong>${escapeHtml(item.subject_name || 'Предмет')}</strong>
+          <small>${assignments.length} задан.${item.status === 'pending' ? ' · пока не добавлено в библиотеку' : ''}</small>
+        </div>
+
+        <div class="incoming-assignment-list">${assignmentHtml}</div>
+
+        <div class="incoming-material-footer">
+          <span>Классы, ученики, результаты и попытки не передаются.</span>
+          <div class="incoming-actions">${actions}</div>
+        </div>
+      </article>`;
+  }).join('');
+
+  list.querySelectorAll('[data-incoming-action]').forEach(button => {
+    button.addEventListener('click', () => resolveIncomingMaterial(
+      Number(button.dataset.transferId),
+      String(button.dataset.incomingAction)
+    ));
+  });
+}
+
+async function loadIncomingMaterials() {
+  if (currentUser?.role !== 'admin') return;
+  const list = document.getElementById('incomingMaterialsList');
+  if (list && document.getElementById('incoming-materials')?.classList.contains('active')) {
+    list.innerHTML = '<article class="panel"><p>Загрузка входящих материалов...</p></article>';
+  }
+
+  try {
+    const response = await fetch('./api/materials/incoming.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить входящие материалы.');
+    incomingMaterialsCache = data.transfers || [];
+    renderIncomingMaterials();
+    return data;
+  } catch (error) {
+    if (list) list.innerHTML = `<article class="panel"><p>${escapeHtml(error.message)}</p></article>`;
+    throw error;
+  }
+}
+
+async function resolveIncomingMaterial(transferId, action) {
+  const item = incomingMaterialsCache.find(row => Number(row.id) === Number(transferId));
+  if (!item) return;
+
+  if (action === 'accept') {
+    const count = Number(item.assignment_count || item.assignments?.length || 0);
+    if (!confirm(`Принять предмет «${item.subject_name}»${count ? ' и ' + count + ' задан.' : ''} из школы «${item.source_school_name}»?\n\nЗадания будут добавлены как черновики без классов и учеников.`)) return;
+  } else {
+    if (!confirm(`Отклонить материалы из школы «${item.source_school_name}»? Они не будут добавлены в библиотеку.`)) return;
+  }
+
+  const buttons = document.querySelectorAll(`[data-transfer-card="${transferId}"] button`);
+  buttons.forEach(button => button.disabled = true);
+
+  try {
+    const response = await fetch('./api/materials/resolve.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transfer_id: transferId,
+        action
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось обработать материалы.');
+
+    if (action === 'accept') {
+      const copied = Number(data.copied_assignments?.length || 0);
+      const skipped = Number(data.skipped_assignments?.length || 0);
+      alert(`Материалы приняты. Новых заданий: ${copied}${skipped ? ', уже были в школе: ' + skipped : ''}.`);
+      subjectsCache = [];
+      assignmentsCache = [];
+      await Promise.all([loadSubjects(), loadAssignments()]);
+    }
+
+    await loadIncomingMaterials();
+  } catch (error) {
+    alert(error.message);
+    buttons.forEach(button => button.disabled = false);
+  }
+}
+
+document.getElementById('refreshIncomingMaterialsBtn')?.addEventListener('click', () => {
+  loadIncomingMaterials().catch(error => alert(error.message));
+});
+
+document.querySelectorAll('[data-incoming-filter]').forEach(button => {
+  button.addEventListener('click', () => {
+    incomingMaterialsFilter = String(button.dataset.incomingFilter || 'pending');
+    document.querySelectorAll('[data-incoming-filter]').forEach(item => item.classList.toggle('active', item === button));
+    renderIncomingMaterials();
+  });
+});
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
@@ -1589,7 +1789,7 @@ document.getElementById('shareSubjectForm')?.addEventListener('submit', async ev
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось отправить предмет.');
 
     if (result) {
-      result.textContent = `Предмет отправлен в «${data.target_school?.name || 'школу'}». Новых заданий: ${data.copied_assignments?.length || 0}, уже были там: ${data.skipped_assignments?.length || 0}.`;
+      result.textContent = `Материалы отправлены во входящие школы «${data.target_school?.name || 'школы'}». Заданий в пакете: ${Number(data.transfer?.assignment_count || 0)}. Они появятся в библиотеке только после принятия администратором.`;
       result.classList.remove('hidden');
     }
   } catch (e) {
@@ -1842,6 +2042,7 @@ document.getElementById('assignmentReviewSettingsForm')?.addEventListener('submi
 async function loadSchoolManagement() {
   if (currentUser?.role !== 'admin') return;
   loadAssignmentReviewSettings().catch(() => {});
+  loadIncomingMaterials().catch(() => {});
   const subjectList = document.getElementById('schoolSubjectsList');
   const teacherBody = document.getElementById('schoolTeachersBody');
   const adminsBody = document.getElementById('schoolAdminsBody');
