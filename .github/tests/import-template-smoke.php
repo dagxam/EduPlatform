@@ -123,3 +123,67 @@ if (empty($questions[6]['needs_image']) || empty($questions[7]['needs_image'])) 
 }
 
 echo "UVORIA mixed assignment parser OK\n";
+
+
+$teacherStyle = <<<'TXT'
+"Что такое логика?"
+A) наука о законах и формах познающего мышления
+B) наука о числах
+C) наука о природе
+D) наука о языке
+TYPE: single
+ANSWER: A
+POINTS: 1
+Сколько главных законов мышления выделяют в традиционной логике?
+A) 2
+B) 5
+C) 4
+D) 3
+TYPE: single
+ANSWER: C
+POINTS: 1
+Что изображает картина Ю. Пименова «Спор»?
+[[UVORIA_IMAGE:rId5]]
+TYPE: text
+ANSWER: доброжелательную дискуссию | совместный поиск истины
+POINTS: 1
+В чём суть приёма «обращение полемики противника против него самого»?
+A) игнорировать доводы оппонента
+B) использовать доводы оппонента для подтверждения своей позиции
+C) менять тему спора
+D) использовать доводы оппонента для опровержения утверждений
+E) повторять аргументы оппонента
+TYPE: multiple
+ANSWER: B | D
+POINTS: 2
+TXT;
+
+$teacherQuestions = import_parse_questions($teacherStyle);
+if (count($teacherQuestions) !== 4) {
+    fwrite(STDERR, 'Teacher-style unnumbered DOCX blocks parsed incorrectly: ' . count($teacherQuestions) . PHP_EOL);
+    exit(1);
+}
+$teacherTypes = array_map(static fn(array $q): string => (string)$q['interaction_type'], $teacherQuestions);
+if ($teacherTypes !== ['single', 'single', 'text', 'multiple']) {
+    fwrite(STDERR, 'Teacher-style types parsed incorrectly: ' . json_encode($teacherTypes, JSON_UNESCAPED_UNICODE) . PHP_EOL);
+    exit(1);
+}
+if (($teacherQuestions[0]['options'][0]['is_correct'] ?? false) !== true) {
+    fwrite(STDERR, 'Teacher-style single answer parsed incorrectly.' . PHP_EOL);
+    exit(1);
+}
+if (($teacherQuestions[3]['options'][1]['is_correct'] ?? false) !== true
+    || ($teacherQuestions[3]['options'][3]['is_correct'] ?? false) !== true) {
+    fwrite(STDERR, 'Teacher-style multiple answer parsed incorrectly.' . PHP_EOL);
+    exit(1);
+}
+if (($teacherQuestions[2]['media_relationship_ids'][0] ?? '') !== 'rId5') {
+    fwrite(STDERR, 'DOCX image relationship marker parsed incorrectly.' . PHP_EOL);
+    exit(1);
+}
+if (strpos((string)$teacherQuestions[2]['correct_text'], 'совместный поиск истины') === false) {
+    fwrite(STDERR, 'Teacher-style text alternatives parsed incorrectly.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Teacher-style unnumbered assignment parser OK\n";
