@@ -6,7 +6,6 @@ require dirname(__DIR__) . '/attempts/_helpers.php';
 
 $user = require_user(['admin', 'teacher']);
 $assignmentId = (int)($_GET['assignment_id'] ?? 0);
-$requestedVariant = strtoupper(trim((string)($_GET['variant'] ?? 'A')));
 
 if ($assignmentId < 1) {
     json_response(['ok' => false, 'error' => 'Не указано задание.'], 422);
@@ -17,8 +16,7 @@ $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
     'SELECT a.id, a.school_id, a.teacher_id, a.subject_id, a.title, a.description,
-            a.focus_policy, a.time_limit_minutes, a.variant_count,
-            a.shuffle_questions, a.shuffle_options, a.shuffle_structured,
+            a.focus_policy, a.time_limit_minutes,
             s.name AS subject_name
      FROM assignments a
      LEFT JOIN subjects s ON s.id = a.subject_id
@@ -50,15 +48,6 @@ if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (
     }
 }
 
-$variantCount = max(1, min(4, (int)($assignment['variant_count'] ?? 1)));
-$labels = ['A', 'B', 'C', 'D'];
-$variantIndex = array_search($requestedVariant, $labels, true);
-if ($variantIndex === false || $variantIndex >= $variantCount) {
-    $variantIndex = 0;
-}
-$variantLabel = $labels[$variantIndex];
-$seedBase = 'assignment:' . $assignmentId;
-
 $stmt = $pdo->prepare(
     'SELECT q.id, q.type, q.text, q.points, q.position, q.interaction_type, q.settings_json
      FROM questions q
@@ -69,9 +58,6 @@ $stmt->execute(['assignment_id' => $assignmentId]);
 $rows = $stmt->fetchAll();
 
 $questionOrder = array_map('intval', array_column($rows, 'id'));
-if ($variantCount > 1 && (int)$assignment['shuffle_questions'] === 1) {
-    $questionOrder = variant_permutation($questionOrder, $seedBase . '|questions', $variantIndex);
-}
 
 $byId = [];
 foreach ($rows as $row) {
@@ -111,9 +97,6 @@ foreach ($questionOrder as $questionId) {
     }
 
     $optionIds = array_keys($optionsById);
-    if ($variantCount > 1 && (int)$assignment['shuffle_options'] === 1 && count($optionIds) > 1) {
-        $optionIds = variant_permutation($optionIds, $seedBase . '|options:' . $questionId, $variantIndex);
-    }
     $options = [];
     foreach ($optionIds as $optionId) {
         if (isset($optionsById[$optionId])) $options[] = $optionsById[$optionId];
@@ -125,9 +108,6 @@ foreach ($questionOrder as $questionId) {
 
     if ($interaction === 'order' && is_array($settings['items'] ?? null)) {
         $keys = array_map('strval', array_keys($settings['items']));
-        if ($variantCount > 1 && (int)$assignment['shuffle_structured'] === 1 && count($keys) > 1) {
-            $keys = variant_permutation($keys, $seedBase . '|order:' . $questionId, $variantIndex);
-        }
         $items = [];
         foreach ($keys as $key) {
             if (array_key_exists($key, $settings['items'])) {
@@ -140,9 +120,6 @@ foreach ($questionOrder as $questionId) {
         $rightSource = is_array($settings['right'] ?? null) ? $settings['right'] : [];
         $leftKeys = array_map('strval', array_keys($leftSource));
         $rightKeys = array_map('strval', array_keys($rightSource));
-        if ($variantCount > 1 && (int)$assignment['shuffle_structured'] === 1 && count($rightKeys) > 1) {
-            $rightKeys = variant_permutation($rightKeys, $seedBase . '|matching-right:' . $questionId, $variantIndex);
-        }
         $left = [];
         foreach ($leftKeys as $key) {
             $left[] = ['key' => $key, 'text' => (string)$leftSource[$key]];
@@ -188,11 +165,8 @@ json_response([
         'subject_name' => (string)($assignment['subject_name'] ?? ''),
         'focus_policy' => (string)($assignment['focus_policy'] ?? 'allow'),
         'time_limit_minutes' => $assignment['time_limit_minutes'] !== null ? (int)$assignment['time_limit_minutes'] : null,
-        'variant_count' => $variantCount,
     ],
     'preview' => [
-        'variant_index' => $variantIndex,
-        'variant_label' => $variantLabel,
         'does_not_save' => true,
     ],
     'questions' => $questions,
