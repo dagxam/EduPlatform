@@ -11,6 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
+$finishReason = trim((string)($data['finish_reason'] ?? 'page_closed'));
+if (!in_array($finishReason, ['page_hidden', 'page_closed', 'browser_closed'], true)) {
+    $finishReason = 'page_closed';
+}
 if ($attemptId < 1) {
     json_response(['ok' => false, 'error' => 'Не указана попытка.'], 422);
 }
@@ -53,14 +57,14 @@ foreach ($answersSnapshot as $answer) {
     save_attempt_answer($pdo, $attemptId, $questionId, $payload);
 }
 
-$result = finalize_attempt($pdo, $attemptId, 'page_closed');
+$result = finalize_attempt($pdo, $attemptId, $finishReason);
 audit_event('attempt_submitted', 'attempt', $attemptId, [
-    'reason' => 'page_closed',
+    'reason' => $finishReason,
     'submitted_answers' => count($answersSnapshot),
 ], null, (int)$user['id']);
 
 json_response([
     'ok' => true,
     'result' => $result,
-    'reason' => 'page_closed',
+    'reason' => $finishReason,
 ]);
