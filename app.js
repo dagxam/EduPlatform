@@ -971,7 +971,7 @@ async function openIncomingMaterialPreview(transferId) {
           ${assignment.description ? `<p class="incoming-preview-description">${escapeHtml(assignment.description)}</p>` : ''}
           <div class="incoming-preview-questions">
             ${questions.length ? questions.map((question, index) => {
-              const interaction = question.interaction_type || question.type;
+              const interaction = canonicalQuestionType(question.interaction_type || question.type);
               const options = (question.options || []).length
                 ? `<div class="question-preview-options">${question.options.map(option =>
                     `<span class="${Number(option.is_correct) === 1 ? 'correct' : ''}">${escapeHtml(option.text)}</span>`
@@ -2171,28 +2171,36 @@ function renderSubjectAssignments() {
   wireAssignmentWorkflowButtons(list);
 }
 
+function canonicalQuestionType(type) {
+  const value = String(type || '');
+  if (value === 'ordering') return 'order';
+  if (value === 'short_answer' || value === 'image_answer') return 'text';
+  return value || 'text';
+}
+
 function questionTypeLabel(type) {
+  const canonical = canonicalQuestionType(type);
   const labels = {
-    single: 'Один вариант',
-    multiple: 'Несколько вариантов',
+    single: 'Один правильный ответ',
+    multiple: 'Несколько правильных ответов',
     true_false: 'Верно / неверно',
-    ordering: 'Хронология / порядок',
-    matching: 'Соответствия',
-    short_answer: 'Короткий ответ',
+    order: 'Восстановить порядок',
+    matching: 'Установить соответствия',
+    text: 'Короткий ответ',
+    number: 'Числовой ответ',
     correction: 'Найти и исправить ошибку',
-    image_answer: 'Ответ по изображению',
     essay: 'Развёрнутый ответ'
   };
-  return labels[type] || type || 'Вопрос';
+  return labels[canonical] || canonical || 'Вопрос';
 }
 
 function renderQuestionCorrectAnswer(question) {
-  const interaction = question.interaction_type || question.type;
+  const interaction = canonicalQuestionType(question.interaction_type || question.type);
   if (interaction === 'single' || interaction === 'multiple' || interaction === 'true_false') {
     const correct = (question.options || []).filter(option => Number(option.is_correct) === 1).map(option => option.text);
     return correct.length ? correct.join(', ') : 'Не указан';
   }
-  if (interaction === 'ordering') {
+  if (interaction === 'order') {
     const settings = question.settings || {};
     const items = settings.items || {};
     const order = settings.correct_order || [];
@@ -2250,7 +2258,7 @@ async function openQuestionPreview(assignmentId) {
 
     if (list) {
       list.innerHTML = questions.map((question, index) => {
-        const interaction = question.interaction_type || question.type;
+        const interaction = canonicalQuestionType(question.interaction_type || question.type);
         const options = (question.options || []).length
           ? `<div class="question-preview-options">${question.options.map(option =>
               `<span class="${Number(option.is_correct) === 1 ? 'correct' : ''}">${escapeHtml(option.text)}</span>`
@@ -3867,8 +3875,8 @@ async function saveRealStudentAnswer(questionId, payload) {
 }
 
 function renderRealStudentQuestion(question, index, savedRaw) {
-  const interaction = question.interaction_type || question.type;
-  const saved = parseSavedAnswer(savedRaw, interaction === 'matching' ? {} : interaction === 'ordering' ? [] : '');
+  const interaction = canonicalQuestionType(question.interaction_type || question.type);
+  const saved = parseSavedAnswer(savedRaw, interaction === 'matching' ? {} : interaction === 'order' ? [] : '');
   const assets = (question.assets || []).map(asset =>
     `<img class="real-question-image" src="${escapeHtml(asset.url)}" alt="Изображение к вопросу">`
   ).join('');
@@ -3888,17 +3896,20 @@ function renderRealStudentQuestion(question, index, savedRaw) {
         <input type="checkbox" name="real-q-${question.id}" value="${option.id}" ${selected.includes(Number(option.id)) ? 'checked' : ''}>
         <span>${escapeHtml(option.text)}</span>
       </label>`).join('')}</div>`;
-  } else if (interaction === 'ordering') {
+  } else if (interaction === 'order') {
     const items = question.structured?.items || [];
     const byKey = Object.fromEntries(items.map(item => [String(item.key), item]));
     const initialKeys = Array.isArray(saved) && saved.length
       ? saved.map(String).filter(key => byKey[key])
       : items.map(item => String(item.key));
     const normalized = [...initialKeys, ...items.map(item => String(item.key)).filter(key => !initialKeys.includes(key))];
-    controls = `<div class="ordering-list" data-ordering-question="${question.id}">${normalized.map((key, pos) => {
-      const item = byKey[key];
-      return `<div class="ordering-item" data-order-key="${escapeHtml(key)}"><span class="ordering-number">${pos + 1}</span><b>${escapeHtml(item?.text || key)}</b><span class="ordering-buttons"><button type="button" data-order-move="-1">↑</button><button type="button" data-order-move="1">↓</button></span></div>`;
-    }).join('')}</div>`;
+    controls = `<div class="ordering-list" data-ordering-question="${question.id}">
+      <div class="ordering-help">Перетащите элементы в правильном порядке</div>
+      ${normalized.map((key, pos) => {
+        const item = byKey[key];
+        return `<div class="ordering-item" draggable="true" data-order-key="${escapeHtml(key)}"><span class="ordering-grip" aria-hidden="true">⋮⋮</span><span class="ordering-number">${pos + 1}</span><b>${escapeHtml(item?.text || key)}</b><span class="ordering-buttons"><button type="button" data-order-move="-1" aria-label="Переместить выше">↑</button><button type="button" data-order-move="1" aria-label="Переместить ниже">↓</button></span></div>`;
+      }).join('')}
+    </div>`;
   } else if (interaction === 'matching') {
     const left = question.structured?.left || [];
     const right = question.structured?.right || [];
@@ -3949,31 +3960,62 @@ function wireRealStudentQuestionControls() {
   });
 
   document.querySelectorAll('[data-ordering-question]').forEach(list => {
+    let draggedItem = null;
+
     const updateNumbers = () => {
       list.querySelectorAll('.ordering-item').forEach((item, index) => {
         const number = item.querySelector('.ordering-number');
         if (number) number.textContent = String(index + 1);
       });
     };
+
+    const persistOrder = async () => {
+      const questionId = Number(list.dataset.orderingQuestion);
+      const order = [...list.querySelectorAll('.ordering-item')].map(row => row.dataset.orderKey);
+      try {
+        setAnswerSaveState(questionId, 'Сохраняем...');
+        await saveRealStudentAnswer(questionId, { order });
+        setAnswerSaveState(questionId, 'Сохранено');
+      } catch (e) {
+        setAnswerSaveState(questionId, e.message, true);
+      }
+    };
+
+    list.querySelectorAll('.ordering-item').forEach(item => {
+      item.addEventListener('dragstart', event => {
+        draggedItem = item;
+        item.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', item.dataset.orderKey || '');
+      });
+
+      item.addEventListener('dragover', event => {
+        event.preventDefault();
+        if (!draggedItem || draggedItem === item) return;
+        const rect = item.getBoundingClientRect();
+        list.insertBefore(draggedItem, event.clientY < rect.top + rect.height / 2 ? item : item.nextSibling);
+        updateNumbers();
+      });
+
+      item.addEventListener('dragend', async () => {
+        item.classList.remove('dragging');
+        draggedItem = null;
+        updateNumbers();
+        await persistOrder();
+      });
+    });
+
     list.querySelectorAll('[data-order-move]').forEach(button => {
       button.addEventListener('click', async () => {
         const item = button.closest('.ordering-item');
         const direction = Number(button.dataset.orderMove);
         if (!item) return;
         const sibling = direction < 0 ? item.previousElementSibling : item.nextElementSibling;
-        if (!sibling) return;
+        if (!sibling || sibling.classList.contains('ordering-help')) return;
         if (direction < 0) list.insertBefore(item, sibling);
         else list.insertBefore(sibling, item);
         updateNumbers();
-        const questionId = Number(list.dataset.orderingQuestion);
-        const order = [...list.querySelectorAll('.ordering-item')].map(row => row.dataset.orderKey);
-        try {
-          setAnswerSaveState(questionId, 'Сохраняем...');
-          await saveRealStudentAnswer(questionId, { order });
-          setAnswerSaveState(questionId, 'Сохранено');
-        } catch (e) {
-          setAnswerSaveState(questionId, e.message, true);
-        }
+        await persistOrder();
       });
     });
   });
