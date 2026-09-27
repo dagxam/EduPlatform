@@ -1,4 +1,4 @@
-const CACHE = 'uvoria-v46';
+const CACHE = 'uvoria-v47';
 const APP_SHELL = [
   './',
   './index.html',
