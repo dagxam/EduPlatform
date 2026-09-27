@@ -2,12 +2,15 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/_helpers.php';
 
 $user = require_user(['admin', 'teacher']);
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
+
+repair_imported_answer_keys_and_scores($pdo, null, $schoolId);
 
 $sql =
     'SELECT at.id, at.assignment_id, at.student_id, at.submitted_at, at.status, at.variant_label,
