@@ -649,7 +649,7 @@ async function loadClassStudents() {
         <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}${student.middle_name ? ' ' + escapeHtml(student.middle_name) : ''}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
         <span class="student-row-actions">
           <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
-          <button type="button" class="mini-action student-edit-action" data-edit-student="${student.id}">Редактировать</button>
+          <button type="button" class="mini-action student-edit-action" data-edit-student="${student.id}">✎ Редактировать</button>
           ${['admin', 'teacher'].includes(currentUser?.role) && Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
         </span>
       </div>
@@ -804,7 +804,7 @@ document.getElementById('copyClassCodeBtn')?.addEventListener('click', async () 
     button.textContent = 'Скопировано ✓';
     setTimeout(() => button.textContent = old, 1200);
   } catch {
-    prompt('Код класса:', currentClass.join_code);
+    await appAlert('Код класса: ' + currentClass.join_code, { title: 'Код класса', okText: 'Закрыть' });
   }
 });
 
