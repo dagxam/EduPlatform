@@ -45,13 +45,23 @@ $stmt->execute([
 ]);
 
 if ($eventType === 'hidden') {
-    $pdo->prepare(
-        'UPDATE attempts
-         SET focus_violations = focus_violations + 1, last_seen_at = CURRENT_TIMESTAMP
-         WHERE id = :id'
-    )->execute(['id' => $attemptId]);
+    if (($attempt['focus_policy'] ?? 'allow') === 'strict') {
+        $pdo->prepare(
+            'UPDATE attempts
+             SET focus_violations = focus_violations + 1, last_seen_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        )->execute(['id' => $attemptId]);
+    } else {
+        $pdo->prepare(
+            'UPDATE attempts
+             SET last_seen_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        )->execute(['id' => $attemptId]);
+    }
 
-    audit_event('attempt_page_hidden', 'attempt', $attemptId, [], null, (int)$user['id']);
+    audit_event('attempt_page_hidden', 'attempt', $attemptId, [
+        'focus_policy' => (string)($attempt['focus_policy'] ?? 'allow'),
+    ], null, (int)$user['id']);
 }
 
 // Finalization is handled by close.php with a snapshot of the visible form.
