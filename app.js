@@ -1762,7 +1762,14 @@ const historyEventLabels = {
   school_settings_updated: 'Настройки школы изменены',
   school_branding_updated: 'Оформление школы изменено',
   school_theme_updated: 'Оформление школы изменено',
-  school_assignment_review_setting_changed: 'Настройка проверки заданий изменена'
+  school_assignment_review_setting_changed: 'Настройка проверки заданий изменена',
+  staff_profile_updated: 'Профиль сотрудника изменён',
+  staff_avatar_updated: 'Фото сотрудника изменено',
+  library_item_submitted: 'Материал отправлен в библиотеку',
+  library_item_published: 'Материал опубликован в библиотеке',
+  library_item_rejected: 'Публикация в библиотеке отклонена',
+  library_item_withdrawn: 'Материал снят с публикации',
+  library_item_imported: 'Материал импортирован из библиотеки'
 };
 
 const historyEntityLabels = {
@@ -2097,6 +2104,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-actions">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
+          ${libraryAssignmentAction(item)}
           ${assignmentWorkflowActionButtons(item)}
           <span class="status ${statusClass}">${statusText}</span>
         </div>
@@ -2505,6 +2513,9 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-duplicate-assignment]').forEach(button => {
     button.addEventListener('click', () => openDuplicateAssignment(Number(button.dataset.duplicateAssignment)));
   });
+  root.querySelectorAll('[data-library-submit]').forEach(button => {
+    button.addEventListener('click', () => submitAssignmentToLibrary(Number(button.dataset.librarySubmit)));
+  });
   root.querySelectorAll('[data-preview-questions]').forEach(button => {
     button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
   });
@@ -2544,6 +2555,7 @@ function renderAssignments() {
         <td class="row-actions-cell">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
+          ${libraryAssignmentAction(item)}
           ${assignmentWorkflowActionButtons(item)}
         </td>
       </tr>`;
@@ -3163,6 +3175,7 @@ async function loadSchoolManagement() {
           </td>
           <td><small>${escapeHtml(assignmentText)}</small></td>
           <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-staff-profile="${teacher.id}">Профиль</button>
             <button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button>
             <button class="primary-btn compact-btn" type="button" data-send-teacher-access="${teacher.id}">${accessSent ? 'Отправить новый доступ' : 'Отправить доступ'}</button>
             ${canManageAdmins && !alsoAdmin ? `<button class="secondary-btn compact-btn" type="button" data-promote-teacher="${teacher.id}">＋ Права администратора</button>` : ''}
@@ -3170,6 +3183,9 @@ async function loadSchoolManagement() {
         </tr>`;
     }).join('') : '<tr><td colspan="4">Учителей пока нет.</td></tr>';
 
+    teacherBody.querySelectorAll('[data-staff-profile]').forEach(button => {
+      button.addEventListener('click', () => loadStaffProfile(Number(button.dataset.staffProfile), true).catch(error => alert(error.message)));
+    });
     teacherBody.querySelectorAll('[data-teacher-assign]').forEach(button => {
       button.addEventListener('click', () => openTeacherAssignments(Number(button.dataset.teacherAssign)));
     });
@@ -3200,6 +3216,7 @@ async function loadSchoolManagement() {
             ${teaches ? '<span class="status blue">Учитель</span>' : ''}
           </td>
           <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-staff-profile="${admin.id}">Профиль</button>
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>` : ''}
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-toggle-admin-teacher="${admin.id}" data-enabled="${teaches ? '0' : '1'}">${teaches ? 'Убрать роль учителя' : '＋ Сделать также учителем'}</button>` : ''}
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-demote-admin="${admin.id}">Оставить только учителем</button>` : ''}
@@ -3208,6 +3225,9 @@ async function loadSchoolManagement() {
         </tr>`;
       }).join('') : '<tr><td colspan="4">Администраторы не назначены.</td></tr>';
 
+      adminsBody.querySelectorAll('[data-staff-profile]').forEach(button => {
+        button.addEventListener('click', () => loadStaffProfile(Number(button.dataset.staffProfile), true).catch(error => alert(error.message)));
+      });
       adminsBody.querySelectorAll('[data-edit-school-admin]').forEach(button => {
         button.addEventListener('click', () => openSchoolAdminEditor(Number(button.dataset.editSchoolAdmin)));
       });
