@@ -5017,7 +5017,13 @@ function parseSavedAnswer(raw, fallback) {
 }
 
 async function saveRealStudentAnswer(questionId, payload) {
-  if (!activeStudentAttempt || AttemptSecurity.isLocked()) return;
+  if (activeStaffPreview) return { preview: true };
+  if (!activeStudentAttempt) {
+    throw new Error('Попытка не активна. Ответ не сохранён.');
+  }
+  if (AttemptSecurity.isLocked()) {
+    throw new Error('Попытка заблокирована системой контроля. Ответ не сохранён.');
+  }
   const response = await fetch('./api/attempts/answer.php', {
     method: 'POST',
     credentials: 'same-origin',
@@ -5437,7 +5443,14 @@ async function startRealStudentAssignment(assignmentId) {
 
     document.getElementById('realQuizForm')?.addEventListener('submit', async event => {
       event.preventDefault();
-      if (!activeStudentAttempt || AttemptSecurity.isLocked()) return;
+      if (!activeStudentAttempt) {
+        await appAlert('Попытка не активна. Обновите список заданий и откройте работу заново.', { tone:'danger' });
+        return;
+      }
+      if (AttemptSecurity.isLocked()) {
+        await appAlert('Попытка уже заблокирована системой контроля. Будут учтены только реально сохранённые ответы.', { tone:'danger' });
+        return;
+      }
       const button = event.currentTarget.querySelector('button[type="submit"]');
       if (!(await appConfirm('Завершить работу? После сдачи изменить ответы нельзя.'))) return;
       button.disabled = true;
