@@ -3262,3 +3262,81 @@ body.dialog-open{overflow:hidden}
     width:100%;
   }
 }
+
+
+/* Permanent student roster editor */
+.student-row-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.student-edit-action{
+  color:var(--brand)!important;
+  border-color:color-mix(in srgb,var(--brand) 24%,#dfe5ec)!important;
+  background:var(--brand-soft)!important;
+}
+.student-edit-action:hover{
+  border-color:var(--brand)!important;
+}
+.student-edit-modal{
+  width:min(580px,calc(100vw - 28px));
+}
+.student-edit-modal>p{
+  margin-top:-3px;
+  color:#7d8995;
+  font-size:12px;
+  line-height:1.5;
+}
+.student-edit-preserve{
+  display:grid;
+  gap:4px;
+  margin:2px 0 4px;
+  padding:11px 12px;
+  border:1px solid #e2e8ef;
+  border-radius:11px;
+  background:#f8fafc;
+}
+.student-edit-preserve b{
+  color:#445363;
+  font-size:11px;
+}
+.student-edit-preserve span{
+  color:#7b8794;
+  font-size:11px;
+  line-height:1.45;
+}
+@media(max-width:700px){
+  .class-student-row{
+    grid-template-columns:auto minmax(0,1fr);
+    align-items:start;
+  }
+  .class-student-row .student-row-actions{
+    grid-column:2;
+    justify-content:flex-start;
+    width:100%;
+  }
+  .class-student-row .student-row-actions .mini-action{
+    min-height:36px;
+  }
+  .student-edit-modal{
+    width:100%;
+    max-height:100vh;
+    border-radius:18px 18px 0 0;
+    align-self:end;
+  }
+}
+@media(max-width:440px){
+  .class-student-row .student-row-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .class-student-row .student-row-actions .status{
+    grid-column:1/-1;
+    width:max-content;
+  }
+  .class-student-row .student-row-actions .mini-action{
+    width:100%;
+  }
+}
