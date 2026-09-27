@@ -25,6 +25,24 @@ function import_xml_text_by_paragraph(string $xml, string $paragraphTag, string 
     return trim(implode("\n", $paragraphs));
 }
 
+function import_docx_relationship_map(ZipArchive $zip): array
+{
+    $relsXml = $zip->getFromName('word/_rels/document.xml.rels');
+    if ($relsXml === false) return [];
+
+    $map = [];
+    if (preg_match_all('/<Relationship\b[^>]*\bId="([^"]+)"[^>]*\bTarget="([^"]+)"[^>]*\/>/i', $relsXml, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $match) {
+            $id = (string)$match[1];
+            $target = ltrim(str_replace('\\', '/', (string)$match[2]), '/');
+            if (str_starts_with($target, '../')) continue;
+            if (!str_starts_with($target, 'media/')) continue;
+            $map[$id] = 'word/' . $target;
+        }
+    }
+    return $map;
+}
+
 function import_extract_docx_text(string $path): ?string
 {
     if (!class_exists('ZipArchive')) return null;
@@ -38,10 +56,46 @@ function import_extract_docx_text(string $path): ?string
     }
 
     $xml = $zip->getFromName('word/document.xml');
-    $zip->close();
-    if ($xml === false) return null;
+    if ($xml === false) {
+        $zip->close();
+        return null;
+    }
 
-    $text = import_xml_text_by_paragraph($xml, 'w:p', 'w:t');
+    $relationshipMap = import_docx_relationship_map($zip);
+    $paragraphs = [];
+
+    if (preg_match_all('/<w:p\b[^>]*>(.*?)<\/w:p>/si', $xml, $paragraphMatches)) {
+        foreach ($paragraphMatches[1] as $paragraphXml) {
+            $parts = [];
+            if (preg_match_all('/<w:t\b[^>]*>(.*?)<\/w:t>/si', (string)$paragraphXml, $textMatches)) {
+                foreach ($textMatches[1] as $part) {
+                    $decoded = html_entity_decode(strip_tags((string)$part), ENT_QUOTES | ENT_XML1, 'UTF-8');
+                    if ($decoded !== '') $parts[] = $decoded;
+                }
+            }
+
+            $line = trim(preg_replace('/\s+/u', ' ', implode(' ', $parts)) ?? '');
+
+            $imageIds = [];
+            if (preg_match_all('/<a:blip\b[^>]*\br:embed="([^"]+)"/i', (string)$paragraphXml, $imageMatches)) {
+                foreach ($imageMatches[1] as $relationshipId) {
+                    if (isset($relationshipMap[$relationshipId])) {
+                        $imageIds[] = (string)$relationshipId;
+                    }
+                }
+            }
+
+            if ($line !== '') {
+                $paragraphs[] = $line;
+            }
+            foreach ($imageIds as $relationshipId) {
+                $paragraphs[] = '[[UVORIA_IMAGE:' . $relationshipId . ']]';
+            }
+        }
+    }
+
+    $zip->close();
+    $text = trim(implode("\n", $paragraphs));
     return $text !== '' ? $text : null;
 }
 
@@ -199,6 +253,13 @@ function import_extract_media(string $path, string $extension): array
     if ($zip->open($path) !== true) return [];
 
     $prefix = $extension === 'docx' ? 'word/media/' : 'ppt/media/';
+    $relationshipByPath = [];
+    if ($extension === 'docx') {
+        foreach (import_docx_relationship_map($zip) as $relationshipId => $mediaPath) {
+            $relationshipByPath[$mediaPath] = $relationshipId;
+        }
+    }
+
     $media = [];
     $totalBytes = 0;
 
@@ -230,6 +291,7 @@ function import_extract_media(string $path, string $extension): array
             'mime_type' => $mime,
             'extension' => $ext === 'jpeg' ? 'jpg' : $ext,
             'bytes' => $bytes,
+            'relationship_id' => $relationshipByPath[$name] ?? null,
         ];
     }
 
@@ -265,7 +327,7 @@ function import_split_question_blocks(string $text): array
 
     $blocks = [];
     $current = [];
-    $started = false;
+    $startedByHeading = false;
 
     foreach ($lines as $line) {
         $line = trim($line);
@@ -281,16 +343,22 @@ function import_split_question_blocks(string $text): array
         if ($isQuestionMarker) {
             if ($current) $blocks[] = implode("\n", $current);
             $current = [$line];
-            $started = true;
+            $startedByHeading = true;
             continue;
         }
 
-        if ($started) $current[] = $line;
+        $current[] = $line;
+
+        // Практический формат учителей: вопрос + варианты + TYPE + ANSWER + POINTS,
+        // без обязательных заголовков «ЗАДАНИЕ N». POINTS завершает текущий вопрос.
+        if (!$startedByHeading && preg_match('/^(?:баллы|points?)\s*:\s*[0-9]+(?:[.,][0-9]+)?$/iu', $line)) {
+            $blocks[] = implode("\n", $current);
+            $current = [];
+        }
     }
 
     if ($current) $blocks[] = implode("\n", $current);
 
-    // Совместимость со старыми документами без заголовков «ЗАДАНИЕ N».
     if (!$blocks) {
         foreach (preg_split('/\n\s*---+\s*\n|\n{2,}/u', $text) ?: [] as $raw) {
             $raw = trim($raw);
@@ -298,7 +366,7 @@ function import_split_question_blocks(string $text): array
         }
     }
 
-    return $blocks;
+    return array_values(array_filter($blocks, static fn(string $block): bool => trim($block) !== ''));
 }
 
 function import_prompt_candidate(array $lines): string
@@ -337,6 +405,7 @@ function import_parse_question_block(string $block): ?array
     $textBody = '';
     $contentLines = [];
     $heading = '';
+    $mediaRelationshipIds = [];
 
     foreach ($lines as $line) {
         $line = trim($line);
@@ -372,6 +441,10 @@ function import_parse_question_block(string $block): ?array
         }
         if (preg_match('/^(?:текст|text)\s*:\s*(.+)$/iu', $line, $m)) {
             $textBody = trim($m[1]);
+            continue;
+        }
+        if (preg_match('/^\[\[UVORIA_IMAGE:([^\]]+)\]\]$/i', $line, $m)) {
+            $mediaRelationshipIds[] = trim((string)$m[1]);
             continue;
         }
         if (preg_match('/^примечание\s*:/iu', $line)) {
@@ -423,7 +496,8 @@ function import_parse_question_block(string $block): ?array
     if ($prompt === '') return null;
 
     $haystack = $heading . "\n" . implode("\n", $contentLines);
-    $needsImage = preg_match('/(?:изображ|картин|фото|портрет|карта|схема)/iu', $haystack) === 1;
+    $needsImage = !empty($mediaRelationshipIds)
+        || preg_match('/(?:изображ|картин|фото|портрет|карта|схема)/iu', $haystack) === 1;
 
     $question = [
         'interaction_type' => $interaction,
@@ -434,6 +508,7 @@ function import_parse_question_block(string $block): ?array
         'settings' => [],
         'options' => [],
         'needs_image' => $needsImage,
+        'media_relationship_ids' => $mediaRelationshipIds,
     ];
 
     if ($interaction === 'single' || $interaction === 'multiple') {
@@ -600,10 +675,27 @@ function import_store_questions(PDO $pdo, int $assignmentId, array $questions, a
     foreach ($questions as $position => $question) {
         $settings = $question['settings'] ?? [];
         $assetToSave = null;
-        if (!empty($question['needs_image']) && $media) {
+        $requestedRelationships = array_values(array_filter(array_map(
+            'strval',
+            (array)($question['media_relationship_ids'] ?? [])
+        )));
+
+        if ($requestedRelationships && $media) {
+            foreach ($media as $candidate) {
+                if (in_array((string)($candidate['relationship_id'] ?? ''), $requestedRelationships, true)) {
+                    $assetToSave = $candidate;
+                    break;
+                }
+            }
+        }
+
+        if ($assetToSave === null && !empty($question['needs_image']) && $media) {
             $safeIndex = min($mediaIndex, count($media) - 1);
             $assetToSave = $media[$safeIndex];
             if ($mediaIndex < count($media) - 1) $mediaIndex++;
+        }
+
+        if ($assetToSave !== null) {
             $settings['has_image'] = true;
         } elseif (!empty($question['needs_image'])) {
             $settings['has_image'] = false;
