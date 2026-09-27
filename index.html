@@ -363,23 +363,14 @@
 
       <section class="view" id="student-dashboard">
         <div class="student-welcome">
-          <div><span class="pill">7А класс</span><h2>Привет, Магомед!</h2><p>У тебя есть 2 задания, которые нужно выполнить на этой неделе.</p></div>
-          <div class="student-score"><span>Средний результат</span><strong>87%</strong><small>4,4 средняя оценка</small></div>
+          <div><span class="pill" id="studentClassBadge">Класс</span><h2 id="studentWelcomeTitle">Мои задания</h2><p id="studentWelcomeText">Загрузка назначенных работ...</p></div>
+          <div class="student-score"><span>Текущие задания</span><strong id="studentActiveTasksCount">0</strong><small>из базы UVORIA</small></div>
         </div>
         <div class="student-layout">
           <div>
             <div class="panel-head standalone"><div><span class="section-kicker">На очереди</span><h3>Мои задания</h3></div></div>
-            <div class="student-task-cards">
-              <article class="student-task">
-                <div class="student-task-top"><span class="subject-pill">Математика</span><span class="status amber">до 28 сен.</span></div>
-                <h3>Контрольная работа №2</h3><p>20 вопросов · 45 минут · 1 попытка</p>
-                <div class="student-task-bottom"><span>Не начато</span><button class="primary-btn" id="startQuizBtn">Начать</button></div>
-              </article>
-              <article class="student-task">
-                <div class="student-task-top"><span class="subject-pill">История</span><span class="status blue">до 30 сен.</span></div>
-                <h3>История Дагестана</h3><p>12 вопросов · без ограничения · 2 попытки</p>
-                <div class="student-task-bottom"><span>Не начато</span><button class="secondary-btn" id="openHistoryTaskBtn">Открыть</button></div>
-              </article>
+            <div class="student-task-cards" id="studentDashboardTasks">
+              <article class="student-task"><p>Загрузка заданий...</p></article>
             </div>
           </div>
           <aside class="panel recent-grades">
@@ -393,9 +384,8 @@
 
       <section class="view" id="student-tasks">
         <div class="section-toolbar"><div><span class="section-kicker">Учёба</span><h2>Мои задания</h2><p>Все текущие и завершённые работы.</p></div></div>
-        <div class="student-task-cards">
-          <article class="student-task"><div class="student-task-top"><span class="subject-pill">Математика</span><span class="status amber">до 28 сен.</span></div><h3>Контрольная работа №2</h3><p>20 вопросов · 45 минут</p><div class="student-task-bottom"><span>Не начато</span><button class="primary-btn start-quiz">Начать</button></div></article>
-          <article class="student-task"><div class="student-task-top"><span class="subject-pill">Русский язык</span><span class="status green">сдано</span></div><h3>Части речи</h3><p>15 вопросов · результат 93%</p><div class="student-task-bottom"><span>Оценка 5</span><button class="secondary-btn" id="viewResultBtn">Результат</button></div></article>
+        <div class="student-task-cards" id="studentTasksList">
+          <article class="student-task"><p>Загрузка заданий...</p></article>
         </div>
       </section>
 
