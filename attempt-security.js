@@ -41,43 +41,46 @@ const AttemptSecurity = (() => {
     }
   }
 
-  function handleVisibility() {
-    if (!state) return;
-    if (document.hidden) {
-      if (hiddenHandled) return;
-      hiddenHandled = true;
-
-      if (state.focusPolicy === 'strict') {
-        state.locked = true;
-        state.onLocked?.();
-      }
-
-      sendEvent('hidden', true).catch(() => {});
-    } else {
-      hiddenHandled = false;
-      if (state.focusPolicy !== 'strict' || !state.locked) {
-        sendEvent('visible').catch(() => {});
-      }
-    }
-  }
-
-  function handlePageHide() {
+  function terminateForHidden() {
     if (!state || hiddenHandled) return;
     hiddenHandled = true;
-    if (state.focusPolicy === 'strict') {
-      state.locked = true;
-      state.onLocked?.();
-    }
+    state.locked = true;
+    state.onLocked?.();
+    state.onHidden?.();
     sendEvent('hidden', true).catch(() => {});
   }
 
-  function start({ attemptId, focusPolicy = 'allow', onLocked = null, onTerminated = null }) {
+  function handleVisibility() {
+    if (!state) return;
+    if (document.hidden) {
+      terminateForHidden();
+      return;
+    }
+
+    // A hidden tab never resumes the same attempt. Check the server
+    // immediately when the student returns so the final result is shown.
+    if (state.locked) {
+      heartbeat();
+      window.setTimeout(heartbeat, 700);
+      return;
+    }
+
+    hiddenHandled = false;
+    sendEvent('visible').catch(() => {});
+  }
+
+  function handlePageHide() {
+    terminateForHidden();
+  }
+
+  function start({ attemptId, focusPolicy = 'allow', onLocked = null, onHidden = null, onTerminated = null }) {
     stop();
     state = {
       attemptId: Number(attemptId),
       focusPolicy,
       locked: false,
       onLocked,
+      onHidden,
       onTerminated
     };
 
