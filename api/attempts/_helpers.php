@@ -99,11 +99,13 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
     $target = null;
     $position = max(1, (int)($row['position'] ?? 1));
     $candidate = $parsed[$position - 1] ?? null;
-    if (
-        is_array($candidate)
-        && $normalize((string)($candidate['text'] ?? '')) === $normalize((string)$row['text'])
-    ) {
-        $target = $candidate;
+    if (is_array($candidate)) {
+        $candidateInteraction = (string)($candidate['interaction_type'] ?? '');
+        $sameText = $normalize((string)($candidate['text'] ?? '')) === $normalize((string)$row['text']);
+        $sameKind = $candidateInteraction === $interaction;
+        if ($sameText || $sameKind) {
+            $target = $candidate;
+        }
     }
 
     if ($target === null) {
@@ -121,7 +123,7 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
     }
 
     $stmt = $pdo->prepare(
-        'SELECT id, position
+        'SELECT id, text, position
          FROM question_options
          WHERE question_id = :question_id
          ORDER BY position, id'
@@ -134,6 +136,14 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
         return [];
     }
 
+    $dbByText = [];
+    foreach ($dbOptions as $dbOption) {
+        $key = $normalize((string)($dbOption['text'] ?? ''));
+        if ($key !== '' && !isset($dbByText[$key])) {
+            $dbByText[$key] = (int)$dbOption['id'];
+        }
+    }
+
     $correctIds = [];
     $pdo->beginTransaction();
     try {
@@ -143,7 +153,13 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
         $mark = $pdo->prepare('UPDATE question_options SET is_correct = 1 WHERE id = :id AND question_id = :question_id');
         foreach ($parsedOptions as $index => $parsedOption) {
             if (empty($parsedOption['is_correct'])) continue;
-            $optionId = (int)$dbOptions[$index]['id'];
+
+            $optionTextKey = $normalize((string)($parsedOption['text'] ?? ''));
+            $optionId = $optionTextKey !== '' && isset($dbByText[$optionTextKey])
+                ? (int)$dbByText[$optionTextKey]
+                : (int)($dbOptions[$index]['id'] ?? 0);
+
+            if ($optionId < 1) continue;
             $mark->execute(['id' => $optionId, 'question_id' => $questionId]);
             $correctIds[] = $optionId;
         }
