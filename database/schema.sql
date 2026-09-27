@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS assignments (
 CREATE TABLE IF NOT EXISTS assignment_classes (
     assignment_id INTEGER NOT NULL,
     class_id INTEGER NOT NULL,
+    time_limit_minutes INTEGER,
     PRIMARY KEY (assignment_id, class_id),
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
