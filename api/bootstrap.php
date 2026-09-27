@@ -163,6 +163,7 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
 function apply_schema_migrations(PDO $pdo): void
 {
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'users', 'login_name', 'TEXT COLLATE NOCASE');
     add_column_if_missing($pdo, 'users', 'must_change_password', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'users', 'credentials_sent_at', 'TEXT');
@@ -292,7 +293,7 @@ function current_user(): ?array
 
     $stmt = app_db()->prepare(
         'SELECT id, first_name, last_name, email, login_name, role, is_platform_admin,
-                class_name, must_change_password, credentials_sent_at, is_active
+                session_version, class_name, must_change_password, credentials_sent_at, is_active
          FROM users WHERE id = :id LIMIT 1'
     );
     $stmt->execute(['id' => (int) $_SESSION['user_id']]);
@@ -303,7 +304,14 @@ function current_user(): ?array
         return null;
     }
 
-    unset($user['is_active']);
+    $version = (int)($user['session_version'] ?? 0);
+    if (isset($_SESSION['session_version']) && (int)$_SESSION['session_version'] !== $version) {
+        $_SESSION = [];
+        return null;
+    }
+    $_SESSION['session_version'] = $version;
+
+    unset($user['is_active'], $user['session_version']);
     return $user;
 }
 
