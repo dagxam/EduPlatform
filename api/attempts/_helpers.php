@@ -230,3 +230,133 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
         'termination_reason' => $reason,
     ];
 }
+
+
+function variant_label_from_index(int $index): string
+{
+    $labels = ['A', 'B', 'C', 'D'];
+    return $labels[max(0, min(3, $index))] ?? 'A';
+}
+
+function deterministic_variant_order(array $values, string $seed): array
+{
+    $decorated = [];
+    foreach (array_values($values) as $position => $value) {
+        $decorated[] = [
+            'value' => $value,
+            'hash' => hash('sha256', $seed . '|' . (string)$position . '|' . (string)$value),
+        ];
+    }
+
+    usort($decorated, static fn(array $a, array $b): int => strcmp($a['hash'], $b['hash']));
+    return array_values(array_map(static fn(array $row) => $row['value'], $decorated));
+}
+
+function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT variant_count, shuffle_questions, shuffle_options, shuffle_structured
+         FROM assignments
+         WHERE id = :assignment_id
+         LIMIT 1'
+    );
+    $stmt->execute(['assignment_id' => $assignmentId]);
+    $settings = $stmt->fetch();
+    if (!$settings) {
+        json_response(['ok' => false, 'error' => 'Задание не найдено.'], 404);
+    }
+
+    $variantCount = max(1, min(4, (int)($settings['variant_count'] ?? 1)));
+    $variantIndex = $variantCount > 1
+        ? (int)(sprintf('%u', crc32($assignmentId . ':' . $studentId)) % $variantCount)
+        : 0;
+    $variantLabel = variant_label_from_index($variantIndex);
+    $seedBase = 'assignment:' . $assignmentId . '|variant:' . $variantIndex;
+
+    $stmt = $pdo->prepare(
+        'SELECT id, interaction_type, settings_json
+         FROM questions
+         WHERE assignment_id = :assignment_id
+         ORDER BY position, id'
+    );
+    $stmt->execute(['assignment_id' => $assignmentId]);
+    $questions = $stmt->fetchAll();
+
+    $questionOrder = array_map('intval', array_column($questions, 'id'));
+    if ($variantCount > 1 && (int)($settings['shuffle_questions'] ?? 0) === 1) {
+        $questionOrder = deterministic_variant_order($questionOrder, $seedBase . '|questions');
+    }
+
+    $optionOrder = [];
+    $structuredOrder = [];
+
+    $optionStmt = $pdo->prepare(
+        'SELECT id
+         FROM question_options
+         WHERE question_id = :question_id
+         ORDER BY position, id'
+    );
+
+    foreach ($questions as $question) {
+        $questionId = (int)$question['id'];
+
+        $optionStmt->execute(['question_id' => $questionId]);
+        $optionIds = array_map('intval', array_column($optionStmt->fetchAll(), 'id'));
+        if (
+            $variantCount > 1
+            && (int)($settings['shuffle_options'] ?? 0) === 1
+            && count($optionIds) > 1
+        ) {
+            $optionIds = deterministic_variant_order($optionIds, $seedBase . '|options:' . $questionId);
+        }
+        if ($optionIds) {
+            $optionOrder[(string)$questionId] = $optionIds;
+        }
+
+        if ($variantCount > 1 && (int)($settings['shuffle_structured'] ?? 0) === 1) {
+            $interaction = (string)($question['interaction_type'] ?? '');
+            $questionSettings = json_decode((string)($question['settings_json'] ?? ''), true);
+            $questionSettings = is_array($questionSettings) ? $questionSettings : [];
+
+            if ($interaction === 'ordering' && is_array($questionSettings['items'] ?? null)) {
+                $keys = array_map('strval', array_keys($questionSettings['items']));
+                if (count($keys) > 1) {
+                    $structuredOrder[(string)$questionId] = [
+                        'items' => deterministic_variant_order($keys, $seedBase . '|ordering:' . $questionId),
+                    ];
+                }
+            } elseif ($interaction === 'matching') {
+                $leftKeys = is_array($questionSettings['left'] ?? null)
+                    ? array_map('strval', array_keys($questionSettings['left']))
+                    : [];
+                $rightKeys = is_array($questionSettings['right'] ?? null)
+                    ? array_map('strval', array_keys($questionSettings['right']))
+                    : [];
+
+                $structuredOrder[(string)$questionId] = [
+                    'left' => $leftKeys,
+                    'right' => count($rightKeys) > 1
+                        ? deterministic_variant_order($rightKeys, $seedBase . '|matching-right:' . $questionId)
+                        : $rightKeys,
+                ];
+            }
+        }
+    }
+
+    return [
+        'variant_index' => $variantIndex,
+        'variant_label' => $variantLabel,
+        'question_order_json' => json_encode($questionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'option_order_json' => json_encode($optionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'structured_order_json' => json_encode($structuredOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ];
+}
+
+function decoded_json_array(?string $json): array
+{
+    if ($json === null || trim($json) === '') {
+        return [];
+    }
+    $decoded = json_decode($json, true);
+    return is_array($decoded) ? $decoded : [];
+}
