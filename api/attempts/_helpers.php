@@ -91,6 +91,26 @@ function valid_choice_answer_key(string $interaction, array $correctIds): bool
     return false;
 }
 
+function question_answer_key_edited(PDO $pdo, int $questionId): bool
+{
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT 1
+             FROM audit_log
+             WHERE entity_type = "question"
+               AND entity_id = :question_id
+               AND event_type = "question_updated"
+             ORDER BY id DESC
+             LIMIT 1'
+        );
+        $stmt->execute(['question_id' => $questionId]);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable $e) {
+        // Tiny in-memory smoke databases may not include audit_log.
+        return false;
+    }
+}
+
 function repair_missing_correct_options(PDO $pdo, int $questionId): array
 {
     $stmt = $pdo->prepare(
@@ -113,11 +133,13 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
         return [];
     }
 
-    // The current editor state is authoritative. Never overwrite a valid answer
-    // key with the original imported file: the teacher may have intentionally
-    // changed the correct answer in the constructor after import.
+    // For imported questions, the source file is the repair authority unless
+    // the teacher explicitly edited this question in the constructor.
     $existingCorrect = correct_option_ids($pdo, $questionId);
-    if (valid_choice_answer_key($interaction, $existingCorrect)) {
+    if (
+        valid_choice_answer_key($interaction, $existingCorrect)
+        && question_answer_key_edited($pdo, $questionId)
+    ) {
         sort($existingCorrect, SORT_NUMERIC);
         return $existingCorrect;
     }
@@ -259,7 +281,10 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
 
         $interaction = (string)($typeRow['interaction_type'] ?: $typeRow['type']);
         $currentCorrect = correct_option_ids($pdo, $questionId);
-        if (valid_choice_answer_key($interaction, $currentCorrect)) {
+        if (
+            valid_choice_answer_key($interaction, $currentCorrect)
+            && question_answer_key_edited($pdo, $questionId)
+        ) {
             continue;
         }
 
