@@ -48,6 +48,30 @@ $pdo->exec('CREATE TABLE question_assets (
     mime_type TEXT,
     position INTEGER NOT NULL DEFAULT 0
 )');
+$pdo->exec('CREATE TABLE attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL DEFAULT 1,
+    submitted_at TEXT,
+    score REAL,
+    max_score REAL,
+    percent REAL,
+    grade TEXT,
+    status TEXT NOT NULL DEFAULT "in_progress",
+    termination_reason TEXT,
+    last_seen_at TEXT
+)');
+$pdo->exec('CREATE TABLE answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_id INTEGER NOT NULL,
+    question_id INTEGER NOT NULL,
+    answer_text TEXT,
+    score REAL,
+    is_correct INTEGER,
+    needs_review INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT,
+    UNIQUE(attempt_id, question_id)
+)');
 
 $pdo->exec("INSERT INTO assignments (title) VALUES ('Grading smoke')");
 $assignmentId = (int)$pdo->lastInsertId();
@@ -300,5 +324,52 @@ if (abs($mixedScore - $mixedMax) > 0.000001 || abs($mixedMax - 17.0) > 0.000001)
 }
 
 echo "Mixed UROVIA template grading OK: {$mixedScore}/{$mixedMax}" . PHP_EOL;
+
+/*
+ * Regression for the production PDO mode (FETCH_ASSOC): final aggregation
+ * must read named columns, not numeric indexes. This was the cause of 0/N.
+ */
+$pdo->prepare(
+    'INSERT INTO attempts (assignment_id, student_id, status)
+     VALUES (:assignment_id, 1, "in_progress")'
+)->execute(['assignment_id' => $mixedAssignmentId]);
+$mixedAttemptId = (int)$pdo->lastInsertId();
+
+foreach ($mixedRows as $row) {
+    $questionId = (int)$row['id'];
+    $interaction = (string)$row['interaction_type'];
+    if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
+        $payload = ['option_ids' => correct_option_ids($pdo, $questionId)];
+    } elseif ($interaction === 'order') {
+        $payload = ['order' => json_decode((string)$row['correct_text'], true) ?: []];
+    } elseif ($interaction === 'matching') {
+        $payload = ['matches' => json_decode((string)$row['correct_text'], true) ?: []];
+    } elseif ($interaction === 'number') {
+        $payload = ['answer_text' => (string)$row['correct_text']];
+    } else {
+        $first = trim((string)(preg_split('/\s*\|\s*/u', (string)$row['correct_text'])[0] ?? ''));
+        $payload = ['answer_text' => $first];
+    }
+    save_attempt_answer($pdo, $mixedAttemptId, $questionId, $payload);
+}
+
+$final = finalize_attempt($pdo, $mixedAttemptId, 'student_submit');
+if (
+    abs((float)$final['score'] - 17.0) > 0.000001
+    || abs((float)$final['max_score'] - 17.0) > 0.000001
+    || abs((float)$final['percent'] - 100.0) > 0.000001
+    || (string)$final['grade'] !== '5'
+) {
+    fwrite(
+        STDERR,
+        'FETCH_ASSOC final aggregation failed: '
+        . json_encode($final, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        . PHP_EOL
+    );
+    exit(1);
+}
+
+echo "FETCH_ASSOC final aggregation OK: 17/17, 100%, grade 5" . PHP_EOL;
+
 
 
