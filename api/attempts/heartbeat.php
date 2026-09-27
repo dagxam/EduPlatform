@@ -20,6 +20,7 @@ if ($attempt['status'] !== 'in_progress') {
         'status' => (string)$attempt['status'],
         'reason' => $attempt['termination_reason'] ?? null,
         'result' => [
+            'attempt_id' => (int)$attempt['id'],
             'score' => (float)($attempt['score'] ?? 0),
             'max_score' => (float)($attempt['max_score'] ?? 0),
             'percent' => (float)($attempt['percent'] ?? 0),
