@@ -39,12 +39,9 @@ if ($eventType === 'hidden') {
     )->execute(['id' => $attemptId]);
 
     audit_event('attempt_page_hidden', 'attempt', $attemptId, [], null, (int)$user['id']);
-
-    if (($attempt['focus_policy'] ?? 'allow') === 'strict') {
-        $result = finalize_attempt($pdo, $attemptId, 'page_hidden');
-        audit_event('attempt_auto_submitted', 'attempt', $attemptId, ['reason' => 'page_hidden'], null, (int)$user['id']);
-        json_response(['ok' => true, 'terminated' => true, 'result' => $result]);
-    }
 }
 
+// Finalization is handled by close.php with a snapshot of the visible form.
+// This endpoint only records visibility/security events, so it cannot race
+// ahead and finish the attempt before the latest selected answer is saved.
 json_response(['ok' => true, 'terminated' => false]);
