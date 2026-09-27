@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  sessionStorage.removeItem('uvoria-sw-reloading');
+
   let deferredInstallPrompt = null;
   let registration = null;
 
