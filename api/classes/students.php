@@ -35,7 +35,7 @@ if (!$stmt->fetchColumn()) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT u.id, u.first_name, u.last_name, u.is_active,
+    'SELECT u.id, u.first_name, u.last_name, u.middle_name, u.is_active,
             CASE WHEN cs.activated_at IS NULL THEN 0 ELSE 1 END AS activated
      FROM class_students cs
      JOIN users u ON u.id = cs.student_id
