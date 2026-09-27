@@ -61,19 +61,16 @@ if (!$targetSchool) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT u.id
+    'SELECT COUNT(*)
      FROM school_users su
      JOIN users u ON u.id = su.user_id
      WHERE su.school_id = :school_id
        AND su.is_active = 1
        AND u.is_active = 1
-       AND su.role IN ("school_admin", "owner")
-     ORDER BY CASE su.role WHEN "owner" THEN 0 ELSE 1 END, su.created_at, u.id
-     LIMIT 1'
+       AND su.role IN ("school_admin", "owner")'
 );
 $stmt->execute(['school_id' => $targetSchoolId]);
-$targetOwnerId = (int)($stmt->fetchColumn() ?: 0);
-if ($targetOwnerId < 1) {
+if ((int)$stmt->fetchColumn() < 1) {
     json_response([
         'ok' => false,
         'error' => 'У школы-получателя нет активного администратора. Сначала назначьте администратора.',
@@ -84,12 +81,17 @@ $assignments = [];
 if ($assignmentIds) {
     $placeholders = implode(',', array_fill(0, count($assignmentIds), '?'));
     $stmt = $pdo->prepare(
-        "SELECT *
-         FROM assignments
-         WHERE school_id = ?
-           AND subject_id = ?
-           AND id IN ($placeholders)
-         ORDER BY id"
+        "SELECT a.id, a.title, a.type,
+                ai.source_format,
+                COUNT(DISTINCT q.id) AS questions_count
+         FROM assignments a
+         LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
+         LEFT JOIN questions q ON q.assignment_id = a.id
+         WHERE a.school_id = ?
+           AND a.subject_id = ?
+           AND a.id IN ($placeholders)
+         GROUP BY a.id
+         ORDER BY a.id"
     );
     $stmt->execute(array_merge([$sourceSchoolId, $subjectId], $assignmentIds));
     $assignments = $stmt->fetchAll();
@@ -102,244 +104,63 @@ if ($assignmentIds) {
     }
 }
 
-$copiedFiles = [];
-$copiedAssignments = [];
-$skippedAssignments = [];
-
-function copy_private_file(string $folder, string $storedName, string $prefix, array &$copiedFiles): ?string
-{
-    $safeName = basename($storedName);
-    $source = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . $folder . DIRECTORY_SEPARATOR . $safeName;
-    if (!is_file($source)) {
-        return null;
-    }
-
-    $extension = strtolower(pathinfo($safeName, PATHINFO_EXTENSION));
-    $newName = $prefix . '-' . bin2hex(random_bytes(12)) . ($extension !== '' ? '.' . $extension : '');
-    $dir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . $folder;
-    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-        throw new RuntimeException('Не удалось подготовить хранилище файлов.');
-    }
-
-    $destination = $dir . DIRECTORY_SEPARATOR . $newName;
-    if (!copy($source, $destination)) {
-        throw new RuntimeException('Не удалось скопировать файл задания.');
-    }
-
-    $copiedFiles[] = $destination;
-    return $newName;
-}
-
 $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO school_subjects (school_id, subject_id, is_active)
-         VALUES (:school_id, :subject_id, 1)
-         ON CONFLICT(school_id, subject_id) DO UPDATE SET is_active = 1'
+        'INSERT INTO school_material_transfers
+         (source_school_id, target_school_id, subject_id, sender_user_id, status)
+         VALUES
+         (:source_school_id, :target_school_id, :subject_id, :sender_user_id, "pending")'
     );
     $stmt->execute([
-        'school_id' => $targetSchoolId,
+        'source_school_id' => $sourceSchoolId,
+        'target_school_id' => $targetSchoolId,
         'subject_id' => $subjectId,
+        'sender_user_id' => (int)$user['id'],
     ]);
+    $transferId = (int)$pdo->lastInsertId();
 
-    foreach ($assignments as $assignment) {
-        $originSchoolId = (int)($assignment['source_school_id'] ?: $sourceSchoolId);
-        $originAssignmentId = (int)($assignment['source_assignment_id'] ?: $assignment['id']);
+    $insert = $pdo->prepare(
+        'INSERT INTO school_material_transfer_assignments
+         (transfer_id, assignment_id, position, title_snapshot, type_snapshot,
+          questions_count_snapshot, source_format_snapshot)
+         VALUES
+         (:transfer_id, :assignment_id, :position, :title_snapshot, :type_snapshot,
+          :questions_count_snapshot, :source_format_snapshot)'
+    );
 
-        $stmt = $pdo->prepare(
-            'SELECT id
-             FROM assignments
-             WHERE school_id = :target_school_id
-               AND source_school_id = :source_school_id
-               AND source_assignment_id = :source_assignment_id
-             LIMIT 1'
-        );
-        $stmt->execute([
-            'target_school_id' => $targetSchoolId,
-            'source_school_id' => $originSchoolId,
-            'source_assignment_id' => $originAssignmentId,
+    foreach ($assignments as $index => $assignment) {
+        $insert->execute([
+            'transfer_id' => $transferId,
+            'assignment_id' => (int)$assignment['id'],
+            'position' => $index + 1,
+            'title_snapshot' => (string)$assignment['title'],
+            'type_snapshot' => (string)$assignment['type'],
+            'questions_count_snapshot' => (int)$assignment['questions_count'],
+            'source_format_snapshot' => $assignment['source_format'],
         ]);
-        $existingId = (int)($stmt->fetchColumn() ?: 0);
-        if ($existingId > 0) {
-            $skippedAssignments[] = [
-                'source_id' => (int)$assignment['id'],
-                'target_id' => $existingId,
-                'title' => (string)$assignment['title'],
-            ];
-            continue;
-        }
-
-        $stmt = $pdo->prepare(
-            'INSERT INTO assignments
-             (teacher_id, school_id, subject_id, title, description, type, status,
-              max_attempts, time_limit_minutes, starts_at, due_at, show_answers,
-              focus_policy, variant_count, shuffle_questions, shuffle_options, shuffle_structured,
-              source_school_id, source_assignment_id, shared_by_user_id)
-             VALUES
-             (:teacher_id, :school_id, :subject_id, :title, :description, :type, "draft",
-              :max_attempts, :time_limit_minutes, NULL, NULL, :show_answers,
-              :focus_policy, :variant_count, :shuffle_questions, :shuffle_options, :shuffle_structured,
-              :source_school_id, :source_assignment_id, :shared_by_user_id)'
-        );
-        $stmt->execute([
-            'teacher_id' => $targetOwnerId,
-            'school_id' => $targetSchoolId,
-            'subject_id' => $subjectId,
-            'title' => (string)$assignment['title'],
-            'description' => $assignment['description'],
-            'type' => (string)$assignment['type'],
-            'max_attempts' => (int)$assignment['max_attempts'],
-            'time_limit_minutes' => $assignment['time_limit_minutes'],
-            'show_answers' => (int)$assignment['show_answers'],
-            'focus_policy' => (string)($assignment['focus_policy'] ?? 'allow'),
-            'variant_count' => max(1, min(4, (int)($assignment['variant_count'] ?? 1))),
-            'shuffle_questions' => (int)($assignment['shuffle_questions'] ?? 0),
-            'shuffle_options' => (int)($assignment['shuffle_options'] ?? 0),
-            'shuffle_structured' => (int)($assignment['shuffle_structured'] ?? 0),
-            'source_school_id' => $originSchoolId,
-            'source_assignment_id' => $originAssignmentId,
-            'shared_by_user_id' => (int)$user['id'],
-        ]);
-        $newAssignmentId = (int)$pdo->lastInsertId();
-
-        $stmt = $pdo->prepare(
-            'SELECT * FROM assignment_imports WHERE assignment_id = :assignment_id LIMIT 1'
-        );
-        $stmt->execute(['assignment_id' => (int)$assignment['id']]);
-        $import = $stmt->fetch();
-        if ($import) {
-            $newStoredName = copy_private_file(
-                'assignment-imports',
-                (string)$import['stored_name'],
-                'shared-assignment',
-                $copiedFiles
-            );
-
-            if ($newStoredName !== null) {
-                $stmt = $pdo->prepare(
-                    'INSERT INTO assignment_imports
-                     (assignment_id, original_name, stored_name, source_format, mime_type, size_bytes,
-                      parse_status, extracted_text, parsed_question_count, parser_message)
-                     VALUES
-                     (:assignment_id, :original_name, :stored_name, :source_format, :mime_type, :size_bytes,
-                      :parse_status, :extracted_text, :parsed_question_count, :parser_message)'
-                );
-                $stmt->execute([
-                    'assignment_id' => $newAssignmentId,
-                    'original_name' => (string)$import['original_name'],
-                    'stored_name' => $newStoredName,
-                    'source_format' => (string)$import['source_format'],
-                    'mime_type' => $import['mime_type'],
-                    'size_bytes' => (int)$import['size_bytes'],
-                    'parse_status' => (string)$import['parse_status'],
-                    'extracted_text' => $import['extracted_text'],
-                    'parsed_question_count' => (int)($import['parsed_question_count'] ?? 0),
-                    'parser_message' => $import['parser_message'],
-                ]);
-            }
-        }
-
-        $stmt = $pdo->prepare(
-            'SELECT * FROM questions
-             WHERE assignment_id = :assignment_id
-             ORDER BY position, id'
-        );
-        $stmt->execute(['assignment_id' => (int)$assignment['id']]);
-        $questions = $stmt->fetchAll();
-
-        foreach ($questions as $question) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO questions
-                 (assignment_id, type, text, points, position, correct_text, interaction_type, settings_json)
-                 VALUES
-                 (:assignment_id, :type, :text, :points, :position, :correct_text, :interaction_type, :settings_json)'
-            );
-            $stmt->execute([
-                'assignment_id' => $newAssignmentId,
-                'type' => (string)$question['type'],
-                'text' => (string)$question['text'],
-                'points' => (float)$question['points'],
-                'position' => (int)$question['position'],
-                'correct_text' => $question['correct_text'],
-                'interaction_type' => $question['interaction_type'],
-                'settings_json' => $question['settings_json'],
-            ]);
-            $newQuestionId = (int)$pdo->lastInsertId();
-
-            $stmt = $pdo->prepare(
-                'SELECT * FROM question_options
-                 WHERE question_id = :question_id
-                 ORDER BY position, id'
-            );
-            $stmt->execute(['question_id' => (int)$question['id']]);
-            foreach ($stmt->fetchAll() as $option) {
-                $insert = $pdo->prepare(
-                    'INSERT INTO question_options (question_id, text, is_correct, position)
-                     VALUES (:question_id, :text, :is_correct, :position)'
-                );
-                $insert->execute([
-                    'question_id' => $newQuestionId,
-                    'text' => (string)$option['text'],
-                    'is_correct' => (int)$option['is_correct'],
-                    'position' => (int)$option['position'],
-                ]);
-            }
-
-            $stmt = $pdo->prepare(
-                'SELECT * FROM question_assets
-                 WHERE question_id = :question_id
-                 ORDER BY position, id'
-            );
-            $stmt->execute(['question_id' => (int)$question['id']]);
-            foreach ($stmt->fetchAll() as $asset) {
-                $newAssetName = copy_private_file(
-                    'question-assets',
-                    (string)$asset['stored_name'],
-                    'shared-question',
-                    $copiedFiles
-                );
-                if ($newAssetName === null) continue;
-
-                $insert = $pdo->prepare(
-                    'INSERT INTO question_assets
-                     (question_id, stored_name, original_name, mime_type, position)
-                     VALUES (:question_id, :stored_name, :original_name, :mime_type, :position)'
-                );
-                $insert->execute([
-                    'question_id' => $newQuestionId,
-                    'stored_name' => $newAssetName,
-                    'original_name' => $asset['original_name'],
-                    'mime_type' => $asset['mime_type'],
-                    'position' => (int)$asset['position'],
-                ]);
-            }
-        }
-
-        $copiedAssignments[] = [
-            'source_id' => (int)$assignment['id'],
-            'target_id' => $newAssignmentId,
-            'title' => (string)$assignment['title'],
-        ];
     }
 
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    foreach ($copiedFiles as $path) {
-        @unlink($path);
-    }
     throw $e;
 }
 
-audit_event('subject_shared_to_school', 'subject', $subjectId, [
+audit_event('school_material_transfer_sent', 'material_transfer', $transferId, [
     'target_school_id' => $targetSchoolId,
+    'subject_id' => $subjectId,
     'assignment_ids' => $assignmentIds,
-    'copied_count' => count($copiedAssignments),
-    'skipped_count' => count($skippedAssignments),
+    'assignment_count' => count($assignments),
 ], $sourceSchoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,
+    'transfer' => [
+        'id' => $transferId,
+        'status' => 'pending',
+        'assignment_count' => count($assignments),
+    ],
     'subject' => [
         'id' => $subjectId,
         'name' => (string)$subject['name'],
@@ -348,6 +169,4 @@ json_response([
         'id' => $targetSchoolId,
         'name' => (string)$targetSchool['name'],
     ],
-    'copied_assignments' => $copiedAssignments,
-    'skipped_assignments' => $skippedAssignments,
 ]);
