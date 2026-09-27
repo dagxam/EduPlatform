@@ -61,7 +61,34 @@ function normalize_answer_text(string $value): string
 {
     $value = trim($value);
     $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-    return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+    $value = str_replace(['«', '»', '“', '”', '„', '’'], ['"', '"', '"', '"', '"', "'"], $value);
+    $value = preg_replace('/[.!?;,]+$/u', '', $value) ?? $value;
+    $value = trim($value);
+    $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+    return str_replace('ё', 'е', $value);
+}
+
+function correct_option_ids(PDO $pdo, int $questionId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id FROM question_options
+         WHERE question_id = :question_id AND is_correct = 1
+         ORDER BY id'
+    );
+    $stmt->execute(['question_id' => $questionId]);
+    return array_map('intval', array_column($stmt->fetchAll(), 'id'));
+}
+
+function valid_choice_answer_key(string $interaction, array $correctIds): bool
+{
+    $count = count($correctIds);
+    if (in_array($interaction, ['single', 'true_false'], true)) {
+        return $count === 1;
+    }
+    if ($interaction === 'multiple') {
+        return $count >= 1;
+    }
+    return false;
 }
 
 function repair_missing_correct_options(PDO $pdo, int $questionId): array
@@ -84,6 +111,15 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
     $interaction = (string)($row['interaction_type'] ?: $row['type']);
     if (!in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
         return [];
+    }
+
+    // The current editor state is authoritative. Never overwrite a valid answer
+    // key with the original imported file: the teacher may have intentionally
+    // changed the correct answer in the constructor after import.
+    $existingCorrect = correct_option_ids($pdo, $questionId);
+    if (valid_choice_answer_key($interaction, $existingCorrect)) {
+        sort($existingCorrect, SORT_NUMERIC);
+        return $existingCorrect;
     }
 
     require_once dirname(__DIR__) . '/assignments/_import_parser.php';
@@ -185,7 +221,10 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
          FROM questions q
          JOIN assignments ass ON ass.id = q.assignment_id
          JOIN assignment_imports ai ON ai.assignment_id = ass.id
-         WHERE q.type IN ("single", "multiple", "true_false")
+         WHERE (
+             q.type IN ("single", "multiple", "true_false")
+             OR q.interaction_type IN ("single", "multiple", "true_false")
+           )
            AND trim(COALESCE(ai.extracted_text, "")) <> ""';
     $params = [];
 
@@ -211,6 +250,19 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
     $repairedQuestions = 0;
 
     foreach ($questionIds as $questionId) {
+        $typeStmt = $pdo->prepare(
+            'SELECT type, interaction_type FROM questions WHERE id = :id LIMIT 1'
+        );
+        $typeStmt->execute(['id' => $questionId]);
+        $typeRow = $typeStmt->fetch();
+        if (!$typeRow) continue;
+
+        $interaction = (string)($typeRow['interaction_type'] ?: $typeRow['type']);
+        $currentCorrect = correct_option_ids($pdo, $questionId);
+        if (valid_choice_answer_key($interaction, $currentCorrect)) {
+            continue;
+        }
+
         $correctIds = repair_missing_correct_options($pdo, $questionId);
         if (!$correctIds) continue;
         $repairedQuestions++;
@@ -279,35 +331,33 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
     }
 
     $type = (string)$question['type'];
+    $interaction = (string)($question['interaction_type'] ?: $type);
+    if ($interaction === 'ordering') $interaction = 'order';
+    if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
+
     $points = (float)$question['points'];
     $answerText = '';
     $score = 0.0;
     $isCorrect = 0;
     $needsReview = 0;
 
-    if (in_array($type, ['single', 'multiple', 'true_false'], true)) {
+    // interaction_type is the authoritative UI/grading type. Older imported
+    // questions can legitimately have type="text" with a choice interaction.
+    if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
         $selected = array_values(array_unique(array_map('intval', (array)($payload['option_ids'] ?? []))));
         sort($selected, SORT_NUMERIC);
 
-        $stmt = $pdo->prepare(
-            'SELECT id FROM question_options WHERE question_id = :question_id AND is_correct = 1 ORDER BY id'
-        );
-        $stmt->execute(['question_id' => $questionId]);
-        $correct = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+        $correct = correct_option_ids($pdo, $questionId);
         sort($correct, SORT_NUMERIC);
 
-        if (!$correct) {
+        if (!valid_choice_answer_key($interaction, $correct)) {
             $correct = repair_missing_correct_options($pdo, $questionId);
         }
 
         $answerText = json_encode($selected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
         $isCorrect = ($selected === $correct && count($selected) > 0) ? 1 : 0;
         $score = $isCorrect ? $points : 0.0;
-    } elseif ($type === 'text') {
-        $interaction = (string)($question['interaction_type'] ?? 'text');
-        if ($interaction === 'ordering') $interaction = 'order';
-        if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
-
+    } elseif (in_array($interaction, ['text', 'order', 'matching', 'correction'], true)) {
         if ($interaction === 'order') {
             $selected = array_values(array_map('strval', (array)($payload['order'] ?? [])));
             $expected = json_decode((string)($question['correct_text'] ?? ''), true);
@@ -347,7 +397,7 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
                 $isCorrect = 0;
             }
         }
-    } elseif ($type === 'number') {
+    } elseif ($interaction === 'number') {
         $answerText = trim((string)($payload['answer_text'] ?? ''));
         $expected = trim((string)($question['correct_text'] ?? ''));
         if (is_numeric($answerText) && is_numeric($expected)) {
