@@ -11,6 +11,7 @@ const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
 const libraryPreviewModal = document.getElementById('libraryPreviewModal');
+const resultEditModal = document.getElementById('resultEditModal');
 const duplicateAssignmentModal = document.getElementById('duplicateAssignmentModal');
 const assignToClassModal = document.getElementById('assignToClassModal');
 const shareSubjectModal = document.getElementById('shareSubjectModal');
@@ -1927,6 +1928,8 @@ const historyEventLabels = {
   library_item_withdrawn: 'Материал снят с публикации',
   library_item_imported: 'Материал импортирован из библиотеки',
   assignment_deleted: 'Задание удалено',
+  attempt_result_draft_updated: 'Результат ученика скорректирован',
+  attempt_result_published: 'Обновлённая оценка опубликована',
   mail_test_sent: 'Отправлено тестовое письмо UROVIA'
 };
 
@@ -2215,12 +2218,337 @@ async function loadTeacherDashboard() {
   }
 }
 
+
+function resultDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function resultGradeClass(grade) {
+  const value = String(grade || '');
+  return ['2','3','4','5'].includes(value) ? 'grade-' + value : '';
+}
+
+function renderResults() {
+  const body = document.getElementById('resultsBody');
+  const summary = document.getElementById('resultsSummary');
+  if (!body) return;
+
+  const query = String(document.getElementById('resultsSearch')?.value || '').trim().toLowerCase();
+  const classId = Number(document.getElementById('resultsClassFilter')?.value || 0);
+  const assignmentId = Number(document.getElementById('resultsAssignmentFilter')?.value || 0);
+
+  const rows = resultsCache.filter(item => {
+    const name = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ').toLowerCase();
+    const haystack = [name, item.assignment_title, item.subject_name, item.class_name].join(' ').toLowerCase();
+    return (!query || haystack.includes(query))
+      && (!classId || Number(item.class_id) === classId)
+      && (!assignmentId || Number(item.assignment_id) === assignmentId);
+  });
+
+  if (summary) {
+    const adjusted = rows.filter(item => item.display?.published_override).length;
+    const drafts = rows.filter(item => item.has_unpublished_draft).length;
+    summary.innerHTML = '<b>' + rows.length + '</b> результатов'
+      + (adjusted ? ' · <span>' + adjusted + ' скорректировано и опубликовано</span>' : '')
+      + (drafts ? ' · <span class="results-draft-count">' + drafts + ' неопубликованных изменений</span>' : '');
+  }
+
+  body.innerHTML = rows.length ? rows.map(item => {
+    const display = item.display || {};
+    const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Ученик';
+    let statusHtml = '<span class="status blue">Автоматически</span>';
+    if (item.has_unpublished_draft) {
+      statusHtml = '<span class="status amber">Есть черновик</span>';
+    } else if (display.published_override) {
+      statusHtml = '<span class="status green">Опубликовано · v' + Number(display.revision || 1) + '</span>';
+    } else if (item.status === 'needs_review') {
+      statusHtml = '<span class="status amber">Нужна проверка</span>';
+    }
+
+    return `
+      <tr>
+        <td><b>${escapeHtml(studentName)}</b><small class="results-cell-sub">${escapeHtml(resultDateTime(item.submitted_at))}</small></td>
+        <td>${escapeHtml(item.class_name || '—')}</td>
+        <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}${item.variant_label ? ' · вариант ' + escapeHtml(item.variant_label) : ''}</small></td>
+        <td><b>${Number(display.score || 0).toLocaleString('ru-RU')} / ${Number(display.max_score || 0).toLocaleString('ru-RU')}</b></td>
+        <td><b>${Math.round(Number(display.percent || 0))}%</b></td>
+        <td><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
+        <td>${statusHtml}</td>
+        <td><button class="secondary-btn compact-btn" type="button" data-edit-result="${Number(item.attempt_id)}">Редактировать</button></td>
+      </tr>`;
+  }).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
+
+  body.querySelectorAll('[data-edit-result]').forEach(button => {
+    button.addEventListener('click', () => openResultEditor(Number(button.dataset.editResult)));
+  });
+}
+
+async function loadResults() {
+  const body = document.getElementById('resultsBody');
+  if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных результатов...</td></tr>';
+
+  try {
+    const response = await fetch('./api/results/list.php', { credentials:'same-origin', cache:'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить результаты.');
+
+    resultsCache = data.items || [];
+
+    const classSelect = document.getElementById('resultsClassFilter');
+    const assignmentSelect = document.getElementById('resultsAssignmentFilter');
+    const previousClass = classSelect?.value || '';
+    const previousAssignment = assignmentSelect?.value || '';
+
+    if (classSelect) {
+      classSelect.innerHTML = '<option value="">Все классы</option>' + (data.filters?.classes || [])
+        .map(item => `<option value="${Number(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+      classSelect.value = previousClass;
+    }
+    if (assignmentSelect) {
+      assignmentSelect.innerHTML = '<option value="">Все задания</option>' + (data.filters?.assignments || [])
+        .map(item => `<option value="${Number(item.id)}">${escapeHtml(item.title)}</option>`).join('');
+      assignmentSelect.value = previousAssignment;
+    }
+
+    renderResults();
+  } catch (error) {
+    resultsCache = [];
+    if (body) body.innerHTML = '<tr><td colspan="8">' + escapeHtml(error.message) + '</td></tr>';
+    const summary = document.getElementById('resultsSummary');
+    if (summary) summary.textContent = error.message;
+  }
+}
+
+function openResultEditor(attemptId) {
+  const item = resultsCache.find(row => Number(row.attempt_id) === Number(attemptId));
+  if (!item || !resultEditModal) return;
+
+  activeResultEdit = item;
+  const auto = item.automatic || {};
+  const published = item.display || {};
+  const draft = item.draft;
+  const edit = item.has_unpublished_draft && draft ? draft : published;
+
+  document.getElementById('resultAttemptId').value = String(item.attempt_id);
+  document.getElementById('resultEditTitle').textContent =
+    [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Результат ученика';
+  document.getElementById('resultEditMeta').textContent =
+    [item.assignment_title, item.subject_name, item.class_name, item.variant_label ? 'вариант ' + item.variant_label : ''].filter(Boolean).join(' · ');
+
+  document.getElementById('resultAutoScore').textContent =
+    Number(auto.score || 0).toLocaleString('ru-RU') + ' / ' + Number(auto.max_score || 0).toLocaleString('ru-RU');
+  document.getElementById('resultAutoGrade').textContent =
+    Math.round(Number(auto.percent || 0)) + '% · оценка ' + (auto.grade || '—');
+
+  document.getElementById('resultPublishedScore').textContent =
+    Number(published.score || 0).toLocaleString('ru-RU') + ' / ' + Number(published.max_score || 0).toLocaleString('ru-RU');
+  document.getElementById('resultPublishedGrade').textContent =
+    Math.round(Number(published.percent || 0)) + '% · оценка ' + (published.grade || '—');
+
+  document.getElementById('resultRevision').textContent = String(Number(published.revision || 0));
+  document.getElementById('resultPublishedAt').textContent = published.published_override
+    ? 'Опубликовано ' + resultDateTime(published.published_at)
+    : 'Исходный автоматический результат';
+
+  const score = document.getElementById('resultEditScore');
+  score.max = String(Number(auto.max_score || 0));
+  score.value = String(Number(edit.score ?? auto.score ?? 0));
+  document.getElementById('resultEditGrade').value = String(edit.grade || auto.grade || '2');
+  document.getElementById('resultEditComment').value = String(
+    item.has_unpublished_draft && draft ? (draft.comment || '') : (published.comment || '')
+  );
+  document.getElementById('resultScoreLimit').textContent =
+    'Максимум: ' + Number(auto.max_score || 0).toLocaleString('ru-RU') + ' балл.';
+  updateResultEditorPercent();
+
+  document.getElementById('resultEditError')?.classList.add('hidden');
+  document.getElementById('resultEditSuccess')?.classList.add('hidden');
+  document.getElementById('resultPublishBtn').textContent = item.has_unpublished_draft
+    ? 'Опубликовать обновлённую оценку'
+    : 'Опубликовать текущую корректировку';
+
+  openModal(resultEditModal);
+}
+
+function updateResultEditorPercent() {
+  if (!activeResultEdit) return;
+  const max = Number(activeResultEdit.automatic?.max_score || 0);
+  const score = Number(document.getElementById('resultEditScore')?.value || 0);
+  const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+  const node = document.getElementById('resultCalculatedPercent');
+  if (node) node.textContent = 'Процент: ' + Math.round(percent * 100) / 100 + '%';
+}
+
+async function saveResultDraft(showFeedback = true) {
+  if (!activeResultEdit) throw new Error('Результат не выбран.');
+
+  const error = document.getElementById('resultEditError');
+  const success = document.getElementById('resultEditSuccess');
+  error?.classList.add('hidden');
+  if (showFeedback) success?.classList.add('hidden');
+
+  const payload = {
+    attempt_id: Number(activeResultEdit.attempt_id),
+    score: Number(document.getElementById('resultEditScore').value),
+    grade: String(document.getElementById('resultEditGrade').value || ''),
+    comment: String(document.getElementById('resultEditComment').value || '').trim()
+  };
+
+  const response = await fetch('./api/results/save.php', {
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить корректировку.');
+
+  if (showFeedback && success) {
+    success.textContent = data.message || 'Черновик сохранён.';
+    success.classList.remove('hidden');
+  }
+
+  await loadResults();
+  activeResultEdit = resultsCache.find(row => Number(row.attempt_id) === Number(payload.attempt_id)) || activeResultEdit;
+  return data;
+}
+
+async function publishResultRevision() {
+  if (!activeResultEdit) return;
+  const attemptId = Number(activeResultEdit.attempt_id);
+  const publishButton = document.getElementById('resultPublishBtn');
+  const error = document.getElementById('resultEditError');
+  error?.classList.add('hidden');
+
+  publishButton.disabled = true;
+  publishButton.textContent = 'Публикуем...';
+
+  try {
+    await saveResultDraft(false);
+    const confirmed = await appConfirm(
+      'Опубликовать скорректированную оценку ученику? После публикации она сразу появится в разделе «Мои оценки».',
+      { title:'Опубликовать новую оценку', okText:'Опубликовать' }
+    );
+    if (!confirmed) return;
+
+    const response = await fetch('./api/results/publish.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ attempt_id: attemptId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось опубликовать оценку.');
+
+    await Promise.all([
+      loadResults(),
+      loadTeacherDashboard().catch(() => {})
+    ]);
+    openResultEditor(attemptId);
+    const success = document.getElementById('resultEditSuccess');
+    if (success) {
+      success.textContent = data.message || 'Обновлённая оценка опубликована.';
+      success.classList.remove('hidden');
+    }
+  } catch (errorValue) {
+    if (error) {
+      error.textContent = errorValue.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    publishButton.disabled = false;
+    publishButton.textContent = 'Опубликовать обновлённую оценку';
+  }
+}
+
+async function loadStudentResults() {
+  const body = document.getElementById('studentResultsBody');
+  const recent = document.getElementById('studentRecentGrades');
+  if (body) body.innerHTML = '<tr><td colspan="7">Загрузка реальных оценок...</td></tr>';
+  if (recent) recent.innerHTML = '<div class="dashboard-empty">Загрузка оценок...</div>';
+
+  try {
+    const response = await fetch('./api/student/results.php', { credentials:'same-origin', cache:'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить оценки.');
+    const items = data.items || [];
+
+    if (body) {
+      body.innerHTML = items.length ? items.map(item => `
+        <tr>
+          <td>${escapeHtml(resultDateTime(item.submitted_at))}</td>
+          <td>${escapeHtml(item.subject_name || '—')}</td>
+          <td><b>${escapeHtml(item.assignment_title)}</b>${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
+          <td>${Number(item.score || 0).toLocaleString('ru-RU')} / ${Number(item.max_score || 0).toLocaleString('ru-RU')}</td>
+          <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
+          <td><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span></td>
+          <td>${item.comment ? '<span class="student-result-comment">' + escapeHtml(item.comment) + '</span>' : '—'}</td>
+        </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
+    }
+
+    if (recent) {
+      recent.innerHTML = items.length ? items.slice(0, 4).map(item => `
+        <div class="grade-row">
+          <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)}</span></div>
+          <span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
+        </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
+    }
+  } catch (error) {
+    if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
+    if (recent) recent.innerHTML = '<div class="dashboard-empty">' + escapeHtml(error.message) + '</div>';
+  }
+}
+
+document.getElementById('resultsSearch')?.addEventListener('input', renderResults);
+document.getElementById('resultsClassFilter')?.addEventListener('change', renderResults);
+document.getElementById('resultsAssignmentFilter')?.addEventListener('change', renderResults);
+document.getElementById('resultEditScore')?.addEventListener('input', updateResultEditorPercent);
+document.getElementById('resultResetAutoBtn')?.addEventListener('click', () => {
+  if (!activeResultEdit) return;
+  document.getElementById('resultEditScore').value = String(Number(activeResultEdit.automatic?.score || 0));
+  document.getElementById('resultEditGrade').value = String(activeResultEdit.automatic?.grade || '2');
+  document.getElementById('resultEditComment').value = '';
+  updateResultEditorPercent();
+});
+document.getElementById('resultEditForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = document.getElementById('resultSaveDraftBtn');
+  const attemptId = Number(activeResultEdit?.attempt_id || 0);
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  try {
+    await saveResultDraft(true);
+    if (attemptId) openResultEditor(attemptId);
+    const success = document.getElementById('resultEditSuccess');
+    if (success) {
+      success.textContent = 'Черновик сохранён. Ученик пока видит предыдущий опубликованный результат.';
+      success.classList.remove('hidden');
+    }
+  } catch (error) {
+    const node = document.getElementById('resultEditError');
+    if (node) {
+      node.textContent = error.message;
+      node.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить черновик';
+  }
+});
+document.getElementById('resultPublishBtn')?.addEventListener('click', publishResultRevision);
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'teacher-dashboard') loadTeacherDashboard().catch(() => {});
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'results') loadResults().catch(() => {});
+  if (btn.dataset.view === 'student-results') loadStudentResults().catch(() => {});
   if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
   if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
@@ -2228,7 +2556,14 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
-document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
+document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => {
+  const target = btn.dataset.viewJump;
+  showView(target);
+  if (target === 'results') loadResults().catch(() => {});
+  if (target === 'student-results') loadStudentResults().catch(() => {});
+  if (target === 'assignments') loadAssignments();
+  if (target === 'classes') loadClasses();
+}));
 menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
 
 document.getElementById('notificationsBtn')?.addEventListener('click', () => {
@@ -2236,7 +2571,10 @@ document.getElementById('notificationsBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('openHistoryTaskBtn')?.addEventListener('click', () => showView('student-tasks'));
-document.getElementById('viewResultBtn')?.addEventListener('click', () => showView('student-results'));
+document.getElementById('viewResultBtn')?.addEventListener('click', () => {
+  showView('student-results');
+  loadStudentResults().catch(() => {});
+});
 
 document.getElementById('exportResultsBtn')?.addEventListener('click', () => {
   const table = document.querySelector('#results table');
@@ -2250,7 +2588,7 @@ document.getElementById('exportResultsBtn')?.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'uvoria-results.csv';
+  link.download = 'urovia-results.csv';
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -2280,6 +2618,8 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
 
 let subjectsCache = [];
 let assignmentsCache = [];
+let resultsCache = [];
+let activeResultEdit = null;
 let assignmentWorkflowContext = { review_required: false, can_manage: false };
 let teacherOptionsCache = [];
 let selectedSubjectId = null;
@@ -4795,7 +5135,7 @@ loadSession().then(async user => {
 
   if (user.role === 'student') {
     try {
-      await Promise.all([loadSchoolBranding(), loadStudentAssignments()]);
+      await Promise.all([loadSchoolBranding(), loadStudentAssignments(), loadStudentResults()]);
       const requested = requestedInitialView(user);
       if (requested) showView(requested);
     } catch {}
@@ -4822,6 +5162,7 @@ loadSession().then(async user => {
       if (requested === 'classes') await loadClasses();
       if (requested === 'subjects') await loadSubjectsWorkspace();
       if (requested === 'assignments') await loadAssignments();
+      if (requested === 'results') await loadResults().catch(() => {});
       if (requested === 'uvoria-library') await loadLibrary().catch(() => {});
       if (requested === 'activity-history') await loadActivityHistory().catch(() => {});
       if (requested === 'staff-profile') await loadStaffProfile().catch(() => {});
