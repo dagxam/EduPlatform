@@ -42,11 +42,13 @@ $stmt = app_db()->prepare(
             u.first_name AS teacher_first_name,
             u.last_name AS teacher_last_name,
             a.source_school_id, a.source_assignment_id,
-            src.name AS source_school_name
+            src.name AS source_school_name,
+            li.id AS library_item_id, li.status AS library_status
      FROM assignments a
      LEFT JOIN users u ON u.id = a.teacher_id
      LEFT JOIN subjects s ON s.id = a.subject_id
      LEFT JOIN schools src ON src.id = a.source_school_id
+     LEFT JOIN library_items li ON li.source_school_id = a.school_id AND li.source_assignment_id = a.id
      LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
      LEFT JOIN questions q ON q.assignment_id = a.id
      LEFT JOIN assignment_classes ac ON ac.assignment_id = a.id
