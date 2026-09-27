@@ -587,7 +587,7 @@ async function loadClasses() {
         <div>
           <span class="class-badge">${escapeHtml(item.name)}</span>
           <h3>${escapeHtml(item.name)}</h3>
-          <p>${Number(item.students_count)} учеников</p>
+          <p>${Number(item.students_count)} учеников${item.academic_year ? ' · ' + escapeHtml(item.academic_year) : ''}</p>
         </div>
         <div class="class-code-mini">
           <span>Код</span>
