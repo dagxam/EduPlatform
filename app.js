@@ -5346,7 +5346,10 @@ async function startRealStudentAssignment(assignmentId) {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ attempt_id: activeStudentAttempt.id })
+          body: JSON.stringify({
+            attempt_id: activeStudentAttempt.id,
+            answers: collectQuizAnswerSnapshot(questions)
+          })
         });
         const data = await response.json();
         if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сдать работу.');
@@ -5363,10 +5366,8 @@ async function startRealStudentAssignment(assignmentId) {
 }
 
 
-function collectStaffTestAnswers() {
-  if (!activeStaffPreview) return [];
-
-  return (activeStaffPreview.questions || []).map(question => {
+function collectQuizAnswerSnapshot(questions = []) {
+  return (questions || []).map(question => {
     const questionId = Number(question.id);
     const interaction = canonicalQuestionType(question.interaction_type || question.type);
     const section = document.querySelector(`[data-real-question="${questionId}"]`);
@@ -5395,6 +5396,11 @@ function collectStaffTestAnswers() {
 
     return { question_id: questionId, payload };
   });
+}
+
+function collectStaffTestAnswers() {
+  if (!activeStaffPreview) return [];
+  return collectQuizAnswerSnapshot(activeStaffPreview.questions || []);
 }
 
 function renderStaffTestResult(result) {
