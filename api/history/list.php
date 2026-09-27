@@ -44,7 +44,11 @@ if (!$manager) {
 
 if ($entityType !== '') {
     if ($entityType === 'material') {
-        $where[] = '(a.entity_type = "material" OR a.entity_type = "subject" OR a.event_type LIKE "material_%")';
+        $where[] = '(a.entity_type = "material_transfer" OR a.event_type LIKE "%material%")';
+    } elseif ($entityType === 'teacher') {
+        $where[] = '(a.entity_type = "user" AND (a.event_type LIKE "teacher_%" OR a.event_type LIKE "school_admin_%"))';
+    } elseif ($entityType === 'student') {
+        $where[] = '(a.entity_type = "user" AND a.event_type LIKE "student_%")';
     } else {
         $where[] = 'a.entity_type = :entity_type';
         $params['entity_type'] = $entityType;
