@@ -15,8 +15,8 @@ $stmt = $pdo->prepare(
             MAX(CASE WHEN at.status = "in_progress" THEN at.id END) AS active_attempt_id,
             MAX(CASE WHEN at.status = "in_progress" THEN at.variant_label END) AS active_variant_label,
             COUNT(DISTINCT CASE WHEN at.status <> "in_progress" THEN at.id END) AS completed_attempts,
-            MAX(CASE WHEN at.status <> "in_progress" THEN at.percent END) AS last_percent,
-            MAX(CASE WHEN at.status <> "in_progress" THEN at.grade END) AS last_grade
+            MAX(CASE WHEN at.status <> "in_progress" THEN COALESCE(at.published_percent, at.percent) END) AS last_percent,
+            MAX(CASE WHEN at.status <> "in_progress" THEN COALESCE(at.published_grade, at.grade) END) AS last_grade
      FROM class_students cs
      JOIN classes c ON c.id = cs.class_id
      JOIN assignment_classes ac ON ac.class_id = c.id
