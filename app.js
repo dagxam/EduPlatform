@@ -2638,6 +2638,7 @@ function renderAssignments() {
         <td class="row-actions-cell">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
+          ${assignmentDeleteButton(item)}
           ${libraryAssignmentAction(item)}
           ${assignmentWorkflowActionButtons(item)}
         </td>
