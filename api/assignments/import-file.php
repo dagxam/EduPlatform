@@ -13,17 +13,10 @@ $title = trim((string)($_POST['title'] ?? ''));
 $focusPolicy = in_array(($_POST['focus_policy'] ?? 'allow'), ['allow', 'strict'], true)
     ? (string)$_POST['focus_policy']
     : 'allow';
-$variantCount = max(1, min(4, (int)($_POST['variant_count'] ?? 1)));
-$shuffleQuestions = !empty($_POST['shuffle_questions']) ? 1 : 0;
-$shuffleOptions = !empty($_POST['shuffle_options']) ? 1 : 0;
-$shuffleStructured = !empty($_POST['shuffle_structured']) ? 1 : 0;
-
-if ($variantCount < 2) {
-    $variantCount = 1;
-    $shuffleQuestions = 0;
-    $shuffleOptions = 0;
-    $shuffleStructured = 0;
-}
+$variantCount = 1;
+$shuffleQuestions = 0;
+$shuffleOptions = 0;
+$shuffleStructured = 0;
 
 if ($subjectId < 1 || empty($_FILES['file'])) {
     json_response(['ok' => false, 'error' => 'Выберите предмет и файл задания.'], 422);
