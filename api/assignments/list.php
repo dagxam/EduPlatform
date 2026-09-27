@@ -29,7 +29,7 @@ if (!can_manage_school($user, $schoolId)) {
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
 $stmt = app_db()->prepare(
-    "SELECT a.id, a.subject_id, a.title, a.type, a.status, a.workflow_status,
+    "SELECT a.id, a.teacher_id, a.subject_id, a.title, a.type, a.status, a.workflow_status,
             a.review_submitted_at, a.reviewed_at, a.reviewed_by, a.review_comment, a.completed_at,
             a.max_attempts, a.time_limit_minutes, a.starts_at, a.due_at, a.show_answers,
             a.focus_policy, a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured, a.created_at,
@@ -39,6 +39,7 @@ $stmt = app_db()->prepare(
             GROUP_CONCAT(DISTINCT COALESCE(c.display_name, c.name)) AS class_names,
             GROUP_CONCAT(DISTINCT c.id) AS class_ids,
             COUNT(DISTINCT at.id) AS attempts_count,
+            (SELECT COUNT(*) FROM attempts ax WHERE ax.assignment_id = a.id) AS all_attempts_count,
             u.first_name AS teacher_first_name,
             u.last_name AS teacher_last_name,
             a.source_school_id, a.source_assignment_id,
