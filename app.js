@@ -23,6 +23,7 @@ const schoolAdminModal = document.getElementById('schoolAdminModal');
 const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal');
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
+const classEditModal = document.getElementById('classEditModal');
 const studentEditModal = document.getElementById('studentEditModal');
 let currentUser = null;
 let activeSchoolName = '';
@@ -592,7 +593,10 @@ async function loadClasses() {
           <span>Код</span>
           <strong>${escapeHtml(item.join_code || '—')}</strong>
         </div>
-        <button type="button" data-open-class="${item.id}">Открыть класс</button>
+        <div class="class-card-actions">
+          <button type="button" data-open-class="${item.id}">Открыть класс</button>
+          ${currentUser?.role === 'admin' ? `<button type="button" class="secondary-btn" data-edit-class="${item.id}">✎ Редактировать</button>` : ''}
+        </div>
       </article>
     `).join('');
 
@@ -600,10 +604,156 @@ async function loadClasses() {
       const item = classesCache.find(x => Number(x.id) === Number(button.dataset.openClass));
       if (item) openClassDetails(item);
     }));
+    grid.querySelectorAll('[data-edit-class]').forEach(button => button.addEventListener('click', () => {
+      const item = classesCache.find(x => Number(x.id) === Number(button.dataset.editClass));
+      if (item) openClassEditor(item);
+    }));
   } catch (error) {
     grid.innerHTML = `<article class="panel"><p>${escapeHtml(error.message)}</p></article>`;
   }
 }
+
+function openClassEditor(item) {
+  if (currentUser?.role !== 'admin' || !item || !classEditModal) return;
+
+  currentClass = item;
+  document.getElementById('classEditId').value = String(item.id);
+  document.getElementById('classEditName').value = item.name || '';
+  document.getElementById('classEditAcademicYear').value = item.academic_year || '';
+  document.getElementById('classEditTitle').textContent = 'Редактировать: ' + (item.name || 'класс');
+
+  const studentsCount = Number(item.students_count || 0);
+  const warning = document.getElementById('classDeleteWarning');
+  if (warning) {
+    warning.textContent = studentsCount
+      ? `В классе ${studentsCount} ученик(ов). При удалении исчезнут их аккаунты, PIN, попытки, ответы, оценки и результаты. Восстановить это действие нельзя.`
+      : 'Класс пустой. Будут удалены сам класс, его код, назначения учителей и связи с заданиями. Восстановить это действие нельзя.';
+  }
+
+  document.getElementById('classEditError')?.classList.add('hidden');
+  document.getElementById('classEditResult')?.classList.add('hidden');
+  openModal(classEditModal);
+}
+
+document.getElementById('editClassFromDetailsBtn')?.addEventListener('click', () => {
+  if (!currentClass) return;
+  closeModal(classDetailsModal);
+  openClassEditor(currentClass);
+});
+
+document.getElementById('classEditForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentClass || currentUser?.role !== 'admin') return;
+
+  const form = event.currentTarget;
+  const button = document.getElementById('classEditSaveBtn');
+  const error = document.getElementById('classEditError');
+  const result = document.getElementById('classEditResult');
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  const payload = Object.fromEntries(new FormData(form).entries());
+  payload.class_id = Number(currentClass.id);
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/classes/update.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось обновить класс.');
+
+    currentClass = { ...currentClass, ...data.class };
+    await Promise.all([
+      loadClasses(),
+      loadTeacherDashboard().catch(() => {}),
+      loadSchoolManagement().catch(() => {})
+    ]);
+
+    if (result) {
+      result.textContent = data.message || 'Класс обновлён.';
+      result.classList.remove('hidden');
+    }
+    document.getElementById('classEditTitle').textContent = 'Редактировать: ' + currentClass.name;
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить изменения';
+  }
+});
+
+document.getElementById('deleteClassBtn')?.addEventListener('click', async () => {
+  if (!currentClass || currentUser?.role !== 'admin') return;
+
+  const classId = Number(currentClass.id);
+  const className = String(currentClass.name || 'Класс');
+  const studentsCount = Number(currentClass.students_count || currentClassStudentsCache.length || 0);
+
+  const message = studentsCount
+    ? `Удалить класс «${className}» безвозвратно? Будут удалены ${studentsCount} ученик(ов), их аккаунты, PIN, все попытки, ответы, оценки и результаты. Также исчезнут код класса и все назначения этого класса. Это действие нельзя отменить.`
+    : `Удалить пустой класс «${className}» безвозвратно? Код класса, назначения учителей и связи с заданиями также будут удалены. Это действие нельзя отменить.`;
+
+  const confirmed = await appConfirm(message, {
+    title:'Полное удаление класса',
+    tone:'danger',
+    okText:'Удалить класс навсегда',
+    cancelText:'Отмена'
+  });
+  if (!confirmed) return;
+
+  const button = document.getElementById('deleteClassBtn');
+  const error = document.getElementById('classEditError');
+  button.disabled = true;
+  button.textContent = 'Удаляем класс и данные...';
+  error?.classList.add('hidden');
+
+  try {
+    const response = await fetch('./api/classes/delete.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ class_id: classId, confirm_delete: true })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось удалить класс.');
+
+    closeModal(classEditModal);
+    if (classDetailsModal && !classDetailsModal.classList.contains('hidden')) closeModal(classDetailsModal);
+    currentClass = null;
+    currentClassStudentsCache = [];
+    teacherOptionsCache = [];
+
+    await Promise.all([
+      loadClasses(),
+      loadAssignments().catch(() => {}),
+      loadTeacherDashboard().catch(() => {}),
+      loadSchoolManagement().catch(() => {}),
+      loadResults().catch(() => {})
+    ]);
+
+    await appAlert(
+      `Класс «${className}» удалён. Удалено учеников: ${Number(data.deleted?.students || 0)}. Их учебные данные также удалены.`,
+      { title:'Класс удалён', tone:'success', okText:'Готово' }
+    );
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Удалить класс и всех учеников';
+  }
+});
 
 async function openClassDetails(item) {
   currentClass = item;
@@ -1982,6 +2132,8 @@ const historyEventLabels = {
   students_imported: 'Ученики импортированы',
   student_pin_reset: 'PIN ученика сброшен',
   student_profile_updated: 'Данные ученика изменены',
+  class_updated: 'Данные класса изменены',
+  class_deleted: 'Класс удалён полностью',
   password_recovery_requested: 'Запрошено восстановление пароля',
   password_recovery_completed: 'Пароль восстановлен по email',
   teacher_created: 'Сотрудник добавлен',
