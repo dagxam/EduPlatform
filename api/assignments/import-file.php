@@ -113,7 +113,7 @@ $parseStatus = 'uploaded_for_review';
 $parserMessage = 'Файл сохранён. Автоматическое извлечение текста для этого файла не дало достаточного результата.';
 if ($extractedText !== null && trim($extractedText) !== '') {
     $parseStatus = 'text_extracted';
-    $parserMessage = 'Текст извлечён. Вопросы не найдены по шаблону UVORIA — проверьте структуру файла.';
+    $parserMessage = 'Текст извлечён. Вопросы не найдены по шаблону UROVIA — проверьте структуру файла.';
 }
 if ($parsedQuestions) {
     $parseStatus = 'questions_parsed';
