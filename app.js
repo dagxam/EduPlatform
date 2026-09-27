@@ -2314,10 +2314,53 @@ function renderActivityHistory(data) {
             ${role ? `<span>${escapeHtml(role)}</span>` : ''}
           </div>
           ${details ? `<div class="history-details">${details}</div>` : ''}
-          <small class="history-event-code">${escapeHtml(item.event_type || '')}</small>
+          <div class="history-item-footer">
+            <small class="history-event-code">${escapeHtml(item.event_type || '')}</small>
+            <button class="history-delete-btn" type="button" data-delete-history="${Number(item.id)}">Удалить</button>
+          </div>
         </div>
       </article>`;
   }).join('');
+
+  list.querySelectorAll('[data-delete-history]').forEach(button => {
+    button.addEventListener('click', () => deleteHistoryRecord(Number(button.dataset.deleteHistory)));
+  });
+}
+
+async function deleteHistoryRecord(historyId) {
+  const confirmed = await appConfirm('Удалить эту запись из истории действий?', {
+    title:'Удалить запись истории', tone:'danger', okText:'Удалить'
+  });
+  if (!confirmed) return;
+  try {
+    const response = await fetch('./api/history/delete.php', {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ history_id: historyId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось удалить запись.');
+    await loadActivityHistory();
+  } catch (error) {
+    await appAlert(error.message, { title:'Не удалось удалить запись', tone:'danger' });
+  }
+}
+
+async function clearActivityHistory() {
+  const confirmed = await appConfirm('Очистить доступную историю действий? Восстановить её через интерфейс будет нельзя.', {
+    title:'Очистить историю', tone:'danger', okText:'Очистить историю'
+  });
+  if (!confirmed) return;
+  try {
+    const response = await fetch('./api/history/clear.php', {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось очистить историю.');
+    await loadActivityHistory();
+    await appAlert('Удалено записей: ' + Number(data.deleted || 0) + '.', { title:'История очищена', tone:'success', okText:'Готово' });
+  } catch (error) {
+    await appAlert(error.message, { title:'Не удалось очистить историю', tone:'danger' });
+  }
 }
 
 async function loadActivityHistory() {
@@ -2354,6 +2397,9 @@ document.getElementById('historyEntityFilter')?.addEventListener('change', () =>
 
 document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => {
   loadActivityHistory().catch(() => {});
+});
+document.getElementById('clearHistoryBtn')?.addEventListener('click', () => {
+  clearActivityHistory().catch(() => {});
 });
 
 
