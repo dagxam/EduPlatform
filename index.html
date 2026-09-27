@@ -678,6 +678,50 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="duplicateAssignmentModal">
+    <div class="modal duplicate-assignment-modal">
+      <button class="modal-close" data-close-modal="duplicateAssignmentModal">×</button>
+      <span class="section-kicker">Копирование задания</span>
+      <h2 id="duplicateAssignmentTitle">Дублировать задание</h2>
+      <p>Создаётся независимый черновик со всеми вопросами, вариантами ответа, изображениями и настройками A/B/C/D. Классы, попытки и результаты не копируются.</p>
+      <form id="duplicateAssignmentForm">
+        <input type="hidden" id="duplicateAssignmentSourceId">
+        <label>Название новой копии
+          <input id="duplicateAssignmentName" name="title" maxlength="180" required>
+        </label>
+
+        <div class="form-row">
+          <label>Открыть с
+            <input id="duplicateAssignmentStartsAt" name="starts_at" type="datetime-local">
+          </label>
+          <label>Дедлайн
+            <input id="duplicateAssignmentDueAt" name="due_at" type="datetime-local">
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label>Время, минут
+            <input id="duplicateAssignmentTimeLimit" name="time_limit_minutes" type="number" min="1" max="600" placeholder="Без ограничения">
+          </label>
+          <label>Попыток
+            <input id="duplicateAssignmentMaxAttempts" name="max_attempts" type="number" min="1" max="10" value="1" required>
+          </label>
+        </div>
+
+        <label>Режим контроля
+          <select id="duplicateAssignmentFocusPolicy" name="focus_policy">
+            <option value="allow">Обычный — можно сворачивать</option>
+            <option value="strict">Строгий — уход со страницы завершает работу</option>
+          </select>
+        </label>
+
+        <div class="duplicate-copy-summary" id="duplicateCopySummary"></div>
+        <div class="form-error hidden" id="duplicateAssignmentError"></div>
+        <button class="primary-btn full" type="submit">Создать копию и открыть конструктор</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="assignToClassModal">
     <div class="modal">
       <button class="modal-close" data-close-modal="assignToClassModal">×</button>
