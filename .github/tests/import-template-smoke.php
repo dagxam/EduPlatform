@@ -97,6 +97,11 @@ if (count($questions) !== 8) {
     fwrite(STDERR, 'Expected 8 questions, got ' . count($questions) . PHP_EOL);
     exit(1);
 }
+$validationIssues = import_validate_questions($questions);
+if ($validationIssues) {
+    fwrite(STDERR, 'Valid template failed answer-key validation: ' . implode(' | ', $validationIssues) . PHP_EOL);
+    exit(1);
+}
 if ($actual !== $expected) {
     fwrite(STDERR, 'Unexpected types: ' . json_encode($actual, JSON_UNESCAPED_UNICODE) . PHP_EOL);
     exit(1);
