@@ -23,6 +23,7 @@ const schoolAdminModal = document.getElementById('schoolAdminModal');
 const teacherAssignmentsModal = document.getElementById('teacherAssignmentsModal');
 const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
+const studentEditModal = document.getElementById('studentEditModal');
 let currentUser = null;
 let activeSchoolName = '';
 let currentBranding = { theme_color: '#1d68f0' };
@@ -557,6 +558,8 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
 
 let classesCache = [];
 let currentClass = null;
+let currentClassStudentsCache = [];
+let editingStudentId = null;
 let studentImportPreviewRows = [];
 
 async function loadClasses() {
@@ -638,17 +641,23 @@ async function loadClassStudents() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить учеников.');
     const students = data.students || [];
+    currentClassStudentsCache = students;
     document.getElementById('classStudentsCount').textContent = students.length;
     list.innerHTML = students.length ? students.map(student => `
       <div class="class-student-row">
         <span class="student-row-avatar">${escapeHtml((student.first_name || '?').charAt(0))}</span>
-        <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
+        <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}${student.middle_name ? ' ' + escapeHtml(student.middle_name) : ''}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
         <span class="student-row-actions">
           <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
+          <button type="button" class="mini-action student-edit-action" data-edit-student="${student.id}">Редактировать</button>
           ${['admin', 'teacher'].includes(currentUser?.role) && Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
         </span>
       </div>
     `).join('') : '<div class="empty-students">Учеников пока нет. Загрузите DOCX со списком класса.</div>';
+
+    list.querySelectorAll('[data-edit-student]').forEach(button => button.addEventListener('click', () => {
+      openStudentEditor(Number(button.dataset.editStudent));
+    }));
 
     list.querySelectorAll('[data-reset-pin]').forEach(button => button.addEventListener('click', async () => {
       if (!currentClass) return;
@@ -677,6 +686,80 @@ async function loadClassStudents() {
     list.innerHTML = `<div class="empty-students">${escapeHtml(error.message)}</div>`;
   }
 }
+
+function openStudentEditor(studentId) {
+  const student = currentClassStudentsCache.find(item => Number(item.id) === Number(studentId));
+  if (!student || !currentClass || !studentEditModal) return;
+
+  editingStudentId = Number(student.id);
+  document.getElementById('studentEditId').value = String(student.id);
+  document.getElementById('studentEditLastName').value = student.last_name || '';
+  document.getElementById('studentEditFirstName').value = student.first_name || '';
+  document.getElementById('studentEditMiddleName').value = student.middle_name || '';
+
+  const hint = document.getElementById('studentEditHint');
+  if (hint) hint.textContent = 'Класс: ' + (currentClass.name || '—') + '. Изменения сохранятся у этого же ученика.';
+  document.getElementById('studentEditError')?.classList.add('hidden');
+  document.getElementById('studentEditResult')?.classList.add('hidden');
+  openModal(studentEditModal);
+}
+
+document.getElementById('studentEditForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentClass || !editingStudentId) return;
+
+  const form = event.currentTarget;
+  const button = document.getElementById('studentEditSaveBtn');
+  const error = document.getElementById('studentEditError');
+  const result = document.getElementById('studentEditResult');
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  const payload = Object.fromEntries(new FormData(form).entries());
+  payload.class_id = Number(currentClass.id);
+  payload.student_id = Number(editingStudentId);
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/classes/update-student.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось изменить данные ученика.');
+    }
+
+    await Promise.all([
+      loadClassStudents(),
+      loadClasses(),
+      loadTeacherDashboard().catch(() => {}),
+      loadResults().catch(() => {})
+    ]);
+
+    if (result) {
+      result.textContent = data.message || 'Данные ученика обновлены.';
+      result.classList.remove('hidden');
+    }
+
+    setTimeout(() => {
+      closeModal(studentEditModal);
+      editingStudentId = null;
+    }, 450);
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить изменения';
+  }
+});
 
 document.getElementById('createClassBtn')?.addEventListener('click', () => openModal(classModal));
 
@@ -1898,6 +1981,7 @@ const historyEventLabels = {
   class_created: 'Класс создан',
   students_imported: 'Ученики импортированы',
   student_pin_reset: 'PIN ученика сброшен',
+  student_profile_updated: 'Данные ученика изменены',
   password_recovery_requested: 'Запрошено восстановление пароля',
   password_recovery_completed: 'Пароль восстановлен по email',
   teacher_created: 'Сотрудник добавлен',
