@@ -104,7 +104,11 @@ function expected_choice_option_ids(PDO $pdo, int $questionId, string $interacti
     // Imported questions must be checked against the original ANSWER field,
     // even when the database already contains a valid-looking correct flag.
     // This avoids stale/wrong is_correct flags producing 0 points.
-    $source = repair_missing_correct_options($pdo, $questionId);
+    try {
+        $source = repair_missing_correct_options($pdo, $questionId);
+    } catch (Throwable $e) {
+        $source = [];
+    }
     if (valid_choice_answer_key($interaction, $source)) {
         sort($source, SORT_NUMERIC);
         return $source;
