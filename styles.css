@@ -5479,7 +5479,7 @@ input,select,textarea,button{
     overflow-x:hidden;
   }
 
-  #quizModal.modal-backdrop{
+  #quizModal.modal-backdrop:not(.hidden){
     display:block!important;
     inset:0!important;
     padding:0!important;
@@ -5699,4 +5699,10 @@ input,select,textarea,button{
   .student-finish-hero{
     padding:14px!important;
   }
+}
+
+
+/* Hidden quiz modal must always stay hidden, including mobile full-screen mode. */
+#quizModal.hidden{
+  display:none!important;
 }
