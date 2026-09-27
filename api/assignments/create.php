@@ -18,6 +18,17 @@ $maxAttempts = max(1, min(10, (int)($data['max_attempts'] ?? 1)));
 $focusPolicy = in_array(($data['focus_policy'] ?? 'allow'), ['allow', 'strict'], true)
     ? (string)$data['focus_policy']
     : 'allow';
+$variantCount = max(1, min(4, (int)($data['variant_count'] ?? 1)));
+$shuffleQuestions = !empty($data['shuffle_questions']) ? 1 : 0;
+$shuffleOptions = !empty($data['shuffle_options']) ? 1 : 0;
+$shuffleStructured = !empty($data['shuffle_structured']) ? 1 : 0;
+
+if ($variantCount < 2) {
+    $variantCount = 1;
+    $shuffleQuestions = 0;
+    $shuffleOptions = 0;
+    $shuffleStructured = 0;
+}
 
 if ($title === '' || $subjectId < 1) {
     json_response(['ok' => false, 'error' => 'Укажите название и предмет.'], 422);
@@ -60,9 +71,11 @@ if (!$stmt->fetchColumn()) {
 
 $stmt = $pdo->prepare(
     'INSERT INTO assignments
-     (teacher_id, school_id, subject_id, title, type, status, max_attempts, time_limit_minutes, focus_policy)
+     (teacher_id, school_id, subject_id, title, type, status, max_attempts, time_limit_minutes, focus_policy,
+      variant_count, shuffle_questions, shuffle_options, shuffle_structured)
      VALUES
-     (:teacher_id, :school_id, :subject_id, :title, :type, "draft", :max_attempts, :time_limit_minutes, :focus_policy)'
+     (:teacher_id, :school_id, :subject_id, :title, :type, "draft", :max_attempts, :time_limit_minutes, :focus_policy,
+      :variant_count, :shuffle_questions, :shuffle_options, :shuffle_structured)'
 );
 $stmt->execute([
     'teacher_id' => (int)$user['id'],
@@ -73,6 +86,10 @@ $stmt->execute([
     'max_attempts' => $maxAttempts,
     'time_limit_minutes' => $timeLimit,
     'focus_policy' => $focusPolicy,
+    'variant_count' => $variantCount,
+    'shuffle_questions' => $shuffleQuestions,
+    'shuffle_options' => $shuffleOptions,
+    'shuffle_structured' => $shuffleStructured,
 ]);
 $assignmentId = (int)$pdo->lastInsertId();
 
@@ -80,6 +97,10 @@ audit_event('assignment_created', 'assignment', $assignmentId, [
     'subject_id' => $subjectId,
     'library_item' => true,
     'focus_policy' => $focusPolicy,
+    'variant_count' => $variantCount,
+    'shuffle_questions' => $shuffleQuestions,
+    'shuffle_options' => $shuffleOptions,
+    'shuffle_structured' => $shuffleStructured,
 ], $schoolId, (int)$user['id']);
 
 json_response([
@@ -89,5 +110,9 @@ json_response([
         'title' => $title,
         'status' => 'draft',
         'focus_policy' => $focusPolicy,
+        'variant_count' => $variantCount,
+        'shuffle_questions' => (bool)$shuffleQuestions,
+        'shuffle_options' => (bool)$shuffleOptions,
+        'shuffle_structured' => (bool)$shuffleStructured,
     ],
 ], 201);
