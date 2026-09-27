@@ -54,6 +54,8 @@ foreach ($questionOrder as $questionId) {
     if (!isset($byId[$questionId])) continue;
     $row = $byId[$questionId];
     $interaction = (string)($row['interaction_type'] ?: $row['type']);
+    if ($interaction === 'ordering') $interaction = 'order';
+    if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
 
     $optionStmt->execute(['question_id' => $questionId]);
     $optionRows = $optionStmt->fetchAll();
@@ -79,7 +81,7 @@ foreach ($questionOrder as $questionId) {
         ? $structuredOrder[(string)$questionId]
         : [];
 
-    if ($interaction === 'ordering' && is_array($settings['items'] ?? null)) {
+    if ($interaction === 'order' && is_array($settings['items'] ?? null)) {
         $keys = array_map('strval', (array)($savedStructured['items'] ?? array_keys($settings['items'])));
         $items = [];
         foreach ($keys as $key) {
