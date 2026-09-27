@@ -1,4 +1,4 @@
-const CACHE = 'uvoria-v27';
+const CACHE = 'uvoria-v28';
 const APP_SHELL = [
   './',
   './index.html',
@@ -15,7 +15,11 @@ const APP_SHELL = [
   './manifest.webmanifest',
   './favicon.png?v=3',
   './icons/uvoria-app.svg',
-  './icons/uvoria-maskable.svg'
+  './icons/uvoria-maskable.svg',
+  './icons/icon-180.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {
