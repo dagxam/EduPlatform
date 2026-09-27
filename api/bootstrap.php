@@ -65,6 +65,8 @@ function enforce_same_origin(): void
 
 enforce_same_origin();
 
+require_once __DIR__ . '/backups/_helpers.php';
+
 function json_response(array $data, int $status = 200): never
 {
     http_response_code($status);
@@ -123,6 +125,7 @@ function app_db(): PDO
 
     $pdo->exec($schema);
     apply_schema_migrations($pdo);
+    backup_maybe_run_daily($pdo);
     return $pdo;
 }
 
