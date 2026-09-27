@@ -1,13 +1,13 @@
-# Автоматический деплой UVORIA на uvoria.ru
+# Автоматический деплой UROVIA на urovia.ru
 
-UVORIA публикуется из ветки `main` через GitHub Actions на обычный FTP-хостинг.
+UROVIA публикуется из ветки `main` через GitHub Actions на обычный FTP-хостинг.
 
 ## DNS
 
 Сохраняем существующую A-запись:
 
 ```
-uvoria.ru -> 188.127.241.85
+urovia.ru -> 188.127.241.85
 ```
 
 GitHub Pages для этого варианта не используется.
@@ -39,7 +39,7 @@ GitHub скачивает актуальную версию репозитори
 
 Также workflow можно запустить вручную:
 
-`Actions -> Deploy UVORIA to hosting -> Run workflow`
+`Actions -> Deploy UROVIA to hosting -> Run workflow`
 
 ## Что публикуется
 
@@ -47,4 +47,4 @@ GitHub скачивает актуальную версию репозитори
 
 ## Важно
 
-Рабочий каталог домена `uvoria.ru` задан в workflow как `/www/urovia.ru/`.
+Рабочий каталог домена `urovia.ru` задан в workflow как `/www/urovia.ru/`.
