@@ -112,3 +112,52 @@ if (abs($totalScore - $totalMax) > 0.000001 || $totalMax <= 0) {
 }
 
 echo "UROVIA import-to-grading pipeline OK: {$totalScore}/{$totalMax}" . PHP_EOL;
+
+/*
+ * Regression: legacy/editor data can keep type="text" while the actual
+ * interaction is a choice question. Grading must follow interaction_type.
+ */
+$pdo->prepare(
+    'INSERT INTO questions (assignment_id, type, text, points, position, interaction_type)
+     VALUES (:assignment_id, "text", "Legacy choice type", 1, 99, "single")'
+)->execute(['assignment_id' => $assignmentId]);
+$legacyQuestionId = (int)$pdo->lastInsertId();
+
+$legacyOption = $pdo->prepare(
+    'INSERT INTO question_options (question_id, text, is_correct, position)
+     VALUES (:question_id, :text, :is_correct, :position)'
+);
+$legacyCorrectId = 0;
+foreach ([
+    ['Неверно', 0],
+    ['Верно', 1],
+] as $index => $option) {
+    $legacyOption->execute([
+        'question_id' => $legacyQuestionId,
+        'text' => $option[0],
+        'is_correct' => $option[1],
+        'position' => $index + 1,
+    ]);
+    if ($option[1] === 1) $legacyCorrectId = (int)$pdo->lastInsertId();
+}
+
+$legacyGraded = grade_question_answer($pdo, $legacyQuestionId, ['option_ids' => [$legacyCorrectId]]);
+if ((int)$legacyGraded['is_correct'] !== 1 || (float)$legacyGraded['score'] !== 1.0) {
+    fwrite(STDERR, 'Grading smoke: interaction_type was ignored for legacy choice question.' . PHP_EOL);
+    exit(1);
+}
+
+/* Short text grading should tolerate harmless punctuation and ё/е spelling. */
+$pdo->prepare(
+    'INSERT INTO questions (assignment_id, type, text, points, position, correct_text, interaction_type)
+     VALUES (:assignment_id, "text", "Text normalization", 1, 100, "Всё верно", "text")'
+)->execute(['assignment_id' => $assignmentId]);
+$textQuestionId = (int)$pdo->lastInsertId();
+$textGraded = grade_question_answer($pdo, $textQuestionId, ['answer_text' => '  Все верно!  ']);
+if ((int)$textGraded['is_correct'] !== 1 || (float)$textGraded['score'] !== 1.0) {
+    fwrite(STDERR, 'Grading smoke: normalized short text answer was graded incorrectly.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Legacy interaction type and normalized text grading OK" . PHP_EOL;
+
