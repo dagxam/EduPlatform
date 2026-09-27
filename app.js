@@ -3957,6 +3957,7 @@ document.getElementById('temporaryPasswordForm')?.addEventListener('submit', asy
 let studentAssignmentsCache = [];
 let activeStudentAssignment = null;
 let activeStudentAttempt = null;
+let activeStaffPreview = null;
 
 function formatStudentDeadline(value) {
   if (!value) return 'без срока';
@@ -4131,6 +4132,11 @@ function renderRealStudentQuestion(question, index, savedRaw) {
 function setAnswerSaveState(questionId, text, isError = false) {
   const node = document.querySelector(`[data-save-state="${questionId}"]`);
   if (!node) return;
+  if (activeStaffPreview) {
+    node.textContent = '';
+    node.classList.remove('error');
+    return;
+  }
   node.textContent = text;
   node.classList.toggle('error', isError);
 }
@@ -4323,6 +4329,7 @@ function renderRealAttemptResult(result, note = '') {
 }
 
 async function startRealStudentAssignment(assignmentId) {
+  activeStaffPreview = null;
   const assignment = studentAssignmentsCache.find(item => Number(item.id) === Number(assignmentId));
   if (!assignment) return;
 
@@ -4418,6 +4425,171 @@ async function startRealStudentAssignment(assignmentId) {
       }
     });
   } catch (error) {
+    alert(error.message);
+  }
+}
+
+
+function collectStaffTestAnswers() {
+  if (!activeStaffPreview) return [];
+
+  return (activeStaffPreview.questions || []).map(question => {
+    const questionId = Number(question.id);
+    const interaction = canonicalQuestionType(question.interaction_type || question.type);
+    const section = document.querySelector(`[data-real-question="${questionId}"]`);
+    let payload = {};
+
+    if (!section) {
+      return { question_id: questionId, payload };
+    }
+
+    if (['single', 'multiple', 'true_false'].includes(interaction)) {
+      payload.option_ids = [...section.querySelectorAll('.real-answer-options input:checked')]
+        .map(input => Number(input.value));
+    } else if (interaction === 'order') {
+      payload.order = [...section.querySelectorAll('.ordering-item')]
+        .map(item => String(item.dataset.orderKey || ''))
+        .filter(Boolean);
+    } else if (interaction === 'matching') {
+      const matches = {};
+      section.querySelectorAll('select[data-match-left]').forEach(select => {
+        if (select.value) matches[String(select.dataset.matchLeft)] = String(select.value);
+      });
+      payload.matches = matches;
+    } else {
+      payload.answer_text = section.querySelector('[data-text-question]')?.value || '';
+    }
+
+    return { question_id: questionId, payload };
+  });
+}
+
+function renderStaffTestResult(result) {
+  const percent = Math.round(Number(result?.percent || 0));
+  const grade = result?.grade ?? '—';
+  const needsReview = Boolean(result?.needs_review);
+
+  quizModal.dataset.locked = '0';
+  quizModal.querySelector('.modal-close')?.classList.remove('hidden');
+
+  document.getElementById('quizContent').innerHTML = `
+    <div class="result-card staff-test-result">
+      <span class="section-kicker">Тестовый режим</span>
+      <h2>Проверка завершена</h2>
+      <div class="test-mode-banner compact">
+        Этот результат не записан ученику, не создаёт попытку и не влияет на статистику школы.
+      </div>
+      <div class="result-circle" style="--score:${percent}%"><strong>${percent}%</strong></div>
+      <p>Баллы: <b>${Number(result?.score || 0)} из ${Number(result?.max_score || 0)}</b></p>
+      <div class="result-grade">${escapeHtml(grade)}</div>
+      <p>${needsReview ? 'Есть ответы, которые в реальной работе потребуют ручной проверки учителем.' : 'Оценка рассчитана по той же шкале и правилам, что и у ученика.'}</p>
+      <div class="staff-test-result-actions">
+        <button class="secondary-btn" id="staffTestAgainBtn" type="button">↻ Пройти ещё раз</button>
+        <button class="primary-btn" id="staffTestCloseBtn" type="button">Закрыть</button>
+      </div>
+    </div>`;
+
+  document.getElementById('staffTestAgainBtn')?.addEventListener('click', () => {
+    const assignmentId = Number(activeStaffPreview?.assignment?.id || 0);
+    const variant = String(activeStaffPreview?.preview?.variant_label || 'A');
+    if (assignmentId) openAssignmentTestPreview(assignmentId, variant);
+  });
+  document.getElementById('staffTestCloseBtn')?.addEventListener('click', () => {
+    activeStaffPreview = null;
+    closeModal(quizModal);
+  });
+}
+
+async function openAssignmentTestPreview(assignmentId, variant = 'A') {
+  try {
+    AttemptSecurity.stop();
+    activeStudentAttempt = null;
+    activeStudentAssignment = null;
+
+    const response = await fetch(
+      './api/assignments/test-preview.php?assignment_id=' + encodeURIComponent(assignmentId) +
+      '&variant=' + encodeURIComponent(variant),
+      { credentials: 'same-origin', cache: 'no-store' }
+    );
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось запустить тестовый режим.');
+    }
+
+    activeStaffPreview = data;
+    const assignment = data.assignment || {};
+    const questions = data.questions || [];
+    const preview = data.preview || {};
+    const variantCount = Number(assignment.variant_count || 1);
+    const labels = ['A', 'B', 'C', 'D'].slice(0, variantCount);
+
+    quizModal.dataset.locked = '0';
+    quizModal.querySelector('.modal-close')?.classList.remove('hidden');
+
+    const variantControl = variantCount > 1
+      ? `<label class="staff-test-variant">Вариант
+          <select id="staffTestVariantSelect">
+            ${labels.map(label => `<option value="${label}" ${label === preview.variant_label ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>`
+      : '<span class="variant-pill">Вариант A</span>';
+
+    document.getElementById('quizContent').innerHTML = `
+      <div class="test-mode-banner">
+        <b>Тестовый запуск — вид ученика</b>
+        <span>Можно нажимать ответы, перетаскивать элементы и завершить работу. Ничего не попадёт в журнал и статистику.</span>
+      </div>
+      <div class="quiz-head real-quiz-head">
+        <span class="section-kicker">${escapeHtml(assignment.subject_name || 'Предмет')} · предпросмотр</span>
+        <h2>${escapeHtml(assignment.title || 'Задание')}</h2>
+        <div class="quiz-meta">
+          ${variantControl}
+          <span>${questions.length} вопросов</span>
+          <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
+          <span>${assignment.focus_policy === 'strict' ? 'Строгий режим у ученика' : 'Обычный режим'}</span>
+        </div>
+      </div>
+      <form id="staffTestForm">
+        ${questions.map((question, index) => renderRealStudentQuestion(question, index, '')).join('')}
+        <button class="primary-btn full" type="submit">Завершить тестовую проверку</button>
+      </form>`;
+
+    wireRealStudentQuestionControls();
+    openModal(quizModal);
+
+    document.getElementById('staffTestVariantSelect')?.addEventListener('change', event => {
+      openAssignmentTestPreview(assignmentId, String(event.target.value || 'A'));
+    });
+
+    document.getElementById('staffTestForm')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = 'Проверяем...';
+
+      try {
+        const gradeResponse = await fetch('./api/assignments/test-grade.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignment_id: assignmentId,
+            answers: collectStaffTestAnswers()
+          })
+        });
+        const gradeData = await gradeResponse.json();
+        if (!gradeResponse.ok || gradeData.ok === false) {
+          throw new Error(gradeData.error || 'Не удалось проверить тест.');
+        }
+        renderStaffTestResult(gradeData.result || {});
+      } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+        button.textContent = 'Завершить тестовую проверку';
+      }
+    });
+  } catch (error) {
+    activeStaffPreview = null;
     alert(error.message);
   }
 }
