@@ -18,7 +18,20 @@ if ($attemptId < 1 || !in_array($eventType, ['hidden', 'visible'], true)) {
 $pdo = app_db();
 $attempt = attempt_for_student($pdo, $attemptId, (int)$user['id']);
 if ($attempt['status'] !== 'in_progress') {
-    json_response(['ok' => true, 'terminated' => true, 'status' => $attempt['status']]);
+    json_response([
+        'ok' => true,
+        'terminated' => true,
+        'status' => (string)$attempt['status'],
+        'reason' => $attempt['termination_reason'] ?? null,
+        'result' => [
+            'score' => (float)($attempt['score'] ?? 0),
+            'max_score' => (float)($attempt['max_score'] ?? 0),
+            'percent' => (float)($attempt['percent'] ?? 0),
+            'grade' => (string)($attempt['grade'] ?? ''),
+            'status' => (string)$attempt['status'],
+            'termination_reason' => $attempt['termination_reason'] ?? null,
+        ],
+    ]);
 }
 
 $stmt = $pdo->prepare(
