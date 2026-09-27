@@ -170,11 +170,7 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
          JOIN assignments ass ON ass.id = q.assignment_id
          JOIN assignment_imports ai ON ai.assignment_id = ass.id
          WHERE q.type IN ("single", "multiple", "true_false")
-           AND trim(COALESCE(ai.extracted_text, "")) <> ""
-           AND NOT EXISTS (
-             SELECT 1 FROM question_options qo
-             WHERE qo.question_id = q.id AND qo.is_correct = 1
-           )';
+           AND trim(COALESCE(ai.extracted_text, "")) <> ""';
     $params = [];
 
     if ($schoolId !== null) {
