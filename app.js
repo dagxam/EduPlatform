@@ -1826,6 +1826,7 @@ const historyEventLabels = {
   library_item_rejected: 'Публикация в библиотеке отклонена',
   library_item_withdrawn: 'Материал снят с публикации',
   library_item_imported: 'Материал импортирован из библиотеки',
+  assignment_deleted: 'Задание удалено',
   mail_test_sent: 'Отправлено тестовое письмо UVORIA'
 };
 
@@ -2503,18 +2504,17 @@ function assignmentStatusLabel(itemOrStatus) {
   return labels[status] || ['Черновик', 'amber'];
 }
 
-function canDeleteAssignment(item) {
-  if (!item) return false;
-  const noAttempts = Number(item.all_attempts_count ?? item.attempts_count ?? 0) === 0;
-  const owner = Number(item.teacher_id || 0) === Number(currentUser?.id || 0);
-  const manager = Boolean(assignmentWorkflowContext.can_manage);
-  return noAttempts && (owner || manager);
-}
-
 function assignmentDeleteButton(item) {
-  if (!canDeleteAssignment(item)) return '';
-  return '<button class="mini-action danger-action assignment-delete-btn" type="button" data-delete-assignment="' +
-    Number(item.id) + '">Удалить</button>';
+  if (!item) return '';
+
+  const attempts = Number(item.all_attempts_count ?? item.attempts_count ?? 0);
+  if (attempts > 0) {
+    return '<button class="secondary-btn compact-btn danger-action assignment-delete-btn" type="button" disabled ' +
+      'title="Удаление недоступно: по заданию уже есть попытки учеников.">Удалить</button>';
+  }
+
+  return '<button class="secondary-btn compact-btn danger-action assignment-delete-btn" type="button" data-delete-assignment="' +
+    Number(item.id) + '" title="Удалить задание целиком">Удалить</button>';
 }
 
 function assignmentWorkflowActionButtons(item) {
