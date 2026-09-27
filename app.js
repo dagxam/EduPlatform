@@ -535,7 +535,7 @@ async function loadClassStudents() {
         <span class="student-row-name"><b>${escapeHtml(student.last_name)} ${escapeHtml(student.first_name)}</b><small>${Number(student.activated) ? 'PIN создан' : 'Ещё не входил'}</small></span>
         <span class="student-row-actions">
           <span class="status ${Number(student.activated) ? 'green' : 'blue'}">${Number(student.activated) ? 'Активирован' : 'Ожидает'}</span>
-          ${currentUser?.role === 'admin' && Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
+          ${['admin', 'teacher'].includes(currentUser?.role) && Number(student.activated) ? `<button type="button" class="mini-action" data-reset-pin="${student.id}">Сбросить PIN</button>` : ''}
         </span>
       </div>
     `).join('') : '<div class="empty-students">Учеников пока нет. Загрузите DOCX со списком класса.</div>';
@@ -1271,7 +1271,9 @@ const historyEventLabels = {
   material_rejected: 'Полученные материалы отклонены',
   class_created: 'Класс создан',
   students_imported: 'Ученики импортированы',
-  student_pin_reset: 'Код доступа ученика обновлён',
+  student_pin_reset: 'PIN ученика сброшен',
+  password_recovery_requested: 'Запрошено восстановление пароля',
+  password_recovery_completed: 'Пароль восстановлен по email',
   teacher_created: 'Сотрудник добавлен',
   teacher_updated: 'Профиль сотрудника изменён',
   teacher_removed: 'Сотрудник удалён из школы',
