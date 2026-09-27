@@ -145,6 +145,19 @@ CREATE TABLE IF NOT EXISTS attempts (
     max_score REAL,
     percent REAL,
     grade TEXT,
+    manual_score REAL,
+    manual_percent REAL,
+    manual_grade TEXT,
+    manual_comment TEXT,
+    manual_updated_at TEXT,
+    manual_updated_by INTEGER,
+    published_score REAL,
+    published_percent REAL,
+    published_grade TEXT,
+    published_comment TEXT,
+    result_published_at TEXT,
+    result_published_by INTEGER,
+    result_revision INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'submitted', 'needs_review')),
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
@@ -167,6 +180,25 @@ CREATE TABLE IF NOT EXISTS answers (
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
+
+CREATE TABLE IF NOT EXISTS attempt_result_revisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_id INTEGER NOT NULL,
+    revision INTEGER NOT NULL,
+    score REAL NOT NULL,
+    max_score REAL NOT NULL,
+    percent REAL NOT NULL,
+    grade TEXT NOT NULL,
+    comment TEXT,
+    published_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
+    FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (attempt_id, revision)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attempt_result_revisions_attempt
+    ON attempt_result_revisions(attempt_id, revision);
 
 
 CREATE TABLE IF NOT EXISTS class_access (
