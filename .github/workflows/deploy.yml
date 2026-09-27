@@ -24,7 +24,9 @@ jobs:
       - name: Validate JavaScript
         run: |
           node --check app.js
+          node --check question-builder.js
           node --check login.js
+          node --check attempt-security.js
 
       - name: Validate SQLite schema
         run: |
