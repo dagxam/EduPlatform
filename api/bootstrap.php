@@ -664,7 +664,7 @@ function uvoria_app_url(): string
         return rtrim($configured, '/');
     }
 
-    return 'https://uvoria.ru';
+    return 'https://urovia.ru';
 }
 
 function uvoria_mail_from(): string
@@ -692,10 +692,10 @@ function send_uvoria_email(string $to, string $subject, string $body): bool
         'MIME-Version: 1.0',
         'Content-Type: text/plain; charset=UTF-8',
         'Content-Transfer-Encoding: 8bit',
-        'From: UVORIA <' . $from . '>',
+        'From: UROVIA <' . $from . '>',
         'Reply-To: ' . $from,
         'Sender: ' . $from,
-        'X-Mailer: UVORIA',
+        'X-Mailer: UROVIA',
     ];
 
     $headerString = implode("\r\n", $headers);
