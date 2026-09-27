@@ -3501,10 +3501,19 @@ async function openAssignToClass(assignmentId) {
   const select = document.getElementById('assignToClassSelect');
   const title = document.getElementById('assignToClassTitle');
   const hidden = document.getElementById('assignToClassAssignmentId');
+  const timeInputs = [...document.querySelectorAll('input[name="assign_time_limit"]')];
 
   error?.classList.add('hidden');
   if (hidden) hidden.value = String(assignment.id);
   if (title) title.textContent = `Назначить: ${assignment.title}`;
+
+  const legacyLimit = Number(assignment.time_limit_minutes || 0);
+  const allowedPreset = [10,15,20,25,30,35,40,45,50,55,60].includes(legacyLimit)
+    ? String(legacyLimit)
+    : '';
+  timeInputs.forEach(input => {
+    input.checked = String(input.value) === allowedPreset;
+  });
 
   try {
     await loadTeacherOptions();
@@ -3544,6 +3553,8 @@ document.getElementById('assignToClassForm')?.addEventListener('submit', async e
 
   const assignmentId = Number(document.getElementById('assignToClassAssignmentId')?.value || 0);
   const classId = Number(document.getElementById('assignToClassSelect')?.value || 0);
+  const timeLimitRaw = document.querySelector('input[name="assign_time_limit"]:checked')?.value ?? '';
+  const timeLimit = timeLimitRaw === '' ? null : Number(timeLimitRaw);
   const error = document.getElementById('assignToClassError');
   const button = event.currentTarget.querySelector('button[type="submit"]');
 
@@ -3564,7 +3575,11 @@ document.getElementById('assignToClassForm')?.addEventListener('submit', async e
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignment_id: assignmentId, class_id: classId })
+      body: JSON.stringify({
+        assignment_id: assignmentId,
+        class_id: classId,
+        time_limit_minutes: timeLimit
+      })
     });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось назначить задание.');
@@ -4514,6 +4529,77 @@ let studentAssignmentsCache = [];
 let activeStudentAssignment = null;
 let activeStudentAttempt = null;
 let activeStaffPreview = null;
+let quizCountdownTimer = null;
+let quizTimeoutHandled = false;
+
+function stopQuizCountdown() {
+  if (quizCountdownTimer) {
+    window.clearInterval(quizCountdownTimer);
+    quizCountdownTimer = null;
+  }
+  quizTimeoutHandled = false;
+}
+
+function formatQuizRemaining(totalSeconds) {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+}
+
+async function handleQuizTimeExpired() {
+  if (quizTimeoutHandled || !activeStudentAttempt?.id) return;
+  quizTimeoutHandled = true;
+
+  try {
+    const response = await fetch('./api/attempts/heartbeat.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attempt_id: activeStudentAttempt.id })
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (data?.active === false && data?.result) {
+      renderRealAttemptResult(data.result, 'Время выполнения закончилось. Работа завершена автоматически.');
+      return;
+    }
+  } catch {}
+
+  window.setTimeout(() => {
+    quizTimeoutHandled = false;
+  }, 2500);
+}
+
+function startQuizCountdown(startedAt, timeLimitMinutes) {
+  stopQuizCountdown();
+  const node = document.getElementById('quizTimeRemaining');
+  const limit = Number(timeLimitMinutes || 0);
+  if (!node || limit <= 0) return;
+
+  const normalized = String(startedAt || '').replace(' ', 'T') + (String(startedAt || '').includes('Z') ? '' : 'Z');
+  const startMs = Date.parse(normalized);
+  if (!Number.isFinite(startMs)) return;
+
+  const deadlineMs = startMs + (limit * 60 * 1000);
+  const tick = () => {
+    const remaining = Math.ceil((deadlineMs - Date.now()) / 1000);
+    node.textContent = remaining > 0 ? formatQuizRemaining(remaining) : '00:00';
+    node.classList.toggle('urgent', remaining > 0 && remaining <= 300);
+    node.classList.toggle('expired', remaining <= 0);
+
+    if (remaining <= 0) {
+      if (quizCountdownTimer) {
+        window.clearInterval(quizCountdownTimer);
+        quizCountdownTimer = null;
+      }
+      void handleQuizTimeExpired();
+    }
+  };
+
+  tick();
+  quizCountdownTimer = window.setInterval(tick, 1000);
+}
 
 function formatStudentDeadline(value) {
   if (!value) return 'без срока';
@@ -4679,7 +4765,6 @@ function renderRealStudentQuestion(question, index, savedRaw) {
     <section class="question real-question" data-real-question="${question.id}" data-interaction="${escapeHtml(interaction)}">
       <div class="real-question-head">
         <div class="real-question-index"><span>Вопрос ${index + 1}</span></div>
-        <b class="real-question-points">${Number(question.points || 1)} балл.</b>
       </div>
       <h4>${escapeHtml(question.text)}</h4>
       ${assets}
@@ -4905,6 +4990,7 @@ function wireRealStudentQuestionControls() {
 
 function renderRealAttemptResult(result, note = '') {
   AttemptSecurity.stop();
+  stopQuizCountdown();
   activeStudentAttempt = null;
   quizModal.dataset.locked = '0';
   quizModal.querySelector('.modal-close')?.classList.remove('hidden');
@@ -4970,7 +5056,8 @@ async function startRealStudentAssignment(assignmentId) {
         <div class="quiz-meta">
           ${variantBadge}
           <span>${questions.length} вопросов</span>
-          <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
+          <span>${questionData.attempt.time_limit_minutes ? Number(questionData.attempt.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
+          ${questionData.attempt.time_limit_minutes ? '<span class="quiz-time-chip">Осталось <b id="quizTimeRemaining">--:--</b></span>' : ''}
           <span>${assignment.focus_policy === 'strict' ? 'Строгий режим' : 'Обычный режим'}</span>
         </div>
         <div class="quiz-progress-card">
@@ -4985,6 +5072,7 @@ async function startRealStudentAssignment(assignmentId) {
 
     wireRealStudentQuestionControls();
     openModal(quizModal);
+    startQuizCountdown(questionData.attempt.started_at, questionData.attempt.time_limit_minutes);
 
     AttemptSecurity.start({
       attemptId: questionData.attempt.id,
@@ -5000,8 +5088,11 @@ async function startRealStudentAssignment(assignmentId) {
           content.prepend(warning);
         }
       },
-      onTerminated: result => {
-        renderRealAttemptResult(result || {}, 'Попытка завершена системой контроля.');
+      onTerminated: (result, reason) => {
+        const note = reason === 'time_limit' || result?.termination_reason === 'time_limit'
+          ? 'Время выполнения закончилось. Работа завершена автоматически.'
+          : 'Попытка завершена системой контроля.';
+        renderRealAttemptResult(result || {}, note);
       }
     });
 
