@@ -528,8 +528,64 @@ function grade_from_percent(float $percent): string
     return '2';
 }
 
+function regrade_attempt_answers(PDO $pdo, int $attemptId): void
+{
+    $stmt = $pdo->prepare(
+        'SELECT a.id, a.question_id, a.answer_text,
+                q.type, q.interaction_type
+         FROM answers a
+         JOIN questions q ON q.id = a.question_id
+         WHERE a.attempt_id = :attempt_id
+         ORDER BY a.id'
+    );
+    $stmt->execute(['attempt_id' => $attemptId]);
+    $rows = $stmt->fetchAll();
+    if (!$rows) return;
+
+    $update = $pdo->prepare(
+        'UPDATE answers
+         SET score = :score,
+             is_correct = :is_correct,
+             needs_review = :needs_review,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id'
+    );
+
+    foreach ($rows as $row) {
+        $interaction = (string)($row['interaction_type'] ?: $row['type']);
+        if ($interaction === 'ordering') $interaction = 'order';
+        if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
+
+        $raw = (string)($row['answer_text'] ?? '');
+        if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
+            $decoded = json_decode($raw, true);
+            $payload = ['option_ids' => is_array($decoded) ? $decoded : []];
+        } elseif ($interaction === 'order') {
+            $decoded = json_decode($raw, true);
+            $payload = ['order' => is_array($decoded) ? $decoded : []];
+        } elseif ($interaction === 'matching') {
+            $decoded = json_decode($raw, true);
+            $payload = ['matches' => is_array($decoded) ? $decoded : []];
+        } else {
+            $payload = ['answer_text' => $raw];
+        }
+
+        $graded = grade_question_answer($pdo, (int)$row['question_id'], $payload);
+        $update->execute([
+            'score' => (float)$graded['score'],
+            'is_correct' => (int)$graded['is_correct'],
+            'needs_review' => (int)$graded['needs_review'],
+            'id' => (int)$row['id'],
+        ]);
+    }
+}
+
 function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): array
 {
+    // Never trust a stale score stored by an older grading implementation.
+    // Recalculate every saved answer from its actual value before the total.
+    regrade_attempt_answers($pdo, $attemptId);
+
     $stmt = $pdo->prepare(
         'SELECT COALESCE(SUM(points), 0) FROM questions
          WHERE assignment_id = (SELECT assignment_id FROM attempts WHERE id = :attempt_id)'
