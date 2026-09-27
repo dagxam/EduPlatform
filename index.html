@@ -27,6 +27,7 @@
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
+        <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
@@ -254,6 +255,33 @@
               <tbody id="assignmentsTableBody"><tr><td colspan="6">Загрузка...</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section class="view" id="incoming-materials">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Обмен между школами</span>
+            <h2>Полученные материалы</h2>
+            <p>Материалы из других школ появляются здесь и не добавляются в библиотеку, пока администратор их не примет.</p>
+          </div>
+          <button class="secondary-btn" id="refreshIncomingMaterialsBtn" type="button">↻ Обновить</button>
+        </div>
+
+        <div class="incoming-summary-grid">
+          <article class="stat-card"><span>Ожидают решения</span><strong id="incomingPendingCount">0</strong><small>новые пакеты</small></article>
+          <article class="stat-card"><span>Принято</span><strong id="incomingAcceptedCount">0</strong><small>в библиотеку школы</small></article>
+          <article class="stat-card"><span>Отклонено</span><strong id="incomingRejectedCount">0</strong><small>не добавлено</small></article>
+        </div>
+
+        <div class="incoming-tabs">
+          <button class="incoming-tab active" type="button" data-incoming-filter="pending">Ожидают</button>
+          <button class="incoming-tab" type="button" data-incoming-filter="history">История</button>
+          <button class="incoming-tab" type="button" data-incoming-filter="all">Все</button>
+        </div>
+
+        <div class="incoming-materials-list" id="incomingMaterialsList">
+          <article class="panel"><p>Загрузка входящих материалов...</p></article>
         </div>
       </section>
 
