@@ -4003,6 +4003,43 @@ function wireRealStudentQuestionControls() {
         updateNumbers();
         await persistOrder();
       });
+
+      const grip = item.querySelector('.ordering-grip');
+      if (grip) {
+        let touchDragging = false;
+
+        grip.addEventListener('pointerdown', event => {
+          if (event.pointerType === 'mouse') return;
+          touchDragging = true;
+          draggedItem = item;
+          item.classList.add('dragging');
+          grip.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        });
+
+        grip.addEventListener('pointermove', event => {
+          if (!touchDragging || draggedItem !== item) return;
+          const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.ordering-item');
+          if (!target || target === item || target.closest('[data-ordering-question]') !== list) return;
+          const rect = target.getBoundingClientRect();
+          list.insertBefore(item, event.clientY < rect.top + rect.height / 2 ? target : target.nextSibling);
+          updateNumbers();
+          event.preventDefault();
+        });
+
+        const finishTouchDrag = async event => {
+          if (!touchDragging) return;
+          touchDragging = false;
+          item.classList.remove('dragging');
+          draggedItem = null;
+          try { grip.releasePointerCapture?.(event.pointerId); } catch {}
+          updateNumbers();
+          await persistOrder();
+        };
+
+        grip.addEventListener('pointerup', finishTouchDrag);
+        grip.addEventListener('pointercancel', finishTouchDrag);
+      }
     });
 
     list.querySelectorAll('[data-order-move]').forEach(button => {
