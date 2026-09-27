@@ -86,7 +86,7 @@ TYPE: single
 ANSWER: B
 POINTS: 1
 
-Справочник служебных полей UVORIA
+Справочник служебных полей UROVIA
 TXT;
 
 $questions = import_parse_questions($sample);
@@ -122,7 +122,7 @@ if (empty($questions[6]['needs_image']) || empty($questions[7]['needs_image'])) 
     exit(1);
 }
 
-echo "UVORIA mixed assignment parser OK\n";
+echo "UROVIA mixed assignment parser OK\n";
 
 
 $teacherStyle = <<<'TXT'
