@@ -4688,3 +4688,106 @@ input,select,textarea,button{
     grid-column:1/-1!important;
   }
 }
+
+
+/* UROVIA class editor and full-delete controls v42 */
+.class-card-actions{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.class-card-actions button{
+  grid-column:auto!important;
+  min-height:42px;
+}
+.class-card-actions .secondary-btn{
+  background:#fff!important;
+  border:1px solid #dce3ea!important;
+  color:#4b5a69!important;
+}
+.class-card-actions .secondary-btn:hover{
+  border-color:color-mix(in srgb,var(--brand) 35%,#dce3ea)!important;
+  color:var(--brand)!important;
+}
+.class-details-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding-right:48px;
+}
+.class-details-heading h2{
+  margin:6px 0 0;
+}
+.class-edit-modal{
+  width:min(620px,calc(100vw - 28px));
+}
+.class-edit-modal>p{
+  margin-top:7px;
+}
+.class-edit-form{
+  display:grid;
+  gap:14px;
+}
+.class-delete-zone{
+  display:grid;
+  gap:14px;
+  margin-top:22px;
+  padding:17px;
+  border:1px solid #f0c8c8;
+  border-radius:15px;
+  background:#fff8f8;
+}
+.class-delete-zone h3{
+  margin:4px 0 5px;
+  color:#8e2e2e;
+}
+.class-delete-zone p{
+  margin:0;
+  color:#8c5c5c;
+  font-size:12px;
+  line-height:1.55;
+}
+.danger-btn{
+  border:1px solid #e4a9a9;
+  border-radius:11px;
+  padding:11px 16px;
+  background:#c93d3d;
+  color:#fff;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 6px 16px rgba(201,61,61,.16);
+}
+.danger-btn:hover{
+  background:#ad3030;
+}
+.danger-btn:disabled{
+  opacity:.58;
+  cursor:not-allowed;
+}
+@media(max-width:760px){
+  .class-card-actions{
+    grid-template-columns:1fr;
+  }
+  .class-details-heading{
+    display:grid;
+    grid-template-columns:1fr;
+    padding-right:40px;
+  }
+  .class-details-heading button{
+    width:100%;
+  }
+  .class-edit-modal{
+    width:100%!important;
+    max-width:none!important;
+    max-height:96dvh!important;
+    border-radius:20px 20px 0 0!important;
+  }
+  .class-delete-zone{
+    padding:14px;
+  }
+  .class-delete-zone .danger-btn{
+    min-height:48px;
+  }
+}
