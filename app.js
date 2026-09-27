@@ -4868,6 +4868,7 @@ let activeStaffPreview = null;
 let quizCountdownTimer = null;
 let quizTimeoutHandled = false;
 let quizSubmitting = false;
+let quizExitBeaconSent = false;
 
 function stopQuizCountdown() {
   if (quizCountdownTimer) {
@@ -5326,6 +5327,7 @@ function renderRealAttemptResult(result, note = '') {
   activeStudentAssignment = null;
   activeStudentQuestions = [];
   quizSubmitting = false;
+  quizExitBeaconSent = true;
   quizModal.dataset.locked = '0';
   quizModal.querySelector('.modal-close')?.classList.remove('hidden');
 
@@ -5393,6 +5395,7 @@ async function startRealStudentAssignment(assignmentId) {
     const questions = questionData.questions || [];
     activeStudentQuestions = questions;
     quizSubmitting = false;
+    quizExitBeaconSent = false;
     const savedAnswers = questionData.saved_answers || {};
 
     // Closing the test is allowed, but it is not a pause: closing submits the
@@ -5566,6 +5569,8 @@ async function submitActiveStudentAttempt(reason = 'student_submit', renderResul
       throw new Error(data.error || 'Не удалось завершить работу.');
     }
 
+    quizExitBeaconSent = true;
+
     if (renderResult) {
       const note = reason === 'window_closed'
         ? 'Тест был закрыт. Учтены только ответы, которые вы успели дать.'
@@ -5577,6 +5582,7 @@ async function submitActiveStudentAttempt(reason = 'student_submit', renderResul
       activeStudentAttempt = null;
       activeStudentAssignment = null;
       activeStudentQuestions = [];
+      quizExitBeaconSent = true;
       quizModal.dataset.locked = '0';
       quizModal.querySelector('.modal-close')?.classList.remove('hidden');
       closeModal(quizModal);
@@ -5615,6 +5621,42 @@ async function finishActiveStudentAttemptFromClose() {
     });
   }
 }
+
+function sendActiveAttemptCloseBeacon() {
+  if (!activeStudentAttempt?.id || quizExitBeaconSent) return;
+
+  const payload = JSON.stringify({
+    attempt_id: Number(activeStudentAttempt.id),
+    answers: collectQuizAnswerSnapshot(activeStudentQuestions, { onlyAnswered: true })
+  });
+  quizExitBeaconSent = true;
+
+  try {
+    const blob = new Blob([payload], { type: 'application/json' });
+    if (navigator.sendBeacon?.('./api/attempts/close.php', blob)) {
+      return;
+    }
+  } catch {}
+
+  // Fallback for browsers where sendBeacon is unavailable/rejected.
+  try {
+    fetch('./api/attempts/close.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      keepalive: true
+    }).catch(() => {});
+  } catch {}
+}
+
+window.addEventListener('pagehide', () => {
+  sendActiveAttemptCloseBeacon();
+}, { capture: true });
+
+window.addEventListener('beforeunload', () => {
+  sendActiveAttemptCloseBeacon();
+}, { capture: true });
 
 function collectStaffTestAnswers() {
   if (!activeStaffPreview) return [];
