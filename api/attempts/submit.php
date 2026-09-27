@@ -28,6 +28,12 @@ if ($attempt['status'] !== 'in_progress') {
     ]);
 }
 
+$expiredResult = finalize_expired_attempt($pdo, $attempt);
+if ($expiredResult !== null) {
+    audit_event('attempt_auto_submitted', 'attempt', $attemptId, ['reason' => 'time_limit'], null, (int)$user['id']);
+    json_response(['ok' => true, 'result' => $expiredResult, 'reason' => 'time_limit']);
+}
+
 $result = finalize_attempt($pdo, $attemptId, 'student_submit');
 audit_event('attempt_submitted', 'attempt', $attemptId, [], null, (int)$user['id']);
 
