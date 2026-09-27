@@ -9,3 +9,10 @@ dist/
 coverage/
 uploads/*
 !uploads/.gitkeep
+
+storage/*.sqlite
+storage/*.sqlite-*
+storage/backups/
+storage/assignment-imports/
+storage/question-assets/
+storage/avatars/
