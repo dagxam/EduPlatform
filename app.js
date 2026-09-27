@@ -3301,18 +3301,18 @@ function renderAssignments() {
       ? `<small class="workflow-review-note">Комментарий: ${escapeHtml(item.review_comment)}</small>`
       : '';
     return `
-      <tr>
-        <td>
+      <tr class="assignment-table-row">
+        <td class="assignment-table-main" data-label="Задание">
           <b>${escapeHtml(item.title)}</b>
           <small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small>
           ${Number(item.variant_count || 1) > 1 ? `<small class="variant-badge">Варианты: ${['A','B','C','D'].slice(0, Number(item.variant_count)).join(' / ')}</small>` : ''}
           ${reviewNote}
         </td>
-        <td>${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
-        <td><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
-        <td>${Number(item.attempts_count || 0)}</td>
-        <td><span class="status ${statusClass}">${statusText}</span></td>
-        <td class="row-actions-cell">
+        <td data-label="Назначено классам">${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
+        <td data-label="Режим"><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
+        <td data-label="Сдано">${Number(item.attempts_count || 0)}</td>
+        <td data-label="Статус"><span class="status ${statusClass}">${statusText}</span></td>
+        <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
@@ -4678,7 +4678,7 @@ function renderRealStudentQuestion(question, index, savedRaw) {
   return `
     <section class="question real-question" data-real-question="${question.id}" data-interaction="${escapeHtml(interaction)}">
       <div class="real-question-head">
-        <div class="real-question-index"><span>Вопрос ${index + 1}</span><small>${escapeHtml(questionTypeLabel(interaction))}</small></div>
+        <div class="real-question-index"><span>Вопрос ${index + 1}</span></div>
         <b class="real-question-points">${Number(question.points || 1)} балл.</b>
       </div>
       <h4>${escapeHtml(question.text)}</h4>
