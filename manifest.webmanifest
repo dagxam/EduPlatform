@@ -1,17 +1,49 @@
 {
-  "name": "UVORIA",
+  "id": "/",
+  "name": "UVORIA — обучение и задания",
   "short_name": "UVORIA",
-  "description": "Задания, тесты и результаты для учителей и учеников",
-  "start_url": "./",
+  "description": "Задания, тесты, оценки и школьные материалы для учеников и учителей",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#f5f7fa",
   "theme_color": "#1d68f0",
   "lang": "ru-RU",
+  "categories": ["education", "productivity"],
   "icons": [
+    {
+      "src": "icons/uvoria-app.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/uvoria-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
     {
       "src": "favicon.png?v=3",
       "sizes": "128x128",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Мои задания",
+      "short_name": "Задания",
+      "url": "/?view=student-tasks",
+      "icons": [{"src":"icons/uvoria-app.svg","sizes":"any","type":"image/svg+xml"}]
+    },
+    {
+      "name": "Классы",
+      "short_name": "Классы",
+      "url": "/?view=classes",
+      "icons": [{"src":"icons/uvoria-app.svg","sizes":"any","type":"image/svg+xml"}]
     }
   ]
 }
