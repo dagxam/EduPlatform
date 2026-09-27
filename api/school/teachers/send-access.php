@@ -46,16 +46,16 @@ $loginName = generate_staff_login($pdo);
 $temporaryPassword = generate_temporary_password();
 $loginUrl = uvoria_app_url() . '/login.html';
 
-$subject = 'Доступ к UVORIA — ' . (string)$teacher['school_name'];
+$subject = 'Доступ к UROVIA — ' . (string)$teacher['school_name'];
 $body = "Здравствуйте, " . (string)$teacher['first_name'] . "!\n\n"
-    . "Для вас создан доступ к образовательной платформе UVORIA.\n\n"
+    . "Для вас создан доступ к образовательной платформе UROVIA.\n\n"
     . "Школа: " . (string)$teacher['school_name'] . "\n"
     . "Логин: " . $loginName . "\n"
     . "Временный пароль: " . $temporaryPassword . "\n"
     . "Вход: " . $loginUrl . "\n\n"
     . "После первого входа система попросит установить новый пароль.\n"
     . "Не передавайте эти данные другим людям.\n\n"
-    . "UVORIA";
+    . "UROVIA";
 
 $pdo->beginTransaction();
 try {
