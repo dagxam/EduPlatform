@@ -215,10 +215,8 @@ function applySchoolBranding(branding = null) {
   const themeMeta = document.getElementById('themeColorMeta');
   if (themeMeta) themeMeta.setAttribute('content', color);
 
-  const picker = document.getElementById('schoolThemeColorPicker');
-  const text = document.getElementById('schoolThemeColor');
-  if (picker) picker.value = color;
-  if (text) text.value = color;
+  const storedColor = document.getElementById('schoolThemeColor');
+  if (storedColor) storedColor.value = color;
 
   document.querySelectorAll('[data-theme-color]').forEach(button => {
     button.classList.toggle('active', normalizeHexColor(button.dataset.themeColor) === color);
@@ -246,6 +244,10 @@ const roleLabels = {
   teacher: 'Учитель',
   student: 'Ученик'
 };
+
+function revealAuthenticatedApp() {
+  document.documentElement.classList.remove('auth-pending');
+}
 
 async function loadSession() {
   try {
@@ -3471,33 +3473,11 @@ async function demoteAdminToTeacher(adminId) {
   }
 }
 
-document.getElementById('schoolThemeColorPicker')?.addEventListener('input', event => {
-  const color = normalizeHexColor(event.target.value);
-  const text = document.getElementById('schoolThemeColor');
-  if (text) text.value = color;
-  applySchoolBranding({ theme_color: color });
-});
-
-document.getElementById('schoolThemeColor')?.addEventListener('input', event => {
-  const value = String(event.target.value || '').trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
-    const color = value.toLowerCase();
-    const picker = document.getElementById('schoolThemeColorPicker');
-    if (picker) picker.value = color;
-    applySchoolBranding({ theme_color: color });
-    document.querySelectorAll('[data-theme-color]').forEach(button => {
-      button.classList.toggle('active', normalizeHexColor(button.dataset.themeColor) === color);
-    });
-  }
-});
-
 document.querySelectorAll('[data-theme-color]').forEach(button => {
   button.addEventListener('click', () => {
     const color = normalizeHexColor(button.dataset.themeColor);
-    const picker = document.getElementById('schoolThemeColorPicker');
-    const text = document.getElementById('schoolThemeColor');
-    if (picker) picker.value = color;
-    if (text) text.value = color;
+    const storedColor = document.getElementById('schoolThemeColor');
+    if (storedColor) storedColor.value = color;
     applySchoolBranding({ theme_color: color });
     document.querySelectorAll('[data-theme-color]').forEach(item => item.classList.toggle('active', item === button));
   });
@@ -4178,6 +4158,9 @@ loadSession().then(async user => {
     try {
       await Promise.all([loadSchoolBranding(), loadStudentAssignments()]);
     } catch {}
+    finally {
+      revealAuthenticatedApp();
+    }
     return;
   }
 
@@ -4200,6 +4183,8 @@ loadSession().then(async user => {
     }
   } catch (error) {
     alert(error.message);
+  } finally {
+    revealAuthenticatedApp();
   }
 });
 
