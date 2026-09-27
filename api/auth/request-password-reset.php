@@ -60,14 +60,14 @@ if ($user && (int)$user['is_active'] === 1 && filter_var((string)$user['email'],
         ]);
 
         $resetUrl = uvoria_app_url() . '/login.html?reset=' . rawurlencode($token);
-        $subject = 'Восстановление доступа к UVORIA';
+        $subject = 'Восстановление доступа к UROVIA';
         $name = trim((string)$user['first_name']);
         $body = "Здравствуйте" . ($name !== '' ? ', ' . $name : '') . "!\n\n"
-            . "Для вашей учётной записи UVORIA запрошено восстановление доступа.\n\n"
+            . "Для вашей учётной записи UROVIA запрошено восстановление доступа.\n\n"
             . "Установить новый пароль: " . $resetUrl . "\n\n"
             . "Ссылка действует 30 минут и может быть использована только один раз.\n"
             . "Если вы не запрашивали восстановление, просто проигнорируйте это письмо.\n\n"
-            . "UVORIA";
+            . "UROVIA";
 
         if (!send_uvoria_email((string)$user['email'], $subject, $body)) {
             throw new RuntimeException('MAIL_SEND_FAILED');
@@ -95,7 +95,7 @@ if ($user && (int)$user['is_active'] === 1 && filter_var((string)$user['email'],
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        error_log('UVORIA password recovery request failed: ' . $e->getMessage());
+        error_log('UROVIA password recovery request failed: ' . $e->getMessage());
     }
 }
 
