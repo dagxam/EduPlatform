@@ -869,6 +869,36 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="studentEditModal">
+    <div class="modal student-edit-modal">
+      <button class="modal-close" data-close-modal="studentEditModal">×</button>
+      <span class="section-kicker">Ученик</span>
+      <h2>Редактировать данные</h2>
+      <p id="studentEditHint">Изменения сохранятся у существующего ученика. PIN, задания и результаты останутся без изменений.</p>
+      <form id="studentEditForm">
+        <input type="hidden" id="studentEditId" name="student_id">
+        <div class="form-row">
+          <label>Фамилия
+            <input id="studentEditLastName" name="last_name" autocomplete="family-name" required>
+          </label>
+          <label>Имя
+            <input id="studentEditFirstName" name="first_name" autocomplete="given-name" required>
+          </label>
+        </div>
+        <label>Отчество
+          <input id="studentEditMiddleName" name="middle_name" autocomplete="additional-name" placeholder="Необязательно">
+        </label>
+        <div class="student-edit-preserve">
+          <b>Что останется без изменений</b>
+          <span>PIN ученика, выполненные задания, попытки, оценки и принадлежность к текущему классу.</span>
+        </div>
+        <div class="form-error hidden" id="studentEditError"></div>
+        <div class="import-result hidden" id="studentEditResult"></div>
+        <button class="primary-btn full" type="submit" id="studentEditSaveBtn">Сохранить изменения</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="subjectModal">
     <div class="modal">
       <button class="modal-close" data-close-modal="subjectModal">×</button>
