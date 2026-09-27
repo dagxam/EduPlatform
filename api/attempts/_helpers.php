@@ -64,6 +64,104 @@ function normalize_answer_text(string $value): string
     return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
 }
 
+function repair_missing_correct_options(PDO $pdo, int $questionId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT q.id, q.assignment_id, q.position, q.text, q.type, q.interaction_type,
+                ai.extracted_text
+         FROM questions q
+         LEFT JOIN assignment_imports ai ON ai.assignment_id = q.assignment_id
+         WHERE q.id = :question_id
+         LIMIT 1'
+    );
+    $stmt->execute(['question_id' => $questionId]);
+    $row = $stmt->fetch();
+
+    if (!$row || trim((string)($row['extracted_text'] ?? '')) === '') {
+        return [];
+    }
+
+    $interaction = (string)($row['interaction_type'] ?: $row['type']);
+    if (!in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
+        return [];
+    }
+
+    require_once dirname(__DIR__) . '/assignments/_import_parser.php';
+
+    $parsed = import_parse_questions((string)$row['extracted_text']);
+    if (!$parsed) return [];
+
+    $normalize = static function (string $value): string {
+        $value = trim(preg_replace('/\s+/u', ' ', $value) ?? $value);
+        return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+    };
+
+    $target = null;
+    $position = max(1, (int)($row['position'] ?? 1));
+    $candidate = $parsed[$position - 1] ?? null;
+    if (
+        is_array($candidate)
+        && $normalize((string)($candidate['text'] ?? '')) === $normalize((string)$row['text'])
+    ) {
+        $target = $candidate;
+    }
+
+    if ($target === null) {
+        foreach ($parsed as $candidate) {
+            if (!is_array($candidate)) continue;
+            if ($normalize((string)($candidate['text'] ?? '')) === $normalize((string)$row['text'])) {
+                $target = $candidate;
+                break;
+            }
+        }
+    }
+
+    if ($target === null || !is_array($target['options'] ?? null)) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, position
+         FROM question_options
+         WHERE question_id = :question_id
+         ORDER BY position, id'
+    );
+    $stmt->execute(['question_id' => $questionId]);
+    $dbOptions = $stmt->fetchAll();
+    $parsedOptions = array_values($target['options']);
+
+    if (count($dbOptions) < 2 || count($dbOptions) !== count($parsedOptions)) {
+        return [];
+    }
+
+    $correctIds = [];
+    $pdo->beginTransaction();
+    try {
+        $reset = $pdo->prepare('UPDATE question_options SET is_correct = 0 WHERE question_id = :question_id');
+        $reset->execute(['question_id' => $questionId]);
+
+        $mark = $pdo->prepare('UPDATE question_options SET is_correct = 1 WHERE id = :id AND question_id = :question_id');
+        foreach ($parsedOptions as $index => $parsedOption) {
+            if (empty($parsedOption['is_correct'])) continue;
+            $optionId = (int)$dbOptions[$index]['id'];
+            $mark->execute(['id' => $optionId, 'question_id' => $questionId]);
+            $correctIds[] = $optionId;
+        }
+
+        if (!$correctIds) {
+            $pdo->rollBack();
+            return [];
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return [];
+    }
+
+    sort($correctIds, SORT_NUMERIC);
+    return $correctIds;
+}
+
 function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
 {
     $stmt = $pdo->prepare('SELECT id, type, points, correct_text, interaction_type, settings_json FROM questions WHERE id = :id LIMIT 1');
@@ -90,6 +188,10 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
         $stmt->execute(['question_id' => $questionId]);
         $correct = array_map('intval', array_column($stmt->fetchAll(), 'id'));
         sort($correct, SORT_NUMERIC);
+
+        if (!$correct) {
+            $correct = repair_missing_correct_options($pdo, $questionId);
+        }
 
         $answerText = json_encode($selected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
         $isCorrect = ($selected === $correct && count($selected) > 0) ? 1 : 0;
