@@ -80,7 +80,16 @@ function question_editor_question(PDO $pdo, array $user, int $questionId, bool $
 function question_editor_normalize_payload(array $data): array
 {
     $interaction = trim((string)($data['interaction_type'] ?? 'single'));
-    $allowed = ['single', 'multiple', 'true_false', 'ordering', 'matching', 'short_answer', 'number', 'correction', 'image_answer', 'essay'];
+    $aliases = [
+        'ordering' => 'order',
+        'short_answer' => 'text',
+        'image_answer' => 'text',
+    ];
+    $interaction = $aliases[$interaction] ?? $interaction;
+
+    // Новые вопросы UVORIA следуют формату шаблона импорта.
+    // essay оставлен только для совместимости со старыми черновиками.
+    $allowed = ['single', 'multiple', 'true_false', 'order', 'matching', 'text', 'number', 'correction', 'essay'];
     if (!in_array($interaction, $allowed, true)) {
         json_response(['ok' => false, 'error' => 'Неизвестный тип вопроса.'], 422);
     }
@@ -129,7 +138,7 @@ function question_editor_normalize_payload(array $data): array
             ['text' => 'Верно', 'is_correct' => $correct === 'true' ? 1 : 0],
             ['text' => 'Неверно', 'is_correct' => $correct === 'false' ? 1 : 0],
         ];
-    } elseif ($interaction === 'ordering') {
+    } elseif ($interaction === 'order') {
         $items = array_values(array_filter(array_map(
             static fn($value): string => trim((string)$value),
             is_array($data['ordering_items'] ?? null) ? $data['ordering_items'] : []
@@ -191,7 +200,35 @@ function question_editor_normalize_payload(array $data): array
     } else {
         $correctText = trim((string)($data['correct_text'] ?? ''));
         if ($correctText === '') {
-            json_response(['ok' => false, 'error' => 'Укажите правильный ответ. Можно разделить допустимые варианты символом |.'], 422);
+            json_response(['ok' => false, 'error' => 'Укажите правильный ответ.'], 422);
+        }
+
+        if ($interaction === 'text') {
+            $rawAlternatives = $data['alternatives'] ?? [];
+            if (is_string($rawAlternatives)) {
+                $rawAlternatives = preg_split('/\s*\|\s*/u', $rawAlternatives) ?: [];
+            }
+            $alternatives = [];
+            foreach (is_array($rawAlternatives) ? $rawAlternatives : [] as $alternative) {
+                $value = trim((string)$alternative);
+                if ($value !== '') $alternatives[] = $value;
+            }
+
+            $allAnswers = array_merge(
+                preg_split('/\s*\|\s*/u', $correctText) ?: [],
+                $alternatives
+            );
+            $seen = [];
+            $normalizedAnswers = [];
+            foreach ($allAnswers as $answerValue) {
+                $answerValue = trim((string)$answerValue);
+                if ($answerValue === '') continue;
+                $key = function_exists('mb_strtolower') ? mb_strtolower($answerValue) : strtolower($answerValue);
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $normalizedAnswers[] = $answerValue;
+            }
+            $correctText = implode(' | ', $normalizedAnswers);
         }
     }
 
