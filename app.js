@@ -4229,7 +4229,7 @@ function renderRealStudentQuestion(question, index, savedRaw) {
       ? saved.map(String).filter(key => byKey[key])
       : items.map(item => String(item.key));
     const normalized = [...initialKeys, ...items.map(item => String(item.key)).filter(key => !initialKeys.includes(key))];
-    controls = `<div class="ordering-list" data-ordering-question="${question.id}">
+    controls = `<div class="ordering-list" data-ordering-question="${question.id}" data-order-touched="${Array.isArray(saved) && saved.length ? '1' : '0'}">
       <div class="ordering-help">Перетащите элементы в правильном порядке</div>
       ${normalized.map((key, pos) => {
         const item = byKey[key];
@@ -4252,8 +4252,11 @@ function renderRealStudentQuestion(question, index, savedRaw) {
   }
 
   return `
-    <section class="question real-question" data-real-question="${question.id}">
-      <div class="real-question-head"><span>Вопрос ${index + 1}</span><b>${Number(question.points || 1)} балл.</b></div>
+    <section class="question real-question" data-real-question="${question.id}" data-interaction="${escapeHtml(interaction)}">
+      <div class="real-question-head">
+        <div class="real-question-index"><span>Вопрос ${index + 1}</span><small>${escapeHtml(questionTypeLabel(interaction))}</small></div>
+        <b class="real-question-points">${Number(question.points || 1)} балл.</b>
+      </div>
       <h4>${escapeHtml(question.text)}</h4>
       ${assets}
       ${controls}
@@ -4273,6 +4276,40 @@ function setAnswerSaveState(questionId, text, isError = false) {
   node.classList.toggle('error', isError);
 }
 
+function updateQuizProgress() {
+  const form = document.querySelector('#realQuizForm, #staffTestForm');
+  if (!form) return;
+
+  const questions = [...form.querySelectorAll('.real-question')];
+  let answered = 0;
+
+  questions.forEach(question => {
+    const interaction = String(question.dataset.interaction || '');
+    let complete = false;
+
+    if (['single', 'multiple', 'true_false'].includes(interaction)) {
+      complete = Boolean(question.querySelector('.real-answer-options input:checked'));
+    } else if (interaction === 'matching') {
+      const selects = [...question.querySelectorAll('select[data-match-left]')];
+      complete = selects.length > 0 && selects.every(select => Boolean(select.value));
+    } else if (interaction === 'order') {
+      complete = question.querySelector('[data-ordering-question]')?.dataset.orderTouched === '1';
+    } else {
+      complete = Boolean(question.querySelector('[data-text-question]')?.value.trim());
+    }
+
+    question.classList.toggle('answered', complete);
+    if (complete) answered++;
+  });
+
+  const total = questions.length;
+  const percent = total ? Math.round((answered / total) * 100) : 0;
+  const text = document.getElementById('quizProgressText');
+  const bar = document.getElementById('quizProgressBar');
+  if (text) text.textContent = answered + ' из ' + total + ' отвечено';
+  if (bar) bar.style.width = percent + '%';
+}
+
 function wireRealStudentQuestionControls() {
   document.querySelectorAll('.real-answer-options input').forEach(input => {
     input.addEventListener('change', async () => {
@@ -4280,6 +4317,7 @@ function wireRealStudentQuestionControls() {
       if (!question) return;
       const questionId = Number(question.dataset.realQuestion);
       const selected = [...question.querySelectorAll('.real-answer-options input:checked')].map(item => Number(item.value));
+      updateQuizProgress();
       try {
         setAnswerSaveState(questionId, 'Сохраняем...');
         await saveRealStudentAnswer(questionId, { option_ids: selected });
@@ -4302,6 +4340,8 @@ function wireRealStudentQuestionControls() {
 
     const persistOrder = async () => {
       const questionId = Number(list.dataset.orderingQuestion);
+      list.dataset.orderTouched = '1';
+      updateQuizProgress();
       const order = [...list.querySelectorAll('.ordering-item')].map(row => row.dataset.orderKey);
       try {
         setAnswerSaveState(questionId, 'Сохраняем...');
@@ -4396,6 +4436,7 @@ function wireRealStudentQuestionControls() {
         list.querySelectorAll('select[data-match-left]').forEach(item => {
           if (item.value) matches[item.dataset.matchLeft] = item.value;
         });
+        updateQuizProgress();
         try {
           setAnswerSaveState(questionId, 'Сохраняем...');
           await saveRealStudentAnswer(questionId, { matches });
@@ -4411,6 +4452,7 @@ function wireRealStudentQuestionControls() {
     let timer = null;
     input.addEventListener('input', () => {
       clearTimeout(timer);
+      updateQuizProgress();
       timer = setTimeout(async () => {
         const questionId = Number(input.dataset.textQuestion);
         try {
@@ -4433,6 +4475,8 @@ function wireRealStudentQuestionControls() {
       }
     });
   });
+
+  updateQuizProgress();
 }
 
 function renderRealAttemptResult(result, note = '') {
@@ -4504,6 +4548,10 @@ async function startRealStudentAssignment(assignmentId) {
           <span>${questions.length} вопросов</span>
           <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
           <span>${assignment.focus_policy === 'strict' ? 'Строгий режим' : 'Обычный режим'}</span>
+        </div>
+        <div class="quiz-progress-card">
+          <div><b>Прогресс</b><span id="quizProgressText">0 из ${questions.length} отвечено</span></div>
+          <div class="quiz-progress-track"><span id="quizProgressBar"></span></div>
         </div>
       </div>
       <form id="realQuizForm">
@@ -4679,6 +4727,10 @@ async function openAssignmentTestPreview(assignmentId, variant = 'A') {
           <span>${questions.length} вопросов</span>
           <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
           <span>${assignment.focus_policy === 'strict' ? 'Строгий режим у ученика' : 'Обычный режим'}</span>
+        </div>
+        <div class="quiz-progress-card">
+          <div><b>Прогресс</b><span id="quizProgressText">0 из ${questions.length} отвечено</span></div>
+          <div class="quiz-progress-track"><span id="quizProgressBar"></span></div>
         </div>
       </div>
       <form id="staffTestForm">
