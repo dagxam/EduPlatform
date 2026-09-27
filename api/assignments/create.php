@@ -18,17 +18,10 @@ $maxAttempts = max(1, min(10, (int)($data['max_attempts'] ?? 1)));
 $focusPolicy = in_array(($data['focus_policy'] ?? 'allow'), ['allow', 'strict'], true)
     ? (string)$data['focus_policy']
     : 'allow';
-$variantCount = max(1, min(4, (int)($data['variant_count'] ?? 1)));
-$shuffleQuestions = !empty($data['shuffle_questions']) ? 1 : 0;
-$shuffleOptions = !empty($data['shuffle_options']) ? 1 : 0;
-$shuffleStructured = !empty($data['shuffle_structured']) ? 1 : 0;
-
-if ($variantCount < 2) {
-    $variantCount = 1;
-    $shuffleQuestions = 0;
-    $shuffleOptions = 0;
-    $shuffleStructured = 0;
-}
+$variantCount = 1;
+$shuffleQuestions = 0;
+$shuffleOptions = 0;
+$shuffleStructured = 0;
 
 if ($title === '' || $subjectId < 1) {
     json_response(['ok' => false, 'error' => 'Укажите название и предмет.'], 422);
