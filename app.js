@@ -1317,7 +1317,7 @@ async function openIncomingMaterialPreview(transferId) {
               <span>Задание ${assignmentIndex + 1}</span>
               <h3>${escapeHtml(assignment.title || 'Задание')}</h3>
             </div>
-            <small>${questions.length} вопросов${Number(assignment.variant_count || 1) > 1 ? ' · варианты ' + ['A','B','C','D'].slice(0, Number(assignment.variant_count)).join('/') : ''}</small>
+            <small>${questions.length} вопросов</small>
           </div>
           ${assignment.description ? `<p class="incoming-preview-description">${escapeHtml(assignment.description)}</p>` : ''}
           <div class="incoming-preview-questions">
@@ -2585,7 +2585,7 @@ function renderResults() {
       <tr>
         <td><b>${escapeHtml(studentName)}</b><small class="results-cell-sub">${escapeHtml(resultDateTime(item.submitted_at))}</small></td>
         <td>${escapeHtml(item.class_name || '—')}</td>
-        <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}${item.variant_label ? ' · вариант ' + escapeHtml(item.variant_label) : ''}</small></td>
+        <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}</small></td>
         <td><b>${Number(display.score || 0).toLocaleString('ru-RU')} / ${Number(display.max_score || 0).toLocaleString('ru-RU')}</b></td>
         <td><b>${Math.round(Number(display.percent || 0))}%</b></td>
         <td><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
@@ -2682,7 +2682,7 @@ function openResultEditor(attemptId) {
   document.getElementById('resultEditTitle').textContent =
     [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Результат ученика';
   document.getElementById('resultEditMeta').textContent =
-    [item.assignment_title, item.subject_name, item.class_name, item.variant_label ? 'вариант ' + item.variant_label : ''].filter(Boolean).join(' · ');
+    [item.assignment_title, item.subject_name, item.class_name].filter(Boolean).join(' · ');
 
   document.getElementById('resultAutoScore').textContent =
     Number(auto.score || 0).toLocaleString('ru-RU') + ' / ' + Number(auto.max_score || 0).toLocaleString('ru-RU');
@@ -2864,7 +2864,7 @@ async function loadStudentResults() {
               <div>
                 <span class="student-result-subject">${escapeHtml(item.subject_name || 'Предмет')}</span>
                 <h3>${escapeHtml(item.assignment_title)}</h3>
-                <small>${escapeHtml(resultDateTime(item.submitted_at))}${item.variant_label ? ' · вариант ' + escapeHtml(item.variant_label) : ''}</small>
+                <small>${escapeHtml(resultDateTime(item.submitted_at))}</small>
               </div>
               <span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
             </div>
@@ -3121,11 +3121,6 @@ function renderSubjectAssignments() {
             ? 'Текст извлечён'
             : 'Файл загружен')
       : 'Создано в UROVIA';
-    const variantsCount = Math.max(1, Number(item.variant_count || 1));
-    const variantsLabel = variantsCount > 1
-      ? ['A','B','C','D'].slice(0, variantsCount).join('/')
-      : '';
-
     const reviewNote = item.review_comment
       ? `<div class="subject-assignment-alert"><b>Комментарий администратора</b><span>${escapeHtml(item.review_comment)}</span></div>`
       : '';
@@ -3154,7 +3149,6 @@ function renderSubjectAssignments() {
               <span class="assignment-meta-icon">?</span>
               ${questionsCount} ${questionsCount === 1 ? 'вопрос' : (questionsCount >= 2 && questionsCount <= 4 ? 'вопроса' : 'вопросов')}
             </span>
-            ${variantsLabel ? `<span class="assignment-meta-chip"><span class="assignment-meta-icon">A</span>Варианты ${escapeHtml(variantsLabel)}</span>` : ''}
           </div>
 
           <div class="subject-assignment-info">
@@ -3430,13 +3424,6 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
   data.append('subject_id', String(selectedSubjectId));
   data.append('title', document.getElementById('subjectImportTitle')?.value || '');
   data.append('focus_policy', document.getElementById('subjectImportFocus')?.value || 'allow');
-  const importVariantCount = Number(document.getElementById('subjectImportVariantCount')?.value || 1);
-  data.append('variant_count', String(importVariantCount));
-  if (importVariantCount > 1) {
-    if (document.getElementById('subjectImportShuffleQuestions')?.checked) data.append('shuffle_questions', '1');
-    if (document.getElementById('subjectImportShuffleOptions')?.checked) data.append('shuffle_options', '1');
-    if (document.getElementById('subjectImportShuffleStructured')?.checked) data.append('shuffle_structured', '1');
-  }
   data.append('file', file);
 
   button.disabled = true;
@@ -3463,7 +3450,6 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
     }
 
     form.reset();
-    document.getElementById('subjectImportVariantChecks')?.classList.add('hidden');
     await loadAssignments();
     renderSubjectAssignments();
   } catch (e) {
@@ -3475,17 +3461,6 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
     button.disabled = false;
     button.textContent = 'Загрузить и создать черновик';
   }
-});
-
-function syncTaskVariantSettings() {
-  const enabled = Boolean(document.getElementById('taskVariantsEnabled')?.checked);
-  document.getElementById('taskVariantSettingsBody')?.classList.toggle('hidden', !enabled);
-}
-
-document.getElementById('taskVariantsEnabled')?.addEventListener('change', syncTaskVariantSettings);
-
-document.getElementById('subjectImportVariantCount')?.addEventListener('change', event => {
-  document.getElementById('subjectImportVariantChecks')?.classList.toggle('hidden', Number(event.target.value || 1) < 2);
 });
 
 document.getElementById('focusPolicy')?.addEventListener('change', event => {
@@ -3640,7 +3615,6 @@ function renderAssignments() {
         <td class="assignment-table-main" data-label="Задание">
           <b>${escapeHtml(item.title)}</b>
           <small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small>
-          ${Number(item.variant_count || 1) > 1 ? `<small class="variant-badge">Варианты: ${['A','B','C','D'].slice(0, Number(item.variant_count)).join(' / ')}</small>` : ''}
           ${reviewNote}
         </td>
         <td data-label="Назначено классам">${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
@@ -3744,11 +3718,9 @@ function openDuplicateAssignment(assignmentId) {
   if (title) title.textContent = `Дублировать: ${assignment.title}`;
 
   if (summary) {
-    const variants = Number(assignment.variant_count || 1);
     summary.innerHTML = `
       <span><b>Предмет:</b> ${escapeHtml(assignment.subject_name || '—')}</span>
       <span><b>Вопросов:</b> ${Number(assignment.questions_count || assignment.parsed_question_count || 0)}</span>
-      <span><b>Варианты:</b> ${variants > 1 ? ['A','B','C','D'].slice(0, variants).join(' / ') : 'один'}</span>
       <span><b>Классы:</b> не копируются</span>`;
   }
 
@@ -4081,15 +4053,10 @@ document.getElementById('taskForm')?.addEventListener('submit', async event => {
 
   try {
     const payload = Object.fromEntries(new FormData(form).entries());
-    const variantsEnabled = Boolean(document.getElementById('taskVariantsEnabled')?.checked);
-    if (!variantsEnabled) {
-      payload.variant_count = '1';
-      delete payload.shuffle_questions;
-      delete payload.shuffle_options;
-      delete payload.shuffle_structured;
-    } else {
-      payload.variant_count = String(document.getElementById('taskVariantCount')?.value || '4');
-    }
+    payload.variant_count = '1';
+    delete payload.shuffle_questions;
+    delete payload.shuffle_options;
+    delete payload.shuffle_structured;
     const response = await fetch('./api/assignments/create.php', {
       method: 'POST',
       credentials: 'same-origin',
@@ -4101,7 +4068,6 @@ document.getElementById('taskForm')?.addEventListener('submit', async event => {
 
     form.reset();
     document.getElementById('strictWarning')?.classList.add('hidden');
-    document.getElementById('taskVariantSettingsBody')?.classList.add('hidden');
     closeModal(taskModal);
     await loadAssignments();
     const createdSubjectId = Number(payload.subject_id || 0);
@@ -4958,11 +4924,9 @@ function renderStudentAssignmentCards(target, rows) {
     const maxAttempts = Number(item.max_attempts || 1);
     const activeAttempt = Number(item.active_attempt_id || 0);
     const exhausted = completed >= maxAttempts && !activeAttempt;
-    const variantCount = Number(item.variant_count || 1);
-    const variantText = variantCount > 1 ? ` · варианты ${['A','B','C','D'].slice(0, variantCount).join('/')}` : '';
     const timeText = item.time_limit_minutes ? `${Number(item.time_limit_minutes)} мин.` : 'без ограничения';
     const state = activeAttempt
-      ? `В процессе · вариант ${escapeHtml(item.active_variant_label || 'A')}`
+      ? 'В процессе'
       : exhausted
         ? `Завершено${item.last_percent !== null ? ' · ' + Math.round(Number(item.last_percent)) + '%' : ''}`
         : `Попыток: ${completed}/${maxAttempts}`;
@@ -4974,7 +4938,7 @@ function renderStudentAssignmentCards(target, rows) {
           <span class="status ${activeAttempt ? 'blue' : exhausted ? 'green' : 'amber'}">${escapeHtml(formatStudentDeadline(item.due_at))}</span>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
-        <p>${Number(item.questions_count || 0)} вопросов · ${timeText} · ${maxAttempts} попыт.${variantText}</p>
+        <p>${Number(item.questions_count || 0)} вопросов · ${timeText} · ${maxAttempts} попыт.</p>
         <div class="student-task-bottom">
           <span>${state}</span>
           ${exhausted
@@ -5403,16 +5367,11 @@ async function startRealStudentAssignment(assignmentId) {
     quizModal.dataset.locked = '0';
     quizModal.querySelector('.modal-close')?.classList.remove('hidden');
 
-    const variantBadge = Number(assignment.variant_count || 1) > 1
-      ? `<span class="variant-pill">Вариант ${escapeHtml(questionData.attempt.variant_label || 'A')}</span>`
-      : '';
-
     document.getElementById('quizContent').innerHTML = `
       <div class="quiz-head real-quiz-head">
         <span class="section-kicker">${escapeHtml(assignment.subject_name || 'Предмет')} · ${escapeHtml(assignment.class_name || '')}</span>
         <h2>${escapeHtml(assignment.title)}</h2>
         <div class="quiz-meta">
-          ${variantBadge}
           <span>${questions.length} вопросов</span>
           <span>${questionData.attempt.time_limit_minutes ? Number(questionData.attempt.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
           ${questionData.attempt.time_limit_minutes ? '<span class="quiz-time-chip">Осталось <b id="quizTimeRemaining">--:--</b></span>' : ''}
@@ -5690,8 +5649,7 @@ function renderStaffTestResult(result) {
 
   document.getElementById('staffTestAgainBtn')?.addEventListener('click', () => {
     const assignmentId = Number(activeStaffPreview?.assignment?.id || 0);
-    const variant = String(activeStaffPreview?.preview?.variant_label || 'A');
-    if (assignmentId) openAssignmentTestPreview(assignmentId, variant);
+    if (assignmentId) openAssignmentTestPreview(assignmentId);
   });
   document.getElementById('staffTestCloseBtn')?.addEventListener('click', () => {
     activeStaffPreview = null;
@@ -5699,15 +5657,14 @@ function renderStaffTestResult(result) {
   });
 }
 
-async function openAssignmentTestPreview(assignmentId, variant = 'A') {
+async function openAssignmentTestPreview(assignmentId) {
   try {
     AttemptSecurity.stop();
     activeStudentAttempt = null;
     activeStudentAssignment = null;
 
     const response = await fetch(
-      './api/assignments/test-preview.php?assignment_id=' + encodeURIComponent(assignmentId) +
-      '&variant=' + encodeURIComponent(variant),
+      './api/assignments/test-preview.php?assignment_id=' + encodeURIComponent(assignmentId),
       { credentials: 'same-origin', cache: 'no-store' }
     );
     const data = await response.json();
@@ -5718,20 +5675,8 @@ async function openAssignmentTestPreview(assignmentId, variant = 'A') {
     activeStaffPreview = data;
     const assignment = data.assignment || {};
     const questions = data.questions || [];
-    const preview = data.preview || {};
-    const variantCount = Number(assignment.variant_count || 1);
-    const labels = ['A', 'B', 'C', 'D'].slice(0, variantCount);
-
     quizModal.dataset.locked = '0';
     quizModal.querySelector('.modal-close')?.classList.remove('hidden');
-
-    const variantControl = variantCount > 1
-      ? `<label class="staff-test-variant">Вариант
-          <select id="staffTestVariantSelect">
-            ${labels.map(label => `<option value="${label}" ${label === preview.variant_label ? 'selected' : ''}>${label}</option>`).join('')}
-          </select>
-        </label>`
-      : '<span class="variant-pill">Вариант A</span>';
 
     document.getElementById('quizContent').innerHTML = `
       <div class="test-mode-banner">
@@ -5742,7 +5687,6 @@ async function openAssignmentTestPreview(assignmentId, variant = 'A') {
         <span class="section-kicker">${escapeHtml(assignment.subject_name || 'Предмет')} · предпросмотр</span>
         <h2>${escapeHtml(assignment.title || 'Задание')}</h2>
         <div class="quiz-meta">
-          ${variantControl}
           <span>${questions.length} вопросов</span>
           <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
           <span>${assignment.focus_policy === 'strict' ? 'Строгий режим у ученика' : 'Обычный режим'}</span>
@@ -5759,10 +5703,6 @@ async function openAssignmentTestPreview(assignmentId, variant = 'A') {
 
     wireRealStudentQuestionControls();
     openModal(quizModal);
-
-    document.getElementById('staffTestVariantSelect')?.addEventListener('change', event => {
-      openAssignmentTestPreview(assignmentId, String(event.target.value || 'A'));
-    });
 
     document.getElementById('staffTestForm')?.addEventListener('submit', async event => {
       event.preventDefault();
