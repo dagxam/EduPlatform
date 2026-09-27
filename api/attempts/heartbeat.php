@@ -17,6 +17,18 @@ if ($attempt['status'] !== 'in_progress') {
     json_response(['ok' => true, 'active' => false, 'status' => $attempt['status']]);
 }
 
+$expiredResult = finalize_expired_attempt($pdo, $attempt);
+if ($expiredResult !== null) {
+    audit_event('attempt_auto_submitted', 'attempt', $attemptId, ['reason' => 'time_limit'], null, (int)$user['id']);
+    json_response([
+        'ok' => true,
+        'active' => false,
+        'status' => $expiredResult['status'],
+        'reason' => 'time_limit',
+        'result' => $expiredResult,
+    ]);
+}
+
 $pdo->prepare('UPDATE attempts SET last_seen_at = CURRENT_TIMESTAMP WHERE id = :id')
     ->execute(['id' => $attemptId]);
 
