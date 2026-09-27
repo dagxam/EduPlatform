@@ -1,6 +1,8 @@
 const states={
   loading:document.getElementById('loadingState'),
   login:document.getElementById('loginState'),
+  forgotPassword:document.getElementById('forgotPasswordState'),
+  resetPassword:document.getElementById('resetPasswordState'),
   studentCode:document.getElementById('studentCodeState'),
   studentSelect:document.getElementById('studentSelectState'),
   studentPin:document.getElementById('studentPinState'),
@@ -118,6 +120,12 @@ async function api(url,options={}){
 }
 
 async function initialize(){
+  const resetToken=new URLSearchParams(window.location.search).get('reset')||'';
+  if(/^[a-f0-9]{64}$/i.test(resetToken)){
+    showState('resetPassword');
+    return;
+  }
+
   showState('loading');
   try{
     const me=await api('./api/auth/me.php');
@@ -129,6 +137,99 @@ async function initialize(){
     showState('error');
   }
 }
+
+document.getElementById('forgotPasswordBtn')?.addEventListener('click',()=>{
+  const loginIdentity=document.querySelector('#loginForm [name="identity"]')?.value||'';
+  const recoveryIdentity=document.getElementById('recoveryIdentity');
+  if(recoveryIdentity) recoveryIdentity.value=loginIdentity;
+  clearError(document.getElementById('forgotPasswordError'));
+  document.getElementById('forgotPasswordResult')?.classList.add('hidden');
+  showState('forgotPassword');
+  setTimeout(()=>recoveryIdentity?.focus(),50);
+});
+
+document.getElementById('backToLoginFromRecovery')?.addEventListener('click',()=>showState('login'));
+document.getElementById('backToLoginFromReset')?.addEventListener('click',()=>{
+  window.history.replaceState(null,'','./login.html');
+  showState('login');
+});
+
+document.getElementById('forgotStudentPinBtn')?.addEventListener('click',()=>{
+  document.getElementById('studentRecoveryNote')?.classList.toggle('hidden');
+});
+
+document.getElementById('forgotPasswordForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const error=document.getElementById('forgotPasswordError');
+  const result=document.getElementById('forgotPasswordResult');
+  const button=form.querySelector('button[type="submit"]');
+  clearError(error);
+  result?.classList.add('hidden');
+  button.disabled=true;
+  button.textContent='Отправляем...';
+
+  try{
+    const identity=String(new FormData(form).get('identity')||'').trim();
+    const data=await api('./api/auth/request-password-reset.php',{
+      method:'POST',
+      body:JSON.stringify({identity})
+    });
+    if(result){
+      result.textContent=data.message||'Если учётная запись найдена, письмо отправлено.';
+      result.classList.remove('hidden');
+    }
+  }catch(e){
+    showError(error,e.message);
+  }finally{
+    button.disabled=false;
+    button.textContent='Отправить ссылку';
+  }
+});
+
+document.getElementById('resetPasswordForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const error=document.getElementById('resetPasswordError');
+  const result=document.getElementById('resetPasswordResult');
+  const button=form.querySelector('button[type="submit"]');
+  clearError(error);
+  result?.classList.add('hidden');
+
+  const params=new URLSearchParams(window.location.search);
+  const token=params.get('reset')||'';
+  const values=Object.fromEntries(new FormData(form).entries());
+
+  button.disabled=true;
+  button.textContent='Сохраняем...';
+
+  try{
+    const data=await api('./api/auth/reset-password.php',{
+      method:'POST',
+      body:JSON.stringify({
+        token,
+        new_password:values.new_password||'',
+        confirm_password:values.confirm_password||''
+      })
+    });
+    form.querySelectorAll('input').forEach(input=>input.disabled=true);
+    button.classList.add('hidden');
+    if(result){
+      result.innerHTML=escapeHtml(data.message||'Пароль изменён.')+'<br><b>Теперь войдите с новым паролем.</b>';
+      result.classList.remove('hidden');
+    }
+    window.history.replaceState(null,'','./login.html');
+    const back=document.getElementById('backToLoginFromReset');
+    if(back) back.textContent='Перейти ко входу';
+  }catch(e){
+    showError(error,e.message);
+  }finally{
+    if(!button.classList.contains('hidden')){
+      button.disabled=false;
+      button.textContent='Сохранить новый пароль';
+    }
+  }
+});
 
 document.getElementById('studentModeBtn')?.addEventListener('click',()=>showState('studentCode'));
 document.getElementById('staffModeBtn')?.addEventListener('click',()=>showState('login'));
@@ -190,6 +291,7 @@ function renderStudents(){
       : 'Первый вход: придумайте PIN из 4–6 цифр. Он понадобится при следующих входах.';
     document.getElementById('studentPin').value='';
     clearError(document.getElementById('studentPinError'));
+    document.getElementById('studentRecoveryNote')?.classList.add('hidden');
     showState('studentPin');
     setTimeout(()=>document.getElementById('studentPin')?.focus(),50);
   }));
