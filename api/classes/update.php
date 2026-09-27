@@ -59,6 +59,16 @@ $stmt->execute([
     'school_id' => $schoolId,
 ]);
 
+$pdo->prepare(
+    'UPDATE users
+     SET class_name = :class_name, updated_at = CURRENT_TIMESTAMP
+     WHERE role = "student"
+       AND id IN (SELECT student_id FROM class_students WHERE class_id = :class_id)'
+)->execute([
+    'class_name' => $name,
+    'class_id' => $classId,
+]);
+
 audit_event('class_updated', 'class', $classId, [
     'before' => [
         'name' => (string)$class['current_name'],
