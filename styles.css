@@ -3036,3 +3036,229 @@ body.dialog-open{overflow:hidden}
     max-height:330px;
   }
 }
+
+
+/* Real results journal and revision editor */
+.results-panel{
+  overflow:hidden;
+}
+.results-filters{
+  grid-template-columns:minmax(260px,1fr) minmax(150px,220px) minmax(220px,340px);
+}
+.results-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 14px;
+  align-items:center;
+  margin:2px 0 14px;
+  color:#7a8794;
+  font-size:12px;
+}
+.results-summary b{
+  color:#263442;
+  font-size:14px;
+}
+.results-summary span{
+  color:#607083;
+}
+.results-summary .results-draft-count{
+  color:#a66b00;
+  font-weight:800;
+}
+.results-table td{
+  vertical-align:middle;
+}
+.results-cell-sub{
+  display:block;
+  margin-top:4px;
+  color:#8d98a4;
+  font-size:10px;
+  line-height:1.35;
+  font-weight:500;
+}
+.student-result-comment{
+  display:inline-block;
+  max-width:280px;
+  color:#5e6b78;
+  font-size:12px;
+  line-height:1.45;
+}
+.result-edit-modal{
+  width:min(720px,calc(100vw - 28px));
+}
+.result-edit-modal>p{
+  margin-top:-4px;
+  color:#7d8995;
+  line-height:1.45;
+}
+.result-baseline-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin:18px 0;
+}
+.result-baseline-grid>div{
+  min-width:0;
+  display:grid;
+  gap:5px;
+  padding:13px 14px;
+  border:1px solid #e3e8ee;
+  border-radius:13px;
+  background:#f8fafc;
+}
+.result-baseline-grid span{
+  color:#84909c;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.result-baseline-grid strong{
+  color:#223041;
+  font-size:17px;
+  line-height:1.25;
+}
+.result-baseline-grid small{
+  color:#6d7a88;
+  font-size:11px;
+  line-height:1.4;
+}
+.result-edit-form{
+  display:grid;
+  gap:14px;
+}
+.result-edit-form label{
+  display:grid;
+  gap:7px;
+  color:#536170;
+  font-size:12px;
+  font-weight:800;
+}
+.result-edit-form input,
+.result-edit-form select,
+.result-edit-form textarea{
+  width:100%;
+  border:1px solid #dce3ea;
+  border-radius:11px;
+  background:#fff;
+  color:#263442;
+  font:inherit;
+  outline:none;
+}
+.result-edit-form input,
+.result-edit-form select{
+  min-height:44px;
+  padding:0 12px;
+}
+.result-edit-form textarea{
+  padding:12px;
+  resize:vertical;
+  line-height:1.5;
+}
+.result-edit-form input:focus,
+.result-edit-form select:focus,
+.result-edit-form textarea:focus{
+  border-color:color-mix(in srgb,var(--brand) 55%,white);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 9%,transparent);
+}
+.result-edit-form label small{
+  color:#8b96a1;
+  font-size:10px;
+  font-weight:600;
+}
+.result-edit-note{
+  padding:10px 12px;
+  border:1px solid #dfe6ee;
+  border-radius:11px;
+  background:#f7f9fc;
+  color:#71808f;
+  font-size:11px;
+  line-height:1.5;
+}
+.result-edit-actions{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding-top:4px;
+}
+.result-edit-actions button{
+  min-height:42px;
+}
+@media(max-width:900px){
+  .results-filters{
+    grid-template-columns:1fr 1fr;
+  }
+  .results-filters .search{
+    grid-column:1/-1;
+  }
+  .result-baseline-grid{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:720px){
+  .results-filters{
+    grid-template-columns:1fr;
+  }
+  .results-filters .search{
+    grid-column:auto;
+  }
+  .results-table,
+  .student-results-table{
+    min-width:0;
+  }
+  .results-table thead,
+  .student-results-table thead{
+    display:none;
+  }
+  .results-table tbody,
+  .student-results-table tbody{
+    display:grid;
+    gap:10px;
+  }
+  .results-table tr,
+  .student-results-table tr{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:9px 12px;
+    padding:14px;
+    border:1px solid #e2e8ef;
+    border-radius:14px;
+    background:#fff;
+  }
+  .results-table td,
+  .student-results-table td{
+    display:block;
+    padding:0!important;
+    border:0!important;
+    min-width:0;
+  }
+  .results-table td:nth-child(1),
+  .results-table td:nth-child(3),
+  .results-table td:nth-child(7),
+  .results-table td:nth-child(8),
+  .student-results-table td:nth-child(3),
+  .student-results-table td:nth-child(7){
+    grid-column:1/-1;
+  }
+  .results-table td:nth-child(8) .compact-btn{
+    width:100%;
+  }
+  .student-result-comment{
+    max-width:none;
+  }
+  .result-edit-modal{
+    width:100%;
+    max-height:100vh;
+    border-radius:18px 18px 0 0;
+    align-self:end;
+  }
+  .result-edit-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .result-edit-actions button{
+    width:100%;
+  }
+}
