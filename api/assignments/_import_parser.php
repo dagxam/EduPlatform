@@ -671,6 +671,61 @@ function import_parse_questions(string $text): array
     return $questions;
 }
 
+function import_validate_questions(array $questions): array
+{
+    $issues = [];
+    $supported = ['single', 'multiple', 'order', 'matching', 'text', 'number', 'correction', 'true_false'];
+
+    foreach (array_values($questions) as $index => $question) {
+        $number = $index + 1;
+        $interaction = (string)($question['interaction_type'] ?? '');
+
+        if (!in_array($interaction, $supported, true)) {
+            $issues[] = "Вопрос {$number}: неподдерживаемый TYPE «{$interaction}».";
+            continue;
+        }
+
+        if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
+            $options = is_array($question['options'] ?? null) ? $question['options'] : [];
+            $correctCount = count(array_filter(
+                $options,
+                static fn(array $option): bool => !empty($option['is_correct'])
+            ));
+            if (count($options) < 2) {
+                $issues[] = "Вопрос {$number}: нужно минимум два варианта ответа.";
+            } elseif ($interaction === 'single' && $correctCount !== 1) {
+                $issues[] = "Вопрос {$number}: поле ANSWER должно указывать ровно один правильный вариант.";
+            } elseif ($interaction === 'multiple' && $correctCount < 1) {
+                $issues[] = "Вопрос {$number}: в ANSWER не распознан ни один правильный вариант.";
+            } elseif ($interaction === 'true_false' && $correctCount !== 1) {
+                $issues[] = "Вопрос {$number}: для true_false нужен один правильный ANSWER.";
+            }
+            continue;
+        }
+
+        $correctText = trim((string)($question['correct_text'] ?? ''));
+        if ($interaction === 'order') {
+            $order = json_decode($correctText, true);
+            if (!is_array($order) || count($order) < 2) {
+                $issues[] = "Вопрос {$number}: поле ORDER не распознано.";
+            }
+        } elseif ($interaction === 'matching') {
+            $pairs = json_decode($correctText, true);
+            if (!is_array($pairs) || count($pairs) < 2) {
+                $issues[] = "Вопрос {$number}: поле PAIRS не распознано.";
+            }
+        } elseif ($interaction === 'number') {
+            if ($correctText === '' || !is_numeric($correctText)) {
+                $issues[] = "Вопрос {$number}: числовой ANSWER не распознан.";
+            }
+        } elseif ($correctText === '') {
+            $issues[] = "Вопрос {$number}: правильный ANSWER не распознан.";
+        }
+    }
+
+    return $issues;
+}
+
 function import_store_questions(PDO $pdo, int $assignmentId, array $questions, array $media = []): array
 {
     $insertQuestion = $pdo->prepare(
