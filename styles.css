@@ -2204,3 +2204,17 @@ html:not(.auth-pending) .auth-boot-screen{
 }
 
 .ordering-grip{touch-action:none;cursor:grab}
+
+.assignment-delete-btn{
+  border-color:#f0c9c9!important;
+  color:#b42318!important;
+  background:#fffafa!important;
+}
+.assignment-delete-btn:hover:not(:disabled){
+  border-color:#e7a9a9!important;
+  background:#fff1f1!important;
+}
+.assignment-delete-btn:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+}
