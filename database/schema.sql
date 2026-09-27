@@ -246,6 +246,41 @@ CREATE TABLE IF NOT EXISTS teacher_classes (
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS school_material_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_school_id INTEGER NOT NULL,
+    target_school_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    sender_user_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TEXT,
+    resolved_by INTEGER,
+    FOREIGN KEY (source_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS school_material_transfer_assignments (
+    transfer_id INTEGER NOT NULL,
+    assignment_id INTEGER NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    title_snapshot TEXT NOT NULL,
+    type_snapshot TEXT,
+    questions_count_snapshot INTEGER NOT NULL DEFAULT 0,
+    source_format_snapshot TEXT,
+    PRIMARY KEY (transfer_id, assignment_id),
+    FOREIGN KEY (transfer_id) REFERENCES school_material_transfers(id) ON DELETE CASCADE,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_material_transfers_target
+    ON school_material_transfers(target_school_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_material_transfers_source
+    ON school_material_transfers(source_school_id, created_at);
+
 CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     school_id INTEGER,
