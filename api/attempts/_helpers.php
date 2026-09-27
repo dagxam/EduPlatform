@@ -66,9 +66,11 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
         $isCorrect = ($selected === $correct && count($selected) > 0) ? 1 : 0;
         $score = $isCorrect ? $points : 0.0;
     } elseif ($type === 'text') {
-        $interaction = (string)($question['interaction_type'] ?? 'short_answer');
+        $interaction = (string)($question['interaction_type'] ?? 'text');
+        if ($interaction === 'ordering') $interaction = 'order';
+        if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
 
-        if ($interaction === 'ordering') {
+        if ($interaction === 'order') {
             $selected = array_values(array_map('strval', (array)($payload['order'] ?? [])));
             $expected = json_decode((string)($question['correct_text'] ?? ''), true);
             $expected = is_array($expected) ? array_values(array_map('strval', $expected)) : [];
@@ -338,11 +340,11 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
             $questionSettings = json_decode((string)($question['settings_json'] ?? ''), true);
             $questionSettings = is_array($questionSettings) ? $questionSettings : [];
 
-            if ($interaction === 'ordering' && is_array($questionSettings['items'] ?? null)) {
+            if (in_array($interaction, ['order', 'ordering'], true) && is_array($questionSettings['items'] ?? null)) {
                 $keys = array_map('strval', array_keys($questionSettings['items']));
                 if (count($keys) > 1) {
                     $structuredOrder[(string)$questionId] = [
-                        'items' => variant_permutation($keys, $seedBase . '|ordering:' . $questionId, $variantIndex),
+                        'items' => variant_permutation($keys, $seedBase . '|order:' . $questionId, $variantIndex),
                     ];
                 }
             } elseif ($interaction === 'matching') {
