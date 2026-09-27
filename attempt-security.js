@@ -14,8 +14,9 @@ const AttemptSecurity = (() => {
     });
     const data = await response.json().catch(() => null);
     if (data?.terminated) {
+      const callback = state?.onTerminated;
       stop();
-      state?.onTerminated?.(data.result || null);
+      callback?.(data.result || null);
     }
     return data;
   }
