@@ -401,7 +401,10 @@
             <h2>История действий</h2>
             <p>Изменения заданий, материалов, пользователей и других объектов UROVIA в хронологическом порядке.</p>
           </div>
-          <button class="secondary-btn" id="refreshHistoryBtn" type="button">↻ Обновить</button>
+          <div class="toolbar-actions history-toolbar-actions">
+            <button class="secondary-btn" id="refreshHistoryBtn" type="button">↻ Обновить</button>
+            <button class="danger-outline-btn" id="clearHistoryBtn" type="button">Очистить историю</button>
+          </div>
         </div>
 
         <div class="panel history-panel">
@@ -622,6 +625,12 @@
         <div class="section-toolbar">
           <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Реальные результаты учеников. Спорную оценку можно скорректировать и отдельно опубликовать ученику.</p></div>
           <button class="secondary-btn" id="exportResultsBtn">⇩ Экспорт</button>
+        </div>
+        <div class="results-overview-grid">
+          <article class="result-overview-card"><span>Результатов</span><strong id="resultsOverviewCount">—</strong><small>по текущему фильтру</small></article>
+          <article class="result-overview-card"><span>Средний результат</span><strong id="resultsOverviewAverage">—</strong><small>процент выполнения</small></article>
+          <article class="result-overview-card"><span>Средняя оценка</span><strong id="resultsOverviewGrade">—</strong><small>по шкале 2–5</small></article>
+          <article class="result-overview-card"><span>Требуют внимания</span><strong id="resultsOverviewAttention">—</strong><small>проверка или черновик</small></article>
         </div>
         <div class="panel results-panel">
           <div class="filters results-filters">
