@@ -8,6 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+$currentPassword = (string)($data['current_password'] ?? '');
 $newPassword = (string)($data['new_password'] ?? '');
 $confirmPassword = (string)($data['confirm_password'] ?? '');
 
@@ -20,6 +21,19 @@ if ($newPassword !== $confirmPassword) {
 }
 
 $pdo = app_db();
+
+if ((int)($user['must_change_password'] ?? 0) !== 1) {
+    if ($currentPassword === '') {
+        json_response(['ok' => false, 'error' => 'Введите текущий пароль.'], 422);
+    }
+    $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => (int)$user['id']]);
+    $currentHash = (string)($stmt->fetchColumn() ?: '');
+    if ($currentHash === '' || !password_verify($currentPassword, $currentHash)) {
+        json_response(['ok' => false, 'error' => 'Текущий пароль указан неверно.'], 401);
+    }
+}
+
 $stmt = $pdo->prepare(
     'UPDATE users
      SET password_hash = :password_hash,
