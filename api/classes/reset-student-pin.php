@@ -59,12 +59,29 @@ if (!$stmt->fetchColumn()) {
     json_response(['ok' => false, 'error' => 'Ученик не найден или класс не назначен этому сотруднику.'], 404);
 }
 
-$stmt = $pdo->prepare(
-    'UPDATE class_students
-     SET pin_hash = NULL, activated_at = NULL
-     WHERE class_id = :class_id AND student_id = :student_id'
-);
-$stmt->execute(['class_id' => $classId, 'student_id' => $studentId]);
+$pdo->beginTransaction();
+try {
+    $stmt = $pdo->prepare(
+        'UPDATE class_students
+         SET pin_hash = NULL, activated_at = NULL
+         WHERE class_id = :class_id AND student_id = :student_id'
+    );
+    $stmt->execute(['class_id' => $classId, 'student_id' => $studentId]);
+
+    $pdo->prepare(
+        'UPDATE users
+         SET session_version = session_version + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = :student_id'
+    )->execute(['student_id' => $studentId]);
+
+    $pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
 
 audit_event('student_pin_reset', 'user', $studentId, ['class_id' => $classId], $schoolId, (int)$user['id']);
 
