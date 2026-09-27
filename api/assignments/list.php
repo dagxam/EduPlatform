@@ -31,7 +31,7 @@ $where = 'WHERE ' . implode(' AND ', $conditions);
 $stmt = app_db()->prepare(
     "SELECT a.id, a.subject_id, a.title, a.type, a.status, a.workflow_status,
             a.review_submitted_at, a.reviewed_at, a.reviewed_by, a.review_comment, a.completed_at,
-            a.max_attempts, a.time_limit_minutes,
+            a.max_attempts, a.time_limit_minutes, a.starts_at, a.due_at, a.show_answers,
             a.focus_policy, a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured, a.created_at,
             s.name AS subject_name,
             ai.source_format, ai.parse_status, ai.parsed_question_count, ai.parser_message,
