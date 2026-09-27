@@ -401,7 +401,7 @@ async function selectSchool(schoolId) {
     activeSchoolName = selectedSchool?.name || '';
     applySchoolBranding({ theme_color: selectedSchool?.theme_color || '#1d68f0' });
 
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
     await loadSchoolManagement();
     showView('school-management');
   } catch (error) {
@@ -442,7 +442,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     assignmentsCache = [];
     teacherOptionsCache = [];
     await loadSchools();
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
     await loadSchoolManagement();
     showView('school-management');
   } catch (e) {
@@ -1999,8 +1999,125 @@ document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => {
   loadActivityHistory().catch(() => {});
 });
 
+
+function dashboardDueLabel(value) {
+  if (!value) return ['Без срока', 'blue'];
+  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  if (Number.isNaN(date.getTime())) return [String(value), 'blue'];
+  const now = new Date();
+  const diff = date.getTime() - now.getTime();
+  const cls = diff <= 48 * 60 * 60 * 1000 ? 'amber' : 'blue';
+  return ['до ' + date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }), cls];
+}
+
+function renderTeacherDashboardEmpty(message = 'Нет данных') {
+  const tasks = document.getElementById('teacherDashboardTasks');
+  const classes = document.getElementById('teacherDashboardClasses');
+  if (tasks) tasks.innerHTML = '<div class="dashboard-empty">' + escapeHtml(message) + '</div>';
+  if (classes) classes.innerHTML = '<div class="dashboard-empty">' + escapeHtml(message) + '</div>';
+}
+
+async function loadTeacherDashboard() {
+  if (currentUser?.role === 'student') return;
+
+  const tasks = document.getElementById('teacherDashboardTasks');
+  const classes = document.getElementById('teacherDashboardClasses');
+  if (tasks) tasks.innerHTML = '<div class="dashboard-empty">Загрузка активных заданий...</div>';
+  if (classes) classes.innerHTML = '<div class="dashboard-empty">Загрузка классов...</div>';
+
+  try {
+    const response = await fetch('./api/teacher/dashboard.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить главную страницу.');
+
+    const stats = data.stats || {};
+    const students = Number(stats.students || 0);
+    const classesCount = Number(stats.classes || 0);
+    const activeAssignments = Number(stats.active_assignments || 0);
+    const dueThisWeek = Number(stats.due_this_week || 0);
+    const submitted = Number(stats.submitted || 0);
+    const last7 = Number(stats.submitted_last_7_days || 0);
+    const avgPercent = stats.average_percent === null || stats.average_percent === undefined
+      ? null
+      : Number(stats.average_percent);
+    const avgGrade = stats.average_grade === null || stats.average_grade === undefined
+      ? null
+      : Number(stats.average_grade);
+
+    const year = document.getElementById('dashboardAcademicYear');
+    if (year) year.textContent = data.academic_year || 'Учебный год';
+    document.getElementById('dashboardStudents').textContent = String(students);
+    document.getElementById('dashboardStudentsHint').textContent = 'в ' + classesCount + ' классах';
+    document.getElementById('dashboardActiveAssignments').textContent = String(activeAssignments);
+    document.getElementById('dashboardActiveHint').textContent = dueThisWeek
+      ? dueThisWeek + ' со сроком в ближайшие 7 дней'
+      : 'нет сроков на ближайшие 7 дней';
+    document.getElementById('dashboardSubmitted').textContent = String(submitted);
+    document.getElementById('dashboardSubmittedHint').textContent = last7
+      ? '+' + last7 + ' за последние 7 дней'
+      : 'за последние 7 дней новых нет';
+    document.getElementById('dashboardAverage').textContent = avgPercent === null ? '—' : Math.round(avgPercent) + '%';
+    document.getElementById('dashboardAverageHint').textContent = avgGrade === null
+      ? 'пока нет оценённых работ'
+      : 'средняя оценка ' + avgGrade.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+
+    const rows = data.active_assignments || [];
+    if (tasks) {
+      tasks.innerHTML = rows.length ? rows.map(item => {
+        const [deadline, deadlineClass] = dashboardDueLabel(item.due_at);
+        const initial = String(item.subject_name || 'З').trim().charAt(0).toUpperCase() || 'З';
+        return `
+          <div class="task-row">
+            <div class="subject-icon">${escapeHtml(initial)}</div>
+            <div class="task-main">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.subject_name || 'Без предмета')}${item.class_names ? ' · ' + escapeHtml(item.class_names) : ''}</span>
+            </div>
+            <div class="task-progress">
+              <strong>${Number(item.submitted_students || 0)}/${Number(item.target_students || 0)}</strong>
+              <span>сдали</span>
+            </div>
+            <span class="status ${deadlineClass}">${escapeHtml(deadline)}</span>
+          </div>`;
+      }).join('') : '<div class="dashboard-empty"><b>Активных заданий нет</b><span>После назначения работы классу она появится здесь.</span></div>';
+    }
+
+    const classRows = data.classes || [];
+    if (classes) {
+      classes.innerHTML = classRows.length ? classRows.map(item => {
+        const average = item.average_percent === null || item.average_percent === undefined
+          ? '—'
+          : Math.round(Number(item.average_percent)) + '%';
+        return `
+          <button class="class-card" type="button" data-dashboard-class="${Number(item.id)}">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${Number(item.students_count || 0)} учеников</span>
+            <b>${escapeHtml(average)}</b>
+          </button>`;
+      }).join('') : '<div class="dashboard-empty"><b>Классов пока нет</b><span>Создайте класс или назначьте его учителю.</span></div>';
+
+      classes.querySelectorAll('[data-dashboard-class]').forEach(button => {
+        button.addEventListener('click', () => {
+          showView('classes');
+          loadClasses();
+        });
+      });
+    }
+  } catch (error) {
+    ['dashboardStudents','dashboardActiveAssignments','dashboardSubmitted','dashboardAverage'].forEach(id => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = '—';
+    });
+    renderTeacherDashboardEmpty(error.message);
+  }
+}
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
+  if (btn.dataset.view === 'teacher-dashboard') loadTeacherDashboard().catch(() => {});
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
@@ -2160,6 +2277,7 @@ function renderSubjectAssignments() {
           ${reviewNote}
         </div>
         <div class="subject-assignment-actions">
+          <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
           ${assignmentDeleteButton(item)}
@@ -2602,6 +2720,9 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-preview-questions]').forEach(button => {
     button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
   });
+  root.querySelectorAll('[data-test-assignment]').forEach(button => {
+    button.addEventListener('click', () => openAssignmentTestPreview(Number(button.dataset.testAssignment)));
+  });
 }
 
 function renderAssignments() {
@@ -2636,6 +2757,7 @@ function renderAssignments() {
         <td>${Number(item.attempts_count || 0)}</td>
         <td><span class="status ${statusClass}">${statusText}</span></td>
         <td class="row-actions-cell">
+          <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
           ${assignmentDeleteButton(item)}
@@ -4336,7 +4458,7 @@ loadSession().then(async user => {
       return;
     }
 
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
 
     const requested = requestedInitialView(user);
     if (requested) {
