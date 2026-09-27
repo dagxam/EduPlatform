@@ -30,6 +30,7 @@ const titles = {
   subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
   'activity-history': ['Контроль изменений', 'История действий'],
+  'system-backups': ['Защита данных', 'Резервные копии'],
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
   classes: ['Ученики и группы', 'Классы'],
   'school-management': ['Администрирование', 'Управление школой'],
@@ -1077,6 +1078,164 @@ document.querySelectorAll('[data-incoming-filter]').forEach(button => {
 });
 
 
+
+let backupsCache = [];
+
+function backupFormatBytes(value) {
+  const bytes = Math.max(0, Number(value || 0));
+  if (bytes < 1024) return bytes + ' Б';
+  const units = ['КБ', 'МБ', 'ГБ', 'ТБ'];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  const digits = size >= 100 ? 0 : (size >= 10 ? 1 : 2);
+  return size.toFixed(digits).replace('.', ',') + ' ' + units[unitIndex];
+}
+
+function backupCreatedAt(value) {
+  if (!value) return '—';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function renderBackups(data) {
+  const body = document.getElementById('backupsBody');
+  const status = document.getElementById('backupStatus');
+  if (!body) return;
+
+  backupsCache = Array.isArray(data?.items) ? data.items : [];
+  const automatic = backupsCache.filter(item => item.kind === 'automatic').length;
+  const manual = backupsCache.filter(item => item.kind === 'manual').length;
+
+  if (status) {
+    status.innerHTML = backupsCache.length
+      ? `<span>Всего: <b>${backupsCache.length}</b></span><span>Автоматических: <b>${automatic}</b></span><span>Ручных: <b>${manual}</b></span><span>Хранение: <b>${Number(data?.retention_days || 30)} дней</b></span>`
+      : 'Резервных копий пока нет.';
+  }
+
+  if (!backupsCache.length) {
+    body.innerHTML = '<tr><td colspan="6">Резервных копий пока нет. Нажмите «Создать копию сейчас».</td></tr>';
+    return;
+  }
+
+  body.innerHTML = backupsCache.map(item => {
+    const file = String(item.file || '');
+    const checksum = item.sha256 ? String(item.sha256).slice(0, 12) + '…' : '—';
+    const filesCount = item.asset_files === null || item.asset_files === undefined
+      ? '—'
+      : Number(item.asset_files).toLocaleString('ru-RU');
+    const assetsSize = item.asset_bytes === null || item.asset_bytes === undefined
+      ? ''
+      : ' · ' + backupFormatBytes(item.asset_bytes);
+    return `
+      <tr>
+        <td><b>${escapeHtml(backupCreatedAt(item.created_at))}</b><small class="backup-file-name">${escapeHtml(file)}</small></td>
+        <td><span class="status ${item.kind === 'automatic' ? 'blue' : 'green'}">${item.kind === 'automatic' ? 'Автоматическая' : 'Ручная'}</span></td>
+        <td>${escapeHtml(backupFormatBytes(item.size_bytes))}<small class="backup-file-name">${escapeHtml(String(item.format || '').toUpperCase())}</small></td>
+        <td><b>${escapeHtml(filesCount)}</b><small class="backup-file-name">файлов${escapeHtml(assetsSize)}</small></td>
+        <td><code class="backup-checksum" title="${escapeHtml(String(item.sha256 || ''))}">${escapeHtml(checksum)}</code></td>
+        <td class="row-actions-cell">
+          <button class="secondary-btn compact-btn" type="button" data-download-backup="${escapeHtml(file)}">⇩ Скачать</button>
+          <button class="mini-action danger-action" type="button" data-delete-backup="${escapeHtml(file)}">Удалить</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-download-backup]').forEach(button => {
+    button.addEventListener('click', () => {
+      const file = String(button.dataset.downloadBackup || '');
+      if (!file) return;
+      window.location.href = './api/backups/download.php?file=' + encodeURIComponent(file);
+    });
+  });
+
+  body.querySelectorAll('[data-delete-backup]').forEach(button => {
+    button.addEventListener('click', () => deleteBackup(String(button.dataset.deleteBackup || '')));
+  });
+}
+
+async function loadBackups() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const body = document.getElementById('backupsBody');
+  if (body) body.innerHTML = '<tr><td colspan="6">Загрузка...</td></tr>';
+
+  const response = await fetch('./api/backups/list.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    if (body) body.innerHTML = `<tr><td colspan="6">${escapeHtml(data.error || 'Не удалось загрузить резервные копии.')}</td></tr>`;
+    return;
+  }
+  renderBackups(data);
+}
+
+async function createBackupNow() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const button = document.getElementById('createBackupBtn');
+  const original = button?.textContent || '＋ Создать копию сейчас';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Создание копии...';
+  }
+
+  try {
+    const response = await fetch('./api/backups/create.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось создать резервную копию.');
+    }
+    await loadBackups();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
+}
+
+async function deleteBackup(file) {
+  if (Number(currentUser?.is_platform_admin) !== 1 || !file) return;
+  if (!confirm('Удалить эту резервную копию? Восстановить удалённый архив будет невозможно.')) return;
+
+  try {
+    const response = await fetch('./api/backups/delete.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось удалить резервную копию.');
+    }
+    await loadBackups();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+document.getElementById('createBackupBtn')?.addEventListener('click', createBackupNow);
+document.getElementById('refreshBackupsBtn')?.addEventListener('click', () => loadBackups().catch(() => {}));
+
 const historyEventLabels = {
   assignment_created: 'Задание создано',
   assignment_imported: 'Задание импортировано',
@@ -1310,6 +1469,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
+  if (btn.dataset.view === 'system-backups') loadBackups().catch(() => {});
   if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
