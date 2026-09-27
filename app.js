@@ -10,6 +10,7 @@ const sidebarAvatar = document.getElementById('sidebarAvatar');
 const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
+const duplicateAssignmentModal = document.getElementById('duplicateAssignmentModal');
 const assignToClassModal = document.getElementById('assignToClassModal');
 const shareSubjectModal = document.getElementById('shareSubjectModal');
 const schoolModal = document.getElementById('schoolModal');
@@ -1232,6 +1233,7 @@ function renderSubjectAssignments() {
         </div>
         <div class="subject-assignment-actions">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+          <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
           ${assignmentWorkflowActionButtons(item)}
           <span class="status ${statusClass}">${statusText}</span>
         </div>
@@ -1637,6 +1639,9 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-assign-class]').forEach(button => {
     button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
   });
+  root.querySelectorAll('[data-duplicate-assignment]').forEach(button => {
+    button.addEventListener('click', () => openDuplicateAssignment(Number(button.dataset.duplicateAssignment)));
+  });
   root.querySelectorAll('[data-preview-questions]').forEach(button => {
     button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
   });
@@ -1675,6 +1680,7 @@ function renderAssignments() {
         <td><span class="status ${statusClass}">${statusText}</span></td>
         <td class="row-actions-cell">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+          <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
           ${assignmentWorkflowActionButtons(item)}
         </td>
       </tr>`;
@@ -1682,6 +1688,121 @@ function renderAssignments() {
 
   wireAssignmentWorkflowButtons(body);
 }
+
+function assignmentDateTimeLocal(value) {
+  if (!value) return '';
+  return String(value).replace(' ', 'T').slice(0, 16);
+}
+
+function openDuplicateAssignment(assignmentId) {
+  const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment || !duplicateAssignmentModal) return;
+
+  const source = document.getElementById('duplicateAssignmentSourceId');
+  const name = document.getElementById('duplicateAssignmentName');
+  const startsAt = document.getElementById('duplicateAssignmentStartsAt');
+  const dueAt = document.getElementById('duplicateAssignmentDueAt');
+  const timeLimit = document.getElementById('duplicateAssignmentTimeLimit');
+  const maxAttempts = document.getElementById('duplicateAssignmentMaxAttempts');
+  const focus = document.getElementById('duplicateAssignmentFocusPolicy');
+  const title = document.getElementById('duplicateAssignmentTitle');
+  const summary = document.getElementById('duplicateCopySummary');
+  const error = document.getElementById('duplicateAssignmentError');
+
+  error?.classList.add('hidden');
+  if (source) source.value = String(assignment.id);
+  if (name) name.value = `Копия — ${assignment.title}`;
+  if (startsAt) startsAt.value = '';
+  if (dueAt) dueAt.value = '';
+  if (timeLimit) timeLimit.value = assignment.time_limit_minutes ?? '';
+  if (maxAttempts) maxAttempts.value = String(assignment.max_attempts || 1);
+  if (focus) focus.value = assignment.focus_policy === 'strict' ? 'strict' : 'allow';
+  if (title) title.textContent = `Дублировать: ${assignment.title}`;
+
+  if (summary) {
+    const variants = Number(assignment.variant_count || 1);
+    summary.innerHTML = `
+      <span><b>Предмет:</b> ${escapeHtml(assignment.subject_name || '—')}</span>
+      <span><b>Вопросов:</b> ${Number(assignment.questions_count || assignment.parsed_question_count || 0)}</span>
+      <span><b>Варианты:</b> ${variants > 1 ? ['A','B','C','D'].slice(0, variants).join(' / ') : 'один'}</span>
+      <span><b>Классы:</b> не копируются</span>`;
+  }
+
+  openModal(duplicateAssignmentModal);
+}
+
+document.getElementById('duplicateAssignmentForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('duplicateAssignmentError');
+  const button = form.querySelector('button[type="submit"]');
+  const assignmentId = Number(document.getElementById('duplicateAssignmentSourceId')?.value || 0);
+  const title = document.getElementById('duplicateAssignmentName')?.value?.trim() || '';
+  const startsAt = document.getElementById('duplicateAssignmentStartsAt')?.value || '';
+  const dueAt = document.getElementById('duplicateAssignmentDueAt')?.value || '';
+  const timeLimit = document.getElementById('duplicateAssignmentTimeLimit')?.value || '';
+  const maxAttempts = document.getElementById('duplicateAssignmentMaxAttempts')?.value || '1';
+  const focusPolicy = document.getElementById('duplicateAssignmentFocusPolicy')?.value || 'allow';
+
+  error?.classList.add('hidden');
+
+  if (!assignmentId || !title) {
+    if (error) {
+      error.textContent = 'Введите название новой копии.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+  if (startsAt && dueAt && new Date(dueAt).getTime() <= new Date(startsAt).getTime()) {
+    if (error) {
+      error.textContent = 'Дедлайн должен быть позже даты открытия.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Копируем...';
+
+  try {
+    const response = await fetch('./api/assignments/duplicate.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignment_id: assignmentId,
+        title,
+        starts_at: startsAt,
+        due_at: dueAt,
+        time_limit_minutes: timeLimit,
+        max_attempts: maxAttempts,
+        focus_policy: focusPolicy
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось создать копию задания.');
+    }
+
+    closeModal(duplicateAssignmentModal);
+    form.reset();
+    await loadAssignments();
+    showView('assignments');
+
+    const newId = Number(data.assignment?.id || 0);
+    if (newId) {
+      setTimeout(() => openQuestionPreview(newId), 80);
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Создать копию и открыть конструктор';
+  }
+});
 
 async function openAssignToClass(assignmentId) {
   const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
