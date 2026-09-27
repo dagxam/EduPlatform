@@ -43,7 +43,9 @@ function attempt_time_expired(array $attempt): bool
     $limit = (int)($attempt['time_limit_minutes'] ?? 0);
     if ($limit <= 0) return false;
 
-    $startedAt = strtotime((string)($attempt['started_at'] ?? ''));
+    $startedRaw = trim((string)($attempt['started_at'] ?? ''));
+    if ($startedRaw === '') return false;
+    $startedAt = strtotime($startedRaw . ' UTC');
     if ($startedAt === false) return false;
 
     return time() >= ($startedAt + ($limit * 60));
