@@ -1080,21 +1080,34 @@ document.querySelectorAll('[data-incoming-filter]').forEach(button => {
 const historyEventLabels = {
   assignment_created: 'Задание создано',
   assignment_imported: 'Задание импортировано',
+  assignment_file_imported: 'Задание импортировано из файла',
   assignment_duplicated: 'Задание продублировано',
   assignment_assigned: 'Задание назначено классу',
+  assignment_assigned_to_class: 'Задание назначено классу',
   assignment_updated: 'Задание изменено',
   assignment_deleted: 'Задание удалено',
   assignment_submitted_for_review: 'Задание отправлено на проверку',
   assignment_approved: 'Задание одобрено',
+  assignment_review_approved: 'Задание одобрено администратором',
+  assignment_review_returned: 'Задание возвращено на доработку',
+  assignment_review_withdrawn: 'Задание отозвано с проверки',
+  assignment_marked_ready: 'Задание подготовлено к назначению',
+  assignment_reopened_as_draft: 'Задание возвращено в черновик',
+  assignment_completed: 'Задание завершено',
   assignment_returned: 'Задание возвращено на доработку',
   question_created: 'Вопрос добавлен',
   question_updated: 'Вопрос изменён',
   question_deleted: 'Вопрос удалён',
   question_reordered: 'Изменён порядок вопросов',
+  questions_reordered: 'Изменён порядок вопросов',
   question_image_uploaded: 'Изображение вопроса загружено',
   question_image_deleted: 'Изображение вопроса удалено',
   subject_created: 'Предмет создан',
+  school_subject_added: 'Предмет добавлен в школу',
   subject_shared: 'Материалы предмета отправлены',
+  school_material_transfer_sent: 'Материалы отправлены в другую школу',
+  school_material_transfer_accepted: 'Полученные материалы приняты',
+  school_material_transfer_rejected: 'Полученные материалы отклонены',
   material_accepted: 'Полученные материалы приняты',
   material_rejected: 'Полученные материалы отклонены',
   class_created: 'Класс создан',
@@ -1104,13 +1117,22 @@ const historyEventLabels = {
   teacher_updated: 'Профиль сотрудника изменён',
   teacher_removed: 'Сотрудник удалён из школы',
   teacher_promoted: 'Сотруднику выданы права администратора',
+  teacher_granted_school_admin: 'Сотруднику выданы права администратора',
+  teacher_credentials_sent: 'Доступ сотруднику отправлен',
+  school_admin_updated: 'Профиль администратора изменён',
+  school_admin_removed: 'Администратор удалён из школы',
+  school_admin_role_removed_keep_teacher: 'Права администратора сняты',
+  school_admin_granted_teacher: 'Администратору добавлена роль учителя',
+  school_admin_teacher_removed: 'У администратора снята роль учителя',
   teacher_demoted: 'Права администратора сняты',
   teacher_assignments_updated: 'Назначения учителя изменены',
   teacher_access_sent: 'Доступ сотруднику отправлен',
   school_created: 'Школа создана',
   school_selected: 'Выбрана активная школа',
   school_settings_updated: 'Настройки школы изменены',
-  school_branding_updated: 'Оформление школы изменено'
+  school_branding_updated: 'Оформление школы изменено',
+  school_theme_updated: 'Оформление школы изменено',
+  school_assignment_review_setting_changed: 'Настройка проверки заданий изменена'
 };
 
 const historyEntityLabels = {
@@ -1122,7 +1144,8 @@ const historyEntityLabels = {
   teacher: 'Сотрудник',
   user: 'Пользователь',
   school: 'Школа',
-  material: 'Материал'
+  material: 'Материал',
+  material_transfer: 'Передача материалов'
 };
 
 const historyMetadataLabels = {
@@ -1139,6 +1162,10 @@ const historyMetadataLabels = {
   status: 'Статус',
   from_status: 'Было',
   to_status: 'Стало',
+  from: 'Было',
+  to: 'Стало',
+  comment: 'Комментарий',
+  review_required: 'Проверка администратором',
   action: 'Действие',
   title: 'Название',
   name: 'Название'
