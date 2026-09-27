@@ -5523,7 +5523,9 @@ function renderRealAttemptResult(result, note = '') {
       </div>
     </div>`;
   document.getElementById('finishReviewAnswersBtn')?.addEventListener('click', () => {
-    openAttemptReview(Number(result?.attempt_id || 0));
+    const attemptId = Number(result?.attempt_id || 0);
+    closeModal(quizModal);
+    openAttemptReview(attemptId);
   });
   document.getElementById('finishOpenGradesBtn')?.addEventListener('click', async () => {
     closeModal(quizModal);
