@@ -830,8 +830,10 @@
   <div class="modal-backdrop hidden" id="classDetailsModal">
     <div class="modal class-details-modal">
       <button class="modal-close" data-close-modal="classDetailsModal">×</button>
-      <span class="section-kicker">Класс</span>
-      <h2 id="classDetailsTitle">Класс</h2>
+      <div class="class-details-heading">
+        <div><span class="section-kicker">Класс</span><h2 id="classDetailsTitle">Класс</h2></div>
+        <button class="secondary-btn compact-btn admin-only hidden" id="editClassFromDetailsBtn" type="button">✎ Редактировать класс</button>
+      </div>
       <div class="class-access-box">
         <div><span>Код класса</span><strong id="classJoinCode">—</strong></div>
         <button class="secondary-btn" id="copyClassCodeBtn" type="button">Скопировать код</button>
@@ -866,6 +868,37 @@
       </div>
       <div class="panel-head class-list-head"><div><span class="section-kicker">Состав</span><h3>Ученики</h3></div><strong id="classStudentsCount">0</strong></div>
       <div id="classStudentsList" class="class-students-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="classEditModal">
+    <div class="modal class-edit-modal">
+      <button class="modal-close" data-close-modal="classEditModal">×</button>
+      <span class="section-kicker">Настройки класса</span>
+      <h2 id="classEditTitle">Редактировать класс</h2>
+      <p>Можно изменить название и учебный год уже созданного класса.</p>
+
+      <form id="classEditForm" class="class-edit-form">
+        <input type="hidden" id="classEditId" name="class_id">
+        <label>Название класса
+          <input id="classEditName" name="name" maxlength="80" placeholder="Например: 7А" required>
+        </label>
+        <label>Учебный год
+          <input id="classEditAcademicYear" name="academic_year" maxlength="40" placeholder="2026 / 2027">
+        </label>
+        <div class="form-error hidden" id="classEditError"></div>
+        <div class="import-result hidden" id="classEditResult"></div>
+        <button class="primary-btn full" id="classEditSaveBtn" type="submit">Сохранить изменения</button>
+      </form>
+
+      <div class="class-delete-zone">
+        <div>
+          <span class="section-kicker">Опасное действие</span>
+          <h3>Удалить класс полностью</h3>
+          <p id="classDeleteWarning">Будет удалён класс и все данные его учеников.</p>
+        </div>
+        <button class="danger-btn full" id="deleteClassBtn" type="button">Удалить класс и всех учеников</button>
+      </div>
     </div>
   </div>
 
