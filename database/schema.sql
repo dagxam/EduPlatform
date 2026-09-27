@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     result_published_at TEXT,
     result_published_by INTEGER,
     result_revision INTEGER NOT NULL DEFAULT 0,
+    time_limit_snapshot INTEGER,
     status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'submitted', 'needs_review')),
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
