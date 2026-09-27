@@ -1,0 +1,104 @@
+.pwa-install-button{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:90;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  border:0;
+  border-radius:14px;
+  padding:12px 15px;
+  background:var(--brand,#1d68f0);
+  color:#fff;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 12px 32px rgba(20,52,100,.24);
+}
+.pwa-install-button:hover{filter:brightness(.96)}
+.pwa-install-icon{
+  width:25px;height:25px;border-radius:8px;
+  display:grid;place-items:center;
+  background:rgba(255,255,255,.17);
+  font-size:17px;
+}
+.pwa-update-toast{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%);
+  z-index:120;
+  width:min(520px,calc(100% - 28px));
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 14px 13px 16px;
+  background:#17243a;
+  color:#fff;
+  border-radius:15px;
+  box-shadow:0 16px 44px rgba(17,31,52,.3);
+}
+.pwa-update-toast b,.pwa-update-toast span{display:block}
+.pwa-update-toast span{margin-top:3px;color:#bfc9d8;font-size:12px}
+.pwa-update-toast button{
+  flex:0 0 auto;
+  border:0;
+  border-radius:10px;
+  padding:9px 13px;
+  background:#fff;
+  color:#17243a;
+  font-weight:800;
+  cursor:pointer;
+}
+.pwa-ios-modal{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(15,25,38,.55);
+  backdrop-filter:blur(5px);
+}
+.pwa-ios-card{
+  position:relative;
+  width:min(430px,100%);
+  padding:26px;
+  border-radius:22px;
+  background:#fff;
+  color:#17202a;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+}
+.pwa-ios-close{
+  position:absolute;right:14px;top:12px;
+  width:36px;height:36px;border:0;border-radius:10px;
+  background:#f2f4f7;color:#53606e;font-size:22px;cursor:pointer;
+}
+.pwa-ios-app-icon{
+  width:64px;height:64px;border-radius:17px;
+  display:grid;place-items:center;
+  background:#1d68f0;color:#fff;
+  font-size:32px;font-weight:900;
+  box-shadow:0 10px 25px rgba(29,104,240,.24);
+}
+.pwa-ios-card h2{margin:15px 0 8px;font-size:22px}
+.pwa-ios-card p{margin:0;color:#6f7b87;line-height:1.55}
+.pwa-ios-card ol{list-style:none;margin:18px 0;padding:0;display:grid;gap:10px}
+.pwa-ios-card li{display:flex;align-items:center;gap:10px;color:#4e5965}
+.pwa-ios-card li span{
+  width:27px;height:27px;border-radius:9px;
+  display:grid;place-items:center;
+  background:#edf4ff;color:#1d68f0;font-size:12px;font-weight:900;
+}
+.pwa-ios-ok{
+  width:100%;border:0;border-radius:11px;
+  padding:12px 15px;background:#1d68f0;color:#fff;font-weight:800;cursor:pointer;
+}
+.pwa-standalone body{overscroll-behavior-y:none}
+.hidden{display:none!important}
+@media(max-width:640px){
+  .pwa-install-button{right:12px;bottom:12px;left:12px;justify-content:center}
+  .pwa-update-toast{bottom:12px}
+  .pwa-ios-card{padding:22px 19px}
+}
