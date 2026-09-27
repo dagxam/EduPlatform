@@ -12,6 +12,16 @@ $pdo->exec('CREATE TABLE assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT
 )');
+$pdo->exec('CREATE TABLE assignment_imports (
+    assignment_id INTEGER PRIMARY KEY,
+    extracted_text TEXT
+)');
+$pdo->exec('CREATE TABLE audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id INTEGER
+)');
 $pdo->exec('CREATE TABLE questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     assignment_id INTEGER NOT NULL,
@@ -61,6 +71,9 @@ TYPE: multiple
 ANSWER: Б | Г
 POINTS: 2
 TXT;
+
+$pdo->prepare('INSERT INTO assignment_imports (assignment_id, extracted_text) VALUES (:assignment_id, :text)')
+    ->execute(['assignment_id' => $assignmentId, 'text' => $source]);
 
 $parsed = import_parse_questions($source);
 if (count($parsed) !== 2) {
@@ -160,4 +173,132 @@ if ((int)$textGraded['is_correct'] !== 1 || (float)$textGraded['score'] !== 1.0)
 }
 
 echo "Legacy interaction type and normalized text grading OK" . PHP_EOL;
+
+/*
+ * Full mixed-format template regression. One assignment may contain all
+ * supported UROVIA question types and each must grade correctly.
+ */
+$pdo->exec("INSERT INTO assignments (title) VALUES ('Mixed template grading')");
+$mixedAssignmentId = (int)$pdo->lastInsertId();
+
+$mixedSource = <<<'TXT'
+ЗАДАНИЕ 1
+В каком году началась Вторая мировая война?
+A) 1937
+B) 1938
+C) 1939
+D) 1941
+TYPE: single
+ANSWER: C
+POINTS: 1
+
+ЗАДАНИЕ 2
+Какие государства входили в антигитлеровскую коалицию?
+A) СССР
+B) Великобритания
+C) США
+D) Германия
+TYPE: multiple
+ANSWER: A | B | C
+POINTS: 3
+
+ЗАДАНИЕ 3
+Расположите события в хронологическом порядке.
+• Сталинградская битва
+• Окончание Второй мировой войны
+• Начало Второй мировой войны
+• Нападение Германии на СССР
+TYPE: order
+ORDER: Начало Второй мировой войны | Нападение Германии на СССР | Сталинградская битва | Окончание Второй мировой войны
+POINTS: 4
+
+ЗАДАНИЕ 4
+Сопоставьте событие и год.
+TYPE: matching
+PAIRS: Начало Второй мировой войны = 1939 | Нападение Германии на СССР = 1941 | Сталинградская битва = 1942 | Окончание Второй мировой войны = 1945
+POINTS: 4
+
+ЗАДАНИЕ 5
+Как назывался план нападения Германии на СССР?
+TYPE: text
+ANSWER: Барбаросса
+ALTERNATIVES: план Барбаросса | Барбаросса
+POINTS: 1
+
+ЗАДАНИЕ 6
+Исправьте историческую ошибку:
+«Вторая мировая война началась в 1941 году.»
+TYPE: correction
+ANSWER: Вторая мировая война началась в 1939 году.
+POINTS: 2
+
+ЗАДАНИЕ 7
+2 + 2 = ?
+TYPE: number
+ANSWER: 4
+POINTS: 1
+
+ЗАДАНИЕ 8
+Вторая мировая война началась в 1939 году.
+TYPE: true_false
+ANSWER: верно
+POINTS: 1
+TXT;
+
+$pdo->prepare('INSERT INTO assignment_imports (assignment_id, extracted_text) VALUES (:assignment_id, :text)')
+    ->execute(['assignment_id' => $mixedAssignmentId, 'text' => $mixedSource]);
+
+$mixedParsed = import_parse_questions($mixedSource);
+if (count($mixedParsed) !== 8) {
+    fwrite(STDERR, 'Mixed template grading expected 8 questions, got ' . count($mixedParsed) . PHP_EOL);
+    exit(1);
+}
+import_store_questions($pdo, $mixedAssignmentId, $mixedParsed, []);
+
+$mixedStmt = $pdo->prepare(
+    'SELECT id, interaction_type, correct_text, points
+     FROM questions
+     WHERE assignment_id = :assignment_id
+     ORDER BY position, id'
+);
+$mixedStmt->execute(['assignment_id' => $mixedAssignmentId]);
+$mixedRows = $mixedStmt->fetchAll();
+
+$mixedScore = 0.0;
+$mixedMax = 0.0;
+foreach ($mixedRows as $row) {
+    $questionId = (int)$row['id'];
+    $interaction = (string)$row['interaction_type'];
+    $payload = [];
+
+    if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
+        $ids = correct_option_ids($pdo, $questionId);
+        $payload = ['option_ids' => $ids];
+    } elseif ($interaction === 'order') {
+        $payload = ['order' => json_decode((string)$row['correct_text'], true) ?: []];
+    } elseif ($interaction === 'matching') {
+        $payload = ['matches' => json_decode((string)$row['correct_text'], true) ?: []];
+    } elseif ($interaction === 'number') {
+        $payload = ['answer_text' => (string)$row['correct_text']];
+    } else {
+        $first = trim((string)(preg_split('/\s*\|\s*/u', (string)$row['correct_text'])[0] ?? ''));
+        $payload = ['answer_text' => $first];
+    }
+
+    $graded = grade_question_answer($pdo, $questionId, $payload);
+    if ((int)$graded['is_correct'] !== 1) {
+        fwrite(STDERR, 'Mixed template grading failed for type ' . $interaction . PHP_EOL);
+        exit(1);
+    }
+    $mixedScore += (float)$graded['score'];
+    $mixedMax += (float)$row['points'];
+}
+
+if (abs($mixedScore - $mixedMax) > 0.000001 || abs($mixedMax - 17.0) > 0.000001) {
+    fwrite(STDERR, 'Mixed template total score mismatch: ' . $mixedScore . '/' . $mixedMax . PHP_EOL);
+    exit(1);
+}
+
+echo "Mixed UROVIA template grading OK: {$mixedScore}/{$mixedMax}" . PHP_EOL;
+
 
