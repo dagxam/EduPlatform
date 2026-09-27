@@ -1883,7 +1883,7 @@ document.getElementById('shareSubjectForm')?.addEventListener('submit', async ev
     }
   } finally {
     button.disabled = false;
-    button.textContent = 'Отправить в школу';
+    button.textContent = 'Отправить во входящие';
   }
 });
 
