@@ -113,7 +113,7 @@ if ($action === 'prepare') {
     $updates = [
         'reviewed_at = CURRENT_TIMESTAMP',
         'reviewed_by = ' . (int)$user['id'],
-        'review_comment = ' . $pdo->quote($comment !== '' ? $comment : null),
+        'review_comment = ' . ($comment !== '' ? $pdo->quote($comment) : 'NULL'),
     ];
 } elseif ($action === 'return') {
     if (!$manager) {
