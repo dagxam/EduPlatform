@@ -299,6 +299,24 @@ function import_extract_media(string $path, string $extension): array
     return $media;
 }
 
+function import_normalize_option_label(string $value): string
+{
+    $value = strtoupper(trim($value));
+    $value = trim($value, " .):;-");
+
+    $latin = ['A','B','C','D','E','F','G','H'];
+    $cyrillic = ['А','Б','В','Г','Д','Е','Ж','З'];
+
+    $latinIndex = array_search($value, $latin, true);
+    if ($latinIndex !== false) return (string)($latinIndex + 1);
+
+    $cyrIndex = array_search($value, $cyrillic, true);
+    if ($cyrIndex !== false) return (string)($cyrIndex + 1);
+
+    if (preg_match('/^\d{1,2}$/', $value)) return (string)(int)$value;
+    return $value;
+}
+
 function import_normalize_type(string $raw): string
 {
     $value = function_exists('mb_strtolower') ? mb_strtolower(trim($raw)) : strtolower(trim($raw));
@@ -480,6 +498,10 @@ function import_parse_question_block(string $block): ?array
     if ($interaction === '') {
         if (count($alphaOptions) >= 2 && $answer !== '') {
             $tokens = preg_split('/[|,;\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $tokens = array_values(array_unique(array_map(
+                static fn(string $v): string => import_normalize_option_label($v),
+                $tokens
+            )));
             $interaction = count($tokens) > 1 ? 'multiple' : 'single';
         } elseif ($orderRaw !== '') {
             $interaction = 'order';
@@ -517,13 +539,16 @@ function import_parse_question_block(string $block): ?array
 
         $question['db_type'] = $interaction;
         $tokens = preg_split('/[|,;\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $tokens = array_map(static fn(string $v): string => trim($v, " .)"), $tokens);
+        $tokens = array_values(array_unique(array_map(
+            static fn(string $v): string => import_normalize_option_label($v),
+            $tokens
+        )));
 
         foreach ($options as $label => $optionText) {
             $question['options'][] = [
                 'label' => (string)$label,
                 'text' => $optionText,
-                'is_correct' => in_array(strtoupper((string)$label), $tokens, true),
+                'is_correct' => in_array(import_normalize_option_label((string)$label), $tokens, true),
             ];
         }
     } elseif ($interaction === 'true_false') {
