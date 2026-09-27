@@ -11,6 +11,7 @@ $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
 
 repair_imported_answer_keys_and_scores($pdo, null, $schoolId);
+repair_zero_total_attempts($pdo, null, $schoolId);
 
 $sql =
     'SELECT at.id, at.assignment_id, at.student_id, at.submitted_at, at.status, at.variant_label,
