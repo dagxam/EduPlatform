@@ -35,27 +35,47 @@ if (!$class) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT u.id
+    'SELECT u.id, u.avatar_name
      FROM class_students cs
      JOIN users u ON u.id = cs.student_id
      WHERE cs.class_id = :class_id AND u.role = "student"'
 );
 $stmt->execute(['class_id' => $classId]);
-$studentIds = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+$students = $stmt->fetchAll();
+$studentIds = array_map('intval', array_column($students, 'id'));
 
-$stmt = $pdo->prepare(
-    'SELECT COUNT(*)
-     FROM attempts
-     WHERE student_id IN (
-       SELECT student_id FROM class_students WHERE class_id = :class_id
-     )'
-);
-$stmt->execute(['class_id' => $classId]);
-$attemptsCount = (int)$stmt->fetchColumn();
+$attemptIds = [];
+if ($studentIds) {
+    $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
+    $stmt = $pdo->prepare("SELECT id FROM attempts WHERE student_id IN ($placeholders)");
+    $stmt->execute($studentIds);
+    $attemptIds = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+}
+$attemptsCount = count($attemptIds);
 
 $pdo->beginTransaction();
 try {
+    $pdo->prepare(
+        'DELETE FROM audit_log WHERE entity_type = "class" AND entity_id = :class_id'
+    )->execute(['class_id' => $classId]);
+
+    if ($attemptIds) {
+        $attemptPlaceholders = implode(',', array_fill(0, count($attemptIds), '?'));
+        $stmt = $pdo->prepare(
+            "DELETE FROM audit_log WHERE entity_type = 'attempt' AND entity_id IN ($attemptPlaceholders)"
+        );
+        $stmt->execute($attemptIds);
+    }
+
     if ($studentIds) {
+        $studentPlaceholders = implode(',', array_fill(0, count($studentIds), '?'));
+        $stmt = $pdo->prepare(
+            "DELETE FROM audit_log
+             WHERE user_id IN ($studentPlaceholders)
+                OR (entity_type = 'user' AND entity_id IN ($studentPlaceholders))"
+        );
+        $stmt->execute(array_merge($studentIds, $studentIds));
+
         $deleteStudent = $pdo->prepare('DELETE FROM users WHERE id = :id AND role = "student"');
         foreach ($studentIds as $studentId) {
             $deleteStudent->execute(['id' => $studentId]);
@@ -76,6 +96,14 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     throw $e;
+}
+
+$avatarDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'avatars';
+foreach ($students as $student) {
+    $avatar = basename((string)($student['avatar_name'] ?? ''));
+    if ($avatar === '') continue;
+    $avatarPath = $avatarDir . DIRECTORY_SEPARATOR . $avatar;
+    if (is_file($avatarPath)) @unlink($avatarPath);
 }
 
 audit_event('class_deleted', 'school', $schoolId, [
