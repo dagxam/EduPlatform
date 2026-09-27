@@ -1,4 +1,4 @@
-const CACHE = 'uvoria-v17';
+const CACHE = 'uvoria-v18';
 const APP_SHELL = ['./', './index.html', './login.html', './styles.css', './login.css', './app.js', './question-builder.js', './login.js', './attempt-security.js', './manifest.webmanifest', './favicon.png?v=3'];
 
 self.addEventListener('install', event => {
