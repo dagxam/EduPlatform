@@ -286,6 +286,10 @@ function applyUser(user) {
       ? 'Администратор школы · Учитель'
       : (admin ? 'Администратор школы' : (roleLabels[user.role] || user.role)));
   sidebarAvatar.textContent = ((user.first_name || 'П').charAt(0) + (user.last_name || '').charAt(0)).toUpperCase();
+  sidebarAvatar.style.backgroundImage = user.avatar_name
+    ? `url("./api/profile/avatar.php?user_id=${Number(user.id)}&v=${encodeURIComponent(user.avatar_name)}")`
+    : '';
+  sidebarAvatar.classList.toggle('has-photo', Boolean(user.avatar_name));
   const roleBadge = document.getElementById('accountRoleBadge');
   if (roleBadge) roleBadge.textContent = sidebarRole.textContent;
 
@@ -1439,6 +1443,11 @@ document.getElementById('profileAvatarForm')?.addEventListener('submit', async e
     if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось загрузить фото.');
     form.reset();
     document.getElementById('profileAvatarUserId').value = String(activeProfileUserId || currentUser?.id || '');
+    if (Number(activeProfileUserId || currentUser?.id) === Number(currentUser?.id)) {
+      sidebarAvatar.style.backgroundImage = `url("${payload.avatar_url}")`;
+      sidebarAvatar.classList.add('has-photo');
+      sidebarAvatar.textContent = '';
+    }
     await loadStaffProfile(activeProfileUserId || currentUser?.id);
   } catch (e) {
     if (error) {
