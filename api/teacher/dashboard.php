@@ -105,8 +105,12 @@ $dueThisWeek = (int)$stmt->fetchColumn();
 $attemptSql =
     "SELECT COUNT(*) AS submitted_count,
             SUM(CASE WHEN at.submitted_at >= datetime(CURRENT_TIMESTAMP, '-7 days') THEN 1 ELSE 0 END) AS last_7_days,
-            AVG(at.percent) AS avg_percent,
-            AVG(CASE WHEN at.grade GLOB '[0-9]*' THEN CAST(at.grade AS REAL) ELSE NULL END) AS avg_grade
+            AVG(COALESCE(at.published_percent, at.percent)) AS avg_percent,
+            AVG(CASE
+              WHEN COALESCE(at.published_grade, at.grade) GLOB '[0-9]*'
+              THEN CAST(COALESCE(at.published_grade, at.grade) AS REAL)
+              ELSE NULL
+            END) AS avg_grade
      FROM attempts at
      JOIN assignments a ON a.id = at.assignment_id
      JOIN class_students cs ON cs.student_id = at.student_id
@@ -145,7 +149,7 @@ $activeAssignments = $stmt->fetchAll();
 $classSql =
     "SELECT c.id, COALESCE(c.display_name, c.name) AS name,
             COUNT(DISTINCT cs.student_id) AS students_count,
-            AVG(CASE WHEN a.id IS NOT NULL AND at.status IN ('submitted', 'needs_review') THEN at.percent ELSE NULL END) AS average_percent
+            AVG(CASE WHEN a.id IS NOT NULL AND at.status IN ('submitted', 'needs_review') THEN COALESCE(at.published_percent, at.percent) ELSE NULL END) AS average_percent
      FROM classes c
      LEFT JOIN class_students cs ON cs.class_id = c.id
      LEFT JOIN attempts at ON at.student_id = cs.student_id
