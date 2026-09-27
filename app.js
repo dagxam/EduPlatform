@@ -2183,6 +2183,7 @@ const historyEventLabels = {
   assignment_deleted: 'Задание удалено',
   attempt_result_draft_updated: 'Результат ученика скорректирован',
   attempt_result_published: 'Обновлённая оценка опубликована',
+  attempt_result_reset: 'Результат ученика сброшен',
   mail_test_sent: 'Отправлено тестовое письмо UROVIA'
 };
 
@@ -2543,13 +2544,46 @@ function renderResults() {
         <td><b>${Math.round(Number(display.percent || 0))}%</b></td>
         <td><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
         <td>${statusHtml}</td>
-        <td><button class="secondary-btn compact-btn" type="button" data-edit-result="${Number(item.attempt_id)}">Редактировать</button></td>
+        <td>
+          <div class="result-row-actions">
+            <button class="secondary-btn compact-btn" type="button" data-edit-result="${Number(item.attempt_id)}">Редактировать</button>
+            <button class="danger-outline-btn compact-btn" type="button" data-reset-result="${Number(item.attempt_id)}">Сбросить результат</button>
+          </div>
+        </td>
       </tr>`;
   }).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
 
   body.querySelectorAll('[data-edit-result]').forEach(button => {
     button.addEventListener('click', () => openResultEditor(Number(button.dataset.editResult)));
   });
+  body.querySelectorAll('[data-reset-result]').forEach(button => {
+    button.addEventListener('click', () => resetStudentResult(Number(button.dataset.resetResult)));
+  });
+}
+
+async function resetStudentResult(attemptId) {
+  const item = resultsCache.find(row => Number(row.attempt_id) === Number(attemptId));
+  if (!item) return;
+
+  const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'ученика';
+  const confirmed = await appConfirm(
+    `Сбросить результат для ${studentName}? Текущая попытка, ответы и опубликованные корректировки будут удалены. После этого ученик сможет выполнить задание заново с чистого листа.`,
+    { title:'Сбросить результат', tone:'danger', okText:'Сбросить и разрешить заново', cancelText:'Отмена' }
+  );
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('./api/results/reset.php', {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ attempt_id: attemptId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сбросить результат.');
+    await Promise.all([loadResults(), loadTeacherDashboard().catch(() => {}), loadActivityHistory().catch(() => {})]);
+    await appAlert(data.message || 'Результат сброшен.', { title:'Результат сброшен', tone:'success', okText:'Готово' });
+  } catch (error) {
+    await appAlert(error.message, { title:'Не удалось сбросить результат', tone:'danger' });
+  }
 }
 
 async function loadResults() {
