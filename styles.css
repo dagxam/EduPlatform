@@ -4355,3 +4355,336 @@ input,select,textarea,button{
     font-size:11px;
   }
 }
+
+
+/* UROVIA assignment timing + school management polish v41 */
+.real-question-points{
+  display:none!important;
+}
+.assign-class-modal{
+  width:min(640px,calc(100vw - 28px));
+}
+.assign-class-form{
+  display:grid;
+  gap:16px;
+}
+.assign-class-field{
+  display:grid;
+  gap:7px;
+  color:#536170;
+  font-size:12px;
+  font-weight:800;
+}
+.assign-class-field select{
+  width:100%;
+  min-height:46px;
+  padding:0 12px;
+  border:1px solid #dce3ea;
+  border-radius:12px;
+  background:#fff;
+  color:#263442;
+  font:inherit;
+  outline:none;
+}
+.assign-class-field select:focus{
+  border-color:color-mix(in srgb,var(--brand) 58%,white);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 10%,transparent);
+}
+.assign-time-field{
+  margin:0;
+  padding:14px;
+  border:1px solid #e1e7ed;
+  border-radius:14px;
+  background:#f8fafc;
+}
+.assign-time-field legend{
+  padding:0 6px;
+  color:#536170;
+  font-size:12px;
+  font-weight:850;
+}
+.assign-time-field>small{
+  display:block;
+  margin-top:10px;
+  color:#8a96a2;
+  font-size:10px;
+  line-height:1.45;
+}
+.assign-time-options{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.assign-time-options label{
+  position:relative;
+  cursor:pointer;
+}
+.assign-time-options input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.assign-time-options span{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:8px 9px;
+  border:1px solid #dce3ea;
+  border-radius:11px;
+  background:#fff;
+  color:#5f6d7b;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+  transition:.15s ease;
+}
+.assign-time-options label:hover span{
+  border-color:color-mix(in srgb,var(--brand) 30%,#dce3ea);
+  background:color-mix(in srgb,var(--brand) 3%,white);
+}
+.assign-time-options input:checked+span{
+  border-color:var(--brand);
+  background:var(--brand-soft);
+  color:var(--brand);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 7%,transparent);
+}
+.assign-class-submit{
+  min-height:48px;
+}
+.quiz-time-chip{
+  gap:6px!important;
+  border-color:color-mix(in srgb,var(--brand) 24%,#e6eaf0)!important;
+  background:var(--brand-soft)!important;
+  color:#59697a!important;
+}
+.quiz-time-chip b{
+  color:var(--brand);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.04em;
+}
+.quiz-time-chip b.urgent{
+  color:#c57a0a;
+}
+.quiz-time-chip b.expired{
+  color:#c63d3d;
+}
+
+/* School management: cleaner hierarchy on tablet and phone */
+#school-management .school-branding-panel,
+#school-management .school-workflow-settings-panel{
+  margin-bottom:14px;
+}
+#school-management .school-admin-grid{
+  align-items:start;
+}
+#school-management .subject-admin-list{
+  gap:9px;
+}
+#school-management .subject-admin-chip{
+  min-height:40px;
+  padding:9px 13px;
+}
+#school-management .school-teachers-table td,
+#school-management .school-admins-table td{
+  vertical-align:middle;
+}
+#school-management .school-teachers-table .row-actions-cell,
+#school-management .school-admins-table .row-actions-cell{
+  min-width:170px;
+}
+
+@media(max-width:1050px){
+  #school-management .school-admin-grid{
+    grid-template-columns:1fr!important;
+  }
+  #school-management .school-admins-panel{
+    grid-column:auto!important;
+  }
+  #school-management .school-branding-panel,
+  #school-management .school-workflow-settings-panel,
+  #school-management .school-admin-grid>.panel{
+    border-radius:16px;
+  }
+  #school-management .branding-form,
+  #school-management .school-setting-form{
+    max-width:none;
+  }
+  #school-management .branding-presets{
+    gap:10px;
+  }
+  #school-management .branding-swatch{
+    width:42px;
+    height:42px;
+  }
+}
+
+@media(max-width:760px){
+  .assign-class-modal{
+    width:100%!important;
+  }
+  .assign-time-options{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  #school-management{
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+  #school-management>.section-toolbar{
+    gap:12px;
+  }
+  #school-management .toolbar-actions{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px;
+  }
+  #school-management .toolbar-actions button{
+    min-height:44px;
+  }
+  #school-management .school-branding-panel,
+  #school-management .school-workflow-settings-panel,
+  #school-management .school-admin-grid>.panel{
+    padding:15px!important;
+  }
+  #school-management .school-setting-toggle{
+    align-items:flex-start;
+    padding:13px;
+  }
+  #school-management .school-setting-toggle input{
+    margin-top:3px;
+  }
+  #school-management .branding-form>button,
+  #school-management .school-setting-form>button{
+    width:100%;
+    min-height:44px;
+  }
+  #school-management .subject-admin-list{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  #school-management .subject-admin-chip{
+    width:100%;
+    justify-content:center;
+    text-align:center;
+    white-space:normal;
+  }
+
+  #school-management .school-teachers-table,
+  #school-management .school-admins-table{
+    display:block;
+    min-width:0!important;
+    width:100%;
+  }
+  #school-management .school-teachers-table thead,
+  #school-management .school-admins-table thead{
+    display:none;
+  }
+  #school-management .school-teachers-table tbody,
+  #school-management .school-admins-table tbody{
+    display:grid;
+    gap:10px;
+  }
+  #school-management .school-teachers-table tr,
+  #school-management .school-admins-table tr{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:9px 12px;
+    padding:14px;
+    border:1px solid #e3e8ee;
+    border-radius:14px;
+    background:#fff;
+  }
+  #school-management .school-teachers-table td,
+  #school-management .school-admins-table td{
+    display:grid;
+    gap:4px;
+    min-width:0!important;
+    padding:0!important;
+    border:0!important;
+    overflow-wrap:anywhere;
+  }
+  #school-management .school-teachers-table td::before,
+  #school-management .school-admins-table td::before{
+    color:#929da8;
+    font-size:9px;
+    font-weight:850;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  #school-management .school-teachers-table td:nth-child(1)::before{content:"Учитель"}
+  #school-management .school-teachers-table td:nth-child(2)::before{content:"Email"}
+  #school-management .school-teachers-table td:nth-child(3)::before{content:"Предметы и классы"}
+  #school-management .school-admins-table td:nth-child(1)::before{content:"Администратор"}
+  #school-management .school-admins-table td:nth-child(2)::before{content:"Email"}
+  #school-management .school-admins-table td:nth-child(3)::before{content:"Статус"}
+
+  #school-management .school-teachers-table td:nth-child(1),
+  #school-management .school-teachers-table td:nth-child(2),
+  #school-management .school-teachers-table td:nth-child(3),
+  #school-management .school-teachers-table td:nth-child(4),
+  #school-management .school-admins-table td:nth-child(1),
+  #school-management .school-admins-table td:nth-child(2),
+  #school-management .school-admins-table td:nth-child(4){
+    grid-column:1/-1;
+  }
+  #school-management .school-teachers-table .row-actions-cell,
+  #school-management .school-admins-table .row-actions-cell{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    padding-top:9px!important;
+    border-top:1px solid #edf1f4!important;
+    min-width:0!important;
+  }
+  #school-management .school-teachers-table .row-actions-cell::before,
+  #school-management .school-admins-table .row-actions-cell::before{
+    display:none;
+  }
+  #school-management .school-teachers-table .row-actions-cell button,
+  #school-management .school-admins-table .row-actions-cell button{
+    width:100%;
+    min-height:40px;
+    white-space:normal;
+  }
+  #school-management .school-admins-panel .panel-head{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  #school-management .school-admins-panel .panel-head button{
+    width:100%;
+  }
+
+  .assignment-matrix{
+    gap:10px;
+  }
+  .assignment-matrix-row{
+    border-radius:13px;
+  }
+  .assignment-class-options{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .assignment-class-options span{
+    min-height:42px;
+    align-items:center;
+  }
+}
+
+@media(max-width:430px){
+  .assign-time-options{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  #school-management .toolbar-actions,
+  #school-management .subject-admin-list,
+  #school-management .school-teachers-table .row-actions-cell,
+  #school-management .school-admins-table .row-actions-cell{
+    grid-template-columns:1fr!important;
+  }
+  #school-management .school-teachers-table tr,
+  #school-management .school-admins-table tr{
+    grid-template-columns:1fr;
+  }
+  #school-management .school-teachers-table td,
+  #school-management .school-admins-table td{
+    grid-column:1/-1!important;
+  }
+}
