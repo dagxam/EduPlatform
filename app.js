@@ -2254,36 +2254,68 @@ function renderSubjectAssignments() {
   list.innerHTML = rows.length ? rows.map(item => {
     const [statusText, statusClass] = assignmentStatusLabel(item);
     const questionsCount = Number(item.questions_count || item.parsed_question_count || 0);
-    const importInfo = item.source_format
-      ? escapeHtml(String(item.source_format).toUpperCase()) + (
-          item.parse_status === 'questions_parsed'
-            ? ` · распознано вопросов: ${questionsCount}`
-            : item.parse_status === 'text_extracted'
-              ? ' · текст извлечён'
-              : ' · файл принят'
-        )
-      : `Задание UVORIA${questionsCount ? ' · вопросов: ' + questionsCount : ''}`;
+    const formatLabel = item.source_format ? String(item.source_format).toUpperCase() : 'UVORIA';
+    const parseLabel = item.source_format
+      ? (item.parse_status === 'questions_parsed'
+          ? 'Файл распознан'
+          : item.parse_status === 'text_extracted'
+            ? 'Текст извлечён'
+            : 'Файл загружен')
+      : 'Создано в UVORIA';
+    const variantsCount = Math.max(1, Number(item.variant_count || 1));
+    const variantsLabel = variantsCount > 1
+      ? ['A','B','C','D'].slice(0, variantsCount).join('/')
+      : '';
 
     const reviewNote = item.review_comment
-      ? `<em class="workflow-review-note">Комментарий администратора: ${escapeHtml(item.review_comment)}</em>`
+      ? `<div class="subject-assignment-alert"><b>Комментарий администратора</b><span>${escapeHtml(item.review_comment)}</span></div>`
       : '';
 
     return `
-      <article class="subject-assignment-row">
+      <article class="subject-assignment-row subject-assignment-card">
         <div class="subject-assignment-copy">
-          <b>${escapeHtml(item.title)}</b>
-          <small>${escapeHtml(item.class_names || 'Без класса')} · ${importInfo}${Number(item.variant_count || 1) > 1 ? ' · варианты ' + ['A','B','C','D'].slice(0, Number(item.variant_count)).join('/') : ''}</small>
-          ${item.parser_message ? `<em>${escapeHtml(item.parser_message)}</em>` : ''}
+          <div class="subject-assignment-heading">
+            <div class="subject-assignment-title-wrap">
+              <span class="subject-assignment-kicker">Учебное задание</span>
+              <h3>${escapeHtml(item.title)}</h3>
+            </div>
+            <span class="status ${statusClass} subject-assignment-status">${statusText}</span>
+          </div>
+
+          <div class="subject-assignment-meta">
+            <span class="assignment-meta-chip">
+              <span class="assignment-meta-icon">⌂</span>
+              ${escapeHtml(item.class_names || 'Без класса')}
+            </span>
+            <span class="assignment-meta-chip">
+              <span class="assignment-meta-icon">▤</span>
+              ${escapeHtml(formatLabel)}
+            </span>
+            <span class="assignment-meta-chip">
+              <span class="assignment-meta-icon">?</span>
+              ${questionsCount} ${questionsCount === 1 ? 'вопрос' : (questionsCount >= 2 && questionsCount <= 4 ? 'вопроса' : 'вопросов')}
+            </span>
+            ${variantsLabel ? `<span class="assignment-meta-chip"><span class="assignment-meta-icon">A</span>Варианты ${escapeHtml(variantsLabel)}</span>` : ''}
+          </div>
+
+          <div class="subject-assignment-info">
+            <span class="subject-assignment-parse-state">${escapeHtml(parseLabel)}</span>
+            ${item.parser_message ? `<span>${escapeHtml(item.parser_message)}</span>` : ''}
+          </div>
           ${reviewNote}
         </div>
-        <div class="subject-assignment-actions">
-          <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
-          <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
-          <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
-          ${assignmentDeleteButton(item)}
-          ${libraryAssignmentAction(item)}
-          ${assignmentWorkflowActionButtons(item)}
-          <span class="status ${statusClass}">${statusText}</span>
+
+        <div class="subject-assignment-footer">
+          <div class="subject-assignment-actions">
+            <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
+            <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+            <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
+            ${libraryAssignmentAction(item)}
+            ${assignmentDeleteButton(item)}
+          </div>
+          <div class="subject-assignment-workflow-actions">
+            ${assignmentWorkflowActionButtons(item)}
+          </div>
         </div>
       </article>`;
   }).join('') : '<div class="subject-empty-list"><b>Заданий пока нет</b><span>Создайте задание вручную или импортируйте файл.</span></div>';
