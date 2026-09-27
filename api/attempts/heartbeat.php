@@ -14,7 +14,20 @@ $pdo = app_db();
 $attempt = attempt_for_student($pdo, $attemptId, (int)$user['id']);
 
 if ($attempt['status'] !== 'in_progress') {
-    json_response(['ok' => true, 'active' => false, 'status' => $attempt['status']]);
+    json_response([
+        'ok' => true,
+        'active' => false,
+        'status' => (string)$attempt['status'],
+        'reason' => $attempt['termination_reason'] ?? null,
+        'result' => [
+            'score' => (float)($attempt['score'] ?? 0),
+            'max_score' => (float)($attempt['max_score'] ?? 0),
+            'percent' => (float)($attempt['percent'] ?? 0),
+            'grade' => (string)($attempt['grade'] ?? ''),
+            'status' => (string)$attempt['status'],
+            'termination_reason' => $attempt['termination_reason'] ?? null,
+        ],
+    ]);
 }
 
 $expiredResult = finalize_expired_attempt($pdo, $attempt);
