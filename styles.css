@@ -2218,3 +2218,87 @@ html:not(.auth-pending) .auth-boot-screen{
   opacity:.48;
   cursor:not-allowed;
 }
+
+
+/* Live teacher dashboard */
+.dashboard-empty{
+  grid-column:1/-1;
+  display:grid;
+  gap:4px;
+  min-height:78px;
+  place-content:center;
+  text-align:center;
+  color:#84909d;
+  font-size:13px;
+}
+.dashboard-empty b{
+  color:#344252;
+  font-size:14px;
+}
+.dashboard-empty span{
+  color:#8d99a5;
+  font-size:12px;
+}
+
+/* Staff assignment test mode */
+.test-run-btn{
+  border-color:color-mix(in srgb,var(--brand) 28%,#dbe2ea)!important;
+  color:var(--brand)!important;
+  background:var(--brand-soft)!important;
+}
+.test-run-btn:hover{
+  border-color:var(--brand)!important;
+}
+.test-mode-banner{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  flex-direction:column;
+  margin:0 0 16px;
+  padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--brand) 24%,#dfe5ec);
+  border-radius:13px;
+  background:var(--brand-soft);
+  color:#536273;
+  font-size:12px;
+  line-height:1.5;
+}
+.test-mode-banner b{
+  color:var(--brand);
+  font-size:13px;
+}
+.test-mode-banner.compact{
+  max-width:520px;
+  margin:0 auto 18px;
+}
+.staff-test-variant{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#697785;
+  font-size:12px;
+  font-weight:800;
+}
+.staff-test-variant select{
+  min-width:68px;
+  height:34px;
+  padding:0 26px 0 9px;
+  border:1px solid #d9e0e8;
+  border-radius:9px;
+  background:#fff;
+  color:#263442;
+  font-weight:800;
+}
+.staff-test-result-actions{
+  display:flex;
+  justify-content:center;
+  gap:9px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+@media(max-width:700px){
+  .staff-test-result-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+}
