@@ -91,6 +91,28 @@ function valid_choice_answer_key(string $interaction, array $correctIds): bool
     return false;
 }
 
+function expected_choice_option_ids(PDO $pdo, int $questionId, string $interaction): array
+{
+    $current = correct_option_ids($pdo, $questionId);
+    sort($current, SORT_NUMERIC);
+
+    // Manual constructor edits are authoritative.
+    if (question_answer_key_edited($pdo, $questionId)) {
+        return $current;
+    }
+
+    // Imported questions must be checked against the original ANSWER field,
+    // even when the database already contains a valid-looking correct flag.
+    // This avoids stale/wrong is_correct flags producing 0 points.
+    $source = repair_missing_correct_options($pdo, $questionId);
+    if (valid_choice_answer_key($interaction, $source)) {
+        sort($source, SORT_NUMERIC);
+        return $source;
+    }
+
+    return $current;
+}
+
 function question_answer_key_edited(PDO $pdo, int $questionId): bool
 {
     try {
@@ -387,12 +409,7 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
         $selected = array_values(array_unique(array_map('intval', (array)($payload['option_ids'] ?? []))));
         sort($selected, SORT_NUMERIC);
 
-        $correct = correct_option_ids($pdo, $questionId);
-        sort($correct, SORT_NUMERIC);
-
-        if (!valid_choice_answer_key($interaction, $correct)) {
-            $correct = repair_missing_correct_options($pdo, $questionId);
-        }
+        $correct = expected_choice_option_ids($pdo, $questionId, $interaction);
 
         $answerText = json_encode($selected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
         $isCorrect = ($selected === $correct && count($selected) > 0) ? 1 : 0;
