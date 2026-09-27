@@ -2260,12 +2260,410 @@ document.getElementById('temporaryPasswordForm')?.addEventListener('submit', asy
   }
 });
 
+
+let studentAssignmentsCache = [];
+let activeStudentAssignment = null;
+let activeStudentAttempt = null;
+
+function formatStudentDeadline(value) {
+  if (!value) return 'без срока';
+  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderStudentAssignmentCards(target, rows) {
+  if (!target) return;
+  if (!rows.length) {
+    target.innerHTML = '<article class="student-task"><h3>Заданий пока нет</h3><p>Когда учитель назначит работу вашему классу, она появится здесь.</p></article>';
+    return;
+  }
+
+  target.innerHTML = rows.map(item => {
+    const completed = Number(item.completed_attempts || 0);
+    const maxAttempts = Number(item.max_attempts || 1);
+    const activeAttempt = Number(item.active_attempt_id || 0);
+    const exhausted = completed >= maxAttempts && !activeAttempt;
+    const variantCount = Number(item.variant_count || 1);
+    const variantText = variantCount > 1 ? ` · варианты ${['A','B','C','D'].slice(0, variantCount).join('/')}` : '';
+    const timeText = item.time_limit_minutes ? `${Number(item.time_limit_minutes)} мин.` : 'без ограничения';
+    const state = activeAttempt
+      ? `В процессе · вариант ${escapeHtml(item.active_variant_label || 'A')}`
+      : exhausted
+        ? `Завершено${item.last_percent !== null ? ' · ' + Math.round(Number(item.last_percent)) + '%' : ''}`
+        : `Попыток: ${completed}/${maxAttempts}`;
+
+    return `
+      <article class="student-task" data-student-assignment-card="${item.id}">
+        <div class="student-task-top">
+          <span class="subject-pill">${escapeHtml(item.subject_name || 'Предмет')}</span>
+          <span class="status ${activeAttempt ? 'blue' : exhausted ? 'green' : 'amber'}">${escapeHtml(formatStudentDeadline(item.due_at))}</span>
+        </div>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${Number(item.questions_count || 0)} вопросов · ${timeText} · ${maxAttempts} попыт.${variantText}</p>
+        <div class="student-task-bottom">
+          <span>${state}</span>
+          ${exhausted
+            ? '<button class="secondary-btn" type="button" disabled>Выполнено</button>'
+            : `<button class="${activeAttempt ? 'secondary-btn' : 'primary-btn'}" type="button" data-start-real-assignment="${item.id}">${activeAttempt ? 'Продолжить' : 'Начать'}</button>`}
+        </div>
+      </article>`;
+  }).join('');
+
+  target.querySelectorAll('[data-start-real-assignment]').forEach(button => {
+    button.addEventListener('click', () => startRealStudentAssignment(Number(button.dataset.startRealAssignment)));
+  });
+}
+
+async function loadStudentAssignments() {
+  const dashboard = document.getElementById('studentDashboardTasks');
+  const allTasks = document.getElementById('studentTasksList');
+  if (dashboard) dashboard.innerHTML = '<article class="student-task"><p>Загрузка заданий...</p></article>';
+  if (allTasks) allTasks.innerHTML = '<article class="student-task"><p>Загрузка заданий...</p></article>';
+
+  try {
+    const response = await fetch('./api/student/assignments.php', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить задания.');
+
+    studentAssignmentsCache = data.assignments || [];
+    const activeRows = studentAssignmentsCache.filter(item =>
+      Number(item.active_attempt_id || 0) > 0 || Number(item.completed_attempts || 0) < Number(item.max_attempts || 1)
+    );
+
+    renderStudentAssignmentCards(dashboard, activeRows.slice(0, 4));
+    renderStudentAssignmentCards(allTasks, studentAssignmentsCache);
+
+    const classBadge = document.getElementById('studentClassBadge');
+    const welcome = document.getElementById('studentWelcomeTitle');
+    const welcomeText = document.getElementById('studentWelcomeText');
+    const count = document.getElementById('studentActiveTasksCount');
+    if (classBadge) classBadge.textContent = data.class?.name ? data.class.name + ' класс' : 'Мой класс';
+    if (welcome) welcome.textContent = `Привет, ${currentUser?.first_name || 'ученик'}!`;
+    if (welcomeText) welcomeText.textContent = activeRows.length
+      ? `У тебя ${activeRows.length} текущих заданий.`
+      : 'Сейчас нет заданий, которые нужно выполнить.';
+    if (count) count.textContent = String(activeRows.length);
+  } catch (error) {
+    const html = `<article class="student-task"><p>${escapeHtml(error.message)}</p></article>`;
+    if (dashboard) dashboard.innerHTML = html;
+    if (allTasks) allTasks.innerHTML = html;
+  }
+}
+
+function parseSavedAnswer(raw, fallback) {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch { return raw; }
+}
+
+async function saveRealStudentAnswer(questionId, payload) {
+  if (!activeStudentAttempt || AttemptSecurity.isLocked()) return;
+  const response = await fetch('./api/attempts/answer.php', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      attempt_id: activeStudentAttempt.id,
+      question_id: questionId,
+      ...payload
+    })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить ответ.');
+}
+
+function renderRealStudentQuestion(question, index, savedRaw) {
+  const interaction = question.interaction_type || question.type;
+  const saved = parseSavedAnswer(savedRaw, interaction === 'matching' ? {} : interaction === 'ordering' ? [] : '');
+  const assets = (question.assets || []).map(asset =>
+    `<img class="real-question-image" src="${escapeHtml(asset.url)}" alt="Изображение к вопросу">`
+  ).join('');
+
+  let controls = '';
+  if (['single', 'true_false'].includes(interaction)) {
+    const selected = Array.isArray(saved) ? saved.map(Number) : [];
+    controls = `<div class="answers real-answer-options">${(question.options || []).map(option => `
+      <label class="answer">
+        <input type="radio" name="real-q-${question.id}" value="${option.id}" ${selected.includes(Number(option.id)) ? 'checked' : ''}>
+        <span>${escapeHtml(option.text)}</span>
+      </label>`).join('')}</div>`;
+  } else if (interaction === 'multiple') {
+    const selected = Array.isArray(saved) ? saved.map(Number) : [];
+    controls = `<div class="answers real-answer-options">${(question.options || []).map(option => `
+      <label class="answer">
+        <input type="checkbox" name="real-q-${question.id}" value="${option.id}" ${selected.includes(Number(option.id)) ? 'checked' : ''}>
+        <span>${escapeHtml(option.text)}</span>
+      </label>`).join('')}</div>`;
+  } else if (interaction === 'ordering') {
+    const items = question.structured?.items || [];
+    const byKey = Object.fromEntries(items.map(item => [String(item.key), item]));
+    const initialKeys = Array.isArray(saved) && saved.length
+      ? saved.map(String).filter(key => byKey[key])
+      : items.map(item => String(item.key));
+    const normalized = [...initialKeys, ...items.map(item => String(item.key)).filter(key => !initialKeys.includes(key))];
+    controls = `<div class="ordering-list" data-ordering-question="${question.id}">${normalized.map((key, pos) => {
+      const item = byKey[key];
+      return `<div class="ordering-item" data-order-key="${escapeHtml(key)}"><span class="ordering-number">${pos + 1}</span><b>${escapeHtml(item?.text || key)}</b><span class="ordering-buttons"><button type="button" data-order-move="-1">↑</button><button type="button" data-order-move="1">↓</button></span></div>`;
+    }).join('')}</div>`;
+  } else if (interaction === 'matching') {
+    const left = question.structured?.left || [];
+    const right = question.structured?.right || [];
+    const matches = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+    controls = `<div class="matching-list" data-matching-question="${question.id}">${left.map(item => `
+      <label class="matching-row"><span>${escapeHtml(item.text)}</span><select data-match-left="${escapeHtml(item.key)}"><option value="">Выберите соответствие</option>${right.map(rightItem => `<option value="${escapeHtml(rightItem.key)}" ${String(matches[item.key] || '') === String(rightItem.key) ? 'selected' : ''}>${escapeHtml(rightItem.text)}</option>`).join('')}</select></label>
+    `).join('')}</div>`;
+  } else {
+    const value = typeof saved === 'string' ? saved : '';
+    const originalText = interaction === 'correction' && question.structured?.original_text
+      ? `<div class="question-source-text">${escapeHtml(question.structured.original_text)}</div>`
+      : '';
+    controls = `${originalText}<textarea class="real-text-answer" data-text-question="${question.id}" rows="${interaction === 'essay' ? 6 : 3}" placeholder="Введите ответ">${escapeHtml(value)}</textarea>`;
+  }
+
+  return `
+    <section class="question real-question" data-real-question="${question.id}">
+      <div class="real-question-head"><span>Вопрос ${index + 1}</span><b>${Number(question.points || 1)} балл.</b></div>
+      <h4>${escapeHtml(question.text)}</h4>
+      ${assets}
+      ${controls}
+      <small class="answer-save-state" data-save-state="${question.id}"></small>
+    </section>`;
+}
+
+function setAnswerSaveState(questionId, text, isError = false) {
+  const node = document.querySelector(`[data-save-state="${questionId}"]`);
+  if (!node) return;
+  node.textContent = text;
+  node.classList.toggle('error', isError);
+}
+
+function wireRealStudentQuestionControls() {
+  document.querySelectorAll('.real-answer-options input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const question = input.closest('[data-real-question]');
+      if (!question) return;
+      const questionId = Number(question.dataset.realQuestion);
+      const selected = [...question.querySelectorAll('.real-answer-options input:checked')].map(item => Number(item.value));
+      try {
+        setAnswerSaveState(questionId, 'Сохраняем...');
+        await saveRealStudentAnswer(questionId, { option_ids: selected });
+        setAnswerSaveState(questionId, 'Сохранено');
+      } catch (e) {
+        setAnswerSaveState(questionId, e.message, true);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-ordering-question]').forEach(list => {
+    const updateNumbers = () => {
+      list.querySelectorAll('.ordering-item').forEach((item, index) => {
+        const number = item.querySelector('.ordering-number');
+        if (number) number.textContent = String(index + 1);
+      });
+    };
+    list.querySelectorAll('[data-order-move]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const item = button.closest('.ordering-item');
+        const direction = Number(button.dataset.orderMove);
+        if (!item) return;
+        const sibling = direction < 0 ? item.previousElementSibling : item.nextElementSibling;
+        if (!sibling) return;
+        if (direction < 0) list.insertBefore(item, sibling);
+        else list.insertBefore(sibling, item);
+        updateNumbers();
+        const questionId = Number(list.dataset.orderingQuestion);
+        const order = [...list.querySelectorAll('.ordering-item')].map(row => row.dataset.orderKey);
+        try {
+          setAnswerSaveState(questionId, 'Сохраняем...');
+          await saveRealStudentAnswer(questionId, { order });
+          setAnswerSaveState(questionId, 'Сохранено');
+        } catch (e) {
+          setAnswerSaveState(questionId, e.message, true);
+        }
+      });
+    });
+  });
+
+  document.querySelectorAll('[data-matching-question]').forEach(list => {
+    list.querySelectorAll('select[data-match-left]').forEach(select => {
+      select.addEventListener('change', async () => {
+        const questionId = Number(list.dataset.matchingQuestion);
+        const matches = {};
+        list.querySelectorAll('select[data-match-left]').forEach(item => {
+          if (item.value) matches[item.dataset.matchLeft] = item.value;
+        });
+        try {
+          setAnswerSaveState(questionId, 'Сохраняем...');
+          await saveRealStudentAnswer(questionId, { matches });
+          setAnswerSaveState(questionId, 'Сохранено');
+        } catch (e) {
+          setAnswerSaveState(questionId, e.message, true);
+        }
+      });
+    });
+  });
+
+  document.querySelectorAll('[data-text-question]').forEach(input => {
+    let timer = null;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const questionId = Number(input.dataset.textQuestion);
+        try {
+          setAnswerSaveState(questionId, 'Сохраняем...');
+          await saveRealStudentAnswer(questionId, { answer_text: input.value });
+          setAnswerSaveState(questionId, 'Сохранено');
+        } catch (e) {
+          setAnswerSaveState(questionId, e.message, true);
+        }
+      }, 500);
+    });
+    input.addEventListener('blur', async () => {
+      clearTimeout(timer);
+      const questionId = Number(input.dataset.textQuestion);
+      try {
+        await saveRealStudentAnswer(questionId, { answer_text: input.value });
+        setAnswerSaveState(questionId, 'Сохранено');
+      } catch (e) {
+        setAnswerSaveState(questionId, e.message, true);
+      }
+    });
+  });
+}
+
+function renderRealAttemptResult(result, note = '') {
+  AttemptSecurity.stop();
+  activeStudentAttempt = null;
+  quizModal.dataset.locked = '0';
+  quizModal.querySelector('.modal-close')?.classList.remove('hidden');
+
+  const percent = Math.round(Number(result?.percent || 0));
+  const grade = result?.grade ?? '—';
+  document.getElementById('quizContent').innerHTML = `
+    <div class="result-card">
+      <span class="section-kicker">Работа завершена</span>
+      <h2>Результат</h2>
+      ${note ? `<p class="strict-result-note">${escapeHtml(note)}</p>` : ''}
+      <div class="result-circle" style="--score:${percent}%"><strong>${percent}%</strong></div>
+      <p>Баллы: <b>${Number(result?.score || 0)} из ${Number(result?.max_score || 0)}</b></p>
+      <div class="result-grade">${escapeHtml(grade)}</div>
+      <button class="primary-btn" id="finishRealResultBtn" type="button">Вернуться к заданиям</button>
+    </div>`;
+  document.getElementById('finishRealResultBtn')?.addEventListener('click', async () => {
+    closeModal(quizModal);
+    await loadStudentAssignments();
+    showView('student-tasks');
+  });
+}
+
+async function startRealStudentAssignment(assignmentId) {
+  const assignment = studentAssignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment) return;
+
+  try {
+    const startResponse = await fetch('./api/attempts/start.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: assignmentId })
+    });
+    const startData = await startResponse.json();
+    if (!startResponse.ok || startData.ok === false) throw new Error(startData.error || 'Не удалось начать работу.');
+
+    const attempt = startData.attempt;
+    const questionResponse = await fetch(`./api/attempts/questions.php?attempt_id=${encodeURIComponent(attempt.id)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const questionData = await questionResponse.json();
+    if (!questionResponse.ok || questionData.ok === false) throw new Error(questionData.error || 'Не удалось загрузить вопросы.');
+
+    activeStudentAssignment = assignment;
+    activeStudentAttempt = questionData.attempt;
+    const questions = questionData.questions || [];
+    const savedAnswers = questionData.saved_answers || {};
+
+    quizModal.dataset.locked = '1';
+    quizModal.querySelector('.modal-close')?.classList.add('hidden');
+
+    const variantBadge = Number(assignment.variant_count || 1) > 1
+      ? `<span class="variant-pill">Вариант ${escapeHtml(questionData.attempt.variant_label || 'A')}</span>`
+      : '';
+
+    document.getElementById('quizContent').innerHTML = `
+      <div class="quiz-head real-quiz-head">
+        <span class="section-kicker">${escapeHtml(assignment.subject_name || 'Предмет')} · ${escapeHtml(assignment.class_name || '')}</span>
+        <h2>${escapeHtml(assignment.title)}</h2>
+        <div class="quiz-meta">
+          ${variantBadge}
+          <span>${questions.length} вопросов</span>
+          <span>${assignment.time_limit_minutes ? Number(assignment.time_limit_minutes) + ' мин.' : 'Без ограничения времени'}</span>
+          <span>${assignment.focus_policy === 'strict' ? 'Строгий режим' : 'Обычный режим'}</span>
+        </div>
+      </div>
+      <form id="realQuizForm">
+        ${questions.map((question, index) => renderRealStudentQuestion(question, index, savedAnswers[String(question.id)] || '')).join('')}
+        <button class="primary-btn full" type="submit">Завершить и сдать работу</button>
+      </form>`;
+
+    wireRealStudentQuestionControls();
+    openModal(quizModal);
+
+    AttemptSecurity.start({
+      attemptId: questionData.attempt.id,
+      focusPolicy: assignment.focus_policy || 'allow',
+      onLocked: () => {
+        document.querySelectorAll('#realQuizForm input,#realQuizForm textarea,#realQuizForm select,#realQuizForm button')
+          .forEach(el => el.disabled = true);
+        const content = document.getElementById('quizContent');
+        if (content) {
+          const warning = document.createElement('div');
+          warning.className = 'strict-lock-overlay';
+          warning.textContent = 'Страница была скрыта. Строгая работа завершается с уже сохранёнными ответами.';
+          content.prepend(warning);
+        }
+      },
+      onTerminated: result => {
+        renderRealAttemptResult(result || {}, 'Попытка завершена системой контроля.');
+      }
+    });
+
+    document.getElementById('realQuizForm')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!activeStudentAttempt || AttemptSecurity.isLocked()) return;
+      const button = event.currentTarget.querySelector('button[type="submit"]');
+      if (!confirm('Завершить работу? После сдачи изменить ответы нельзя.')) return;
+      button.disabled = true;
+      button.textContent = 'Сдаём...';
+      try {
+        const response = await fetch('./api/attempts/submit.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attempt_id: activeStudentAttempt.id })
+        });
+        const data = await response.json();
+        if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сдать работу.');
+        renderRealAttemptResult(data.result || {});
+      } catch (e) {
+        alert(e.message);
+        button.disabled = false;
+        button.textContent = 'Завершить и сдать работу';
+      }
+    });
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 loadSession().then(async user => {
   if (!user) return;
   applyUser(user);
 
   if (user.role === 'student') {
-    try { await loadSchoolBranding(); } catch {}
+    try {
+      await Promise.all([loadSchoolBranding(), loadStudentAssignments()]);
+    } catch {}
     return;
   }
 
