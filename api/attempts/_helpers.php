@@ -4,9 +4,17 @@ declare(strict_types=1);
 function attempt_for_student(PDO $pdo, int $attemptId, int $studentId): array
 {
     $stmt = $pdo->prepare(
-        'SELECT a.*, ass.focus_policy, ass.time_limit_minutes, ass.max_attempts, ass.status AS assignment_status
+        'SELECT a.*,
+                ass.focus_policy,
+                COALESCE(a.time_limit_snapshot, ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes,
+                ass.max_attempts,
+                ass.status AS assignment_status
          FROM attempts a
          JOIN assignments ass ON ass.id = a.assignment_id
+         LEFT JOIN class_students cs ON cs.student_id = a.student_id
+         LEFT JOIN assignment_classes ac
+           ON ac.assignment_id = a.assignment_id
+          AND ac.class_id = cs.class_id
          WHERE a.id = :attempt_id AND a.student_id = :student_id
          LIMIT 1'
     );
@@ -26,6 +34,25 @@ function attempt_for_student(PDO $pdo, int $attemptId, int $studentId): array
     }
 
     return $attempt;
+}
+
+function attempt_time_expired(array $attempt): bool
+{
+    if ((string)($attempt['status'] ?? '') !== 'in_progress') return false;
+
+    $limit = (int)($attempt['time_limit_minutes'] ?? 0);
+    if ($limit <= 0) return false;
+
+    $startedAt = strtotime((string)($attempt['started_at'] ?? ''));
+    if ($startedAt === false) return false;
+
+    return time() >= ($startedAt + ($limit * 60));
+}
+
+function finalize_expired_attempt(PDO $pdo, array $attempt): ?array
+{
+    if (!attempt_time_expired($attempt)) return null;
+    return finalize_attempt($pdo, (int)$attempt['id'], 'time_limit');
 }
 
 function normalize_answer_text(string $value): string
