@@ -32,6 +32,10 @@ jobs:
         run: |
           php -r '$pdo = new PDO("sqlite::memory:"); $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); $pdo->exec(file_get_contents("database/schema.sql")); echo "SQLite schema OK\n";'
 
+      - name: Validate backup engine
+        run: |
+          php -r 'require "api/bootstrap.php"; $pdo = app_db(); $backup = backup_create_archive($pdo, "manual"); if (empty($backup["file"]) || empty($backup["size_bytes"])) { fwrite(STDERR, "Backup smoke test failed\n"); exit(1); } echo "Backup engine OK: " . $backup["file"] . "\n";'
+
       - name: Upload site over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
