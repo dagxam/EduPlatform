@@ -282,6 +282,12 @@ $repairDb->exec('CREATE TABLE answers (
     needs_review INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT
 )');
+$repairDb->exec('CREATE TABLE audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id INTEGER
+)');
 
 $repairDb->prepare('INSERT INTO assignments (id, school_id) VALUES (1, 1)')->execute();
 $repairDb->prepare('INSERT INTO assignment_imports (assignment_id, extracted_text) VALUES (1, :text)')
@@ -359,6 +365,11 @@ foreach ($teacherQuestions[0]['options'] as $i => $option) {
     if ($isCorrect === 1) $editedCorrectId = (int)$repairDb->lastInsertId();
 }
 
+$repairDb->prepare(
+    'INSERT INTO audit_log (event_type, entity_type, entity_id)
+     VALUES ("question_updated", "question", :question_id)'
+)->execute(['question_id' => $editedQuestionId]);
+
 $preservedIds = repair_missing_correct_options($repairDb, $editedQuestionId);
 if ($preservedIds !== [$editedCorrectId]) {
     fwrite(STDERR, 'Imported answer-key repair overwrote a valid editor answer key.' . PHP_EOL);
@@ -372,4 +383,53 @@ if ((int)$editedGraded['is_correct'] !== 1 || (float)$editedGraded['score'] !== 
 }
 
 echo "Edited imported answer key is preserved\\n";
+
+/*
+ * Regression: a legacy imported question can contain exactly one but wrong
+ * correct flag. If it was never edited in the constructor, the source file
+ * must repair that stale key and old answers must be regraded.
+ */
+$repairDb->prepare(
+    'INSERT INTO questions (assignment_id, position, text, type, interaction_type, points)
+     VALUES (1, 2, :text, "single", "single", 1)'
+)->execute(['text' => $teacherQuestions[1]['text']]);
+$legacyWrongQuestionId = (int)$repairDb->lastInsertId();
+
+$legacyWrongOption = $repairDb->prepare(
+    'INSERT INTO question_options (question_id, text, is_correct, position)
+     VALUES (:question_id, :text, :is_correct, :position)'
+);
+$sourceCorrectText = (string)$teacherQuestions[1]['options'][2]['text'];
+$sourceCorrectId = 0;
+foreach ($teacherQuestions[1]['options'] as $i => $option) {
+    // Deliberately mark A correct although the imported source says C.
+    $legacyWrongOption->execute([
+        'question_id' => $legacyWrongQuestionId,
+        'text' => $option['text'],
+        'is_correct' => $i === 0 ? 1 : 0,
+        'position' => $i + 1,
+    ]);
+    if ((string)$option['text'] === $sourceCorrectText) {
+        $sourceCorrectId = (int)$repairDb->lastInsertId();
+    }
+}
+
+$repairedLegacyIds = repair_missing_correct_options($repairDb, $legacyWrongQuestionId);
+if ($repairedLegacyIds !== [$sourceCorrectId]) {
+    fwrite(STDERR, 'Legacy imported valid-looking but wrong answer key was not rebuilt from source.' . PHP_EOL);
+    exit(1);
+}
+
+$legacySourceGraded = grade_question_answer(
+    $repairDb,
+    $legacyWrongQuestionId,
+    ['option_ids' => [$sourceCorrectId]]
+);
+if ((int)$legacySourceGraded['is_correct'] !== 1 || (float)$legacySourceGraded['score'] !== 1.0) {
+    fwrite(STDERR, 'Rebuilt legacy imported answer key still grades the source answer incorrectly.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Legacy imported wrong key is rebuilt from source\n";
+
 
