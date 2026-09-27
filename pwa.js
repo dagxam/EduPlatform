@@ -24,15 +24,15 @@
     install.id = 'pwaInstallButton';
     install.type = 'button';
     install.className = 'pwa-install-button hidden';
-    install.innerHTML = '<span class="pwa-install-icon">↓</span><span>Установить UVORIA</span>';
-    install.setAttribute('aria-label', 'Установить UVORIA как приложение');
+    install.innerHTML = '<span class="pwa-install-icon">↓</span><span>Установить UROVIA</span>';
+    install.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
     const update = document.createElement('div');
     update.id = 'pwaUpdateToast';
     update.className = 'pwa-update-toast hidden';
     update.innerHTML = `
       <div>
-        <b>Доступно обновление UVORIA</b>
+        <b>Доступно обновление UROVIA</b>
         <span>Новая версия готова к установке.</span>
       </div>
       <button type="button" id="pwaUpdateButton">Обновить</button>`;
@@ -44,7 +44,7 @@
       <div class="pwa-ios-card" role="dialog" aria-modal="true" aria-labelledby="pwaIosTitle">
         <button type="button" class="pwa-ios-close" id="pwaIosClose" aria-label="Закрыть">×</button>
         <div class="pwa-ios-app-icon">U</div>
-        <h2 id="pwaIosTitle">Установить UVORIA на iPhone</h2>
+        <h2 id="pwaIosTitle">Установить UROVIA на iPhone</h2>
         <p>В Safari нажмите кнопку <b>«Поделиться»</b>, затем выберите <b>«На экран Домой»</b> и подтвердите добавление.</p>
         <ol>
           <li><span>1</span> Откройте меню «Поделиться».</li>
