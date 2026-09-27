@@ -202,8 +202,9 @@
                   <label>Режим контроля
                     <select name="focus_policy" id="subjectImportFocus">
                       <option value="allow">Обычный</option>
-                      <option value="strict">Строгий — уход со страницы завершает попытку</option>
+                      <option value="strict">Строгий — уход дополнительно фиксируется как нарушение</option>
                     </select>
+                    <small>Важно: при любом режиме скрытие вкладки, сворачивание браузера или переход в другое приложение завершает тест с уже отмеченными ответами.</small>
                   </label>
                   <div class="form-error hidden" id="subjectImportError"></div>
                   <div class="import-result hidden" id="subjectImportResult"></div>
@@ -770,12 +771,12 @@
         </div>
         <label>Режим контроля
           <select name="focus_policy" id="focusPolicy">
-            <option value="allow">Обычный — можно сворачивать</option>
-            <option value="strict">Строгий — уход со страницы завершает работу</option>
+            <option value="allow">Обычный</option>
+            <option value="strict">Строгий — уход дополнительно фиксируется как нарушение</option>
           </select>
-          <small class="field-help">В строгом режиме при переключении вкладки, сворачивании браузера или переходе в другое приложение попытка автоматически сдаётся с уже сохранёнными ответами.</small>
+          <small class="field-help">При любом режиме скрытие вкладки, сворачивание браузера или переход в другое приложение сразу завершает тест. Учитываются ответы, отмеченные до этого момента.</small>
         </label>
-        <div class="strict-warning hidden" id="strictWarning"><b>Строгая контрольная</b><span>Предупредите учеников перед началом. Даже блокировка экрана телефона может завершить попытку.</span></div>
+        <div class="strict-warning hidden" id="strictWarning"><b>Строгий контроль</b><span>Уход со страницы дополнительно фиксируется как нарушение. Сам тест при скрытии вкладки завершается в любом режиме.</span></div>
 
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
@@ -1045,9 +1046,10 @@
 
         <label>Режим контроля
           <select id="duplicateAssignmentFocusPolicy" name="focus_policy">
-            <option value="allow">Обычный — можно сворачивать</option>
-            <option value="strict">Строгий — уход со страницы завершает работу</option>
+            <option value="allow">Обычный</option>
+            <option value="strict">Строгий — уход дополнительно фиксируется как нарушение</option>
           </select>
+          <small class="field-help">В любом режиме скрытие вкладки завершает тест с уже отмеченными ответами.</small>
         </label>
 
         <div class="duplicate-copy-summary" id="duplicateCopySummary"></div>
@@ -1160,8 +1162,8 @@
     </div>
   </div>
 
-  <script src="attempt-security.js?v=47"></script>
-  <script src="app.js?v=48"></script>
+  <script src="attempt-security.js?v=49"></script>
+  <script src="app.js?v=49"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>
