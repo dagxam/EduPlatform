@@ -31,3 +31,35 @@
 .eyebrow,.show-password{color:var(--brand)!important}
 .mode-btn.active{color:var(--brand)!important;border-color:var(--brand)!important;background:var(--brand-soft)!important}
 .student-option:hover{border-color:color-mix(in srgb,var(--brand) 45%,white)!important;background:color-mix(in srgb,var(--brand) 4%,white)!important}
+
+
+/* Access recovery */
+.auth-text-btn{
+  border:0;
+  background:transparent;
+  color:var(--brand);
+  padding:3px 4px;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+  align-self:center;
+}
+.auth-text-btn:hover{text-decoration:underline}
+.auth-success{
+  background:#eefaf3;
+  border:1px solid #ccebd8;
+  color:#276749;
+  padding:11px 12px;
+  border-radius:10px;
+  font-size:13px;
+  line-height:1.5;
+}
+.student-recovery-note{
+  background:#f5f8fc;
+  border:1px solid #dce5ef;
+  color:#5d6b79;
+  padding:11px 12px;
+  border-radius:10px;
+  font-size:13px;
+  line-height:1.5;
+}
