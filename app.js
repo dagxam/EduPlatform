@@ -1298,7 +1298,9 @@ function assignmentWorkflowActionButtons(item) {
     return `<button class="secondary-btn compact-btn" type="button" data-workflow-action="withdraw" data-assignment-id="${item.id}">Отозвать</button>`;
   }
   if (status === 'ready') {
-    return `<button class="primary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>`;
+    return `
+      <button class="primary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>
+      <button class="secondary-btn compact-btn" type="button" data-workflow-action="reopen" data-assignment-id="${item.id}">В черновик</button>`;
   }
   if (status === 'assigned') {
     return `
@@ -1321,6 +1323,8 @@ async function transitionAssignmentWorkflow(assignmentId, action) {
     if (!confirm('Завершить это задание? Новые попытки учеников будут закрыты.')) return;
   } else if (action === 'withdraw') {
     if (!confirm('Отозвать задание с проверки и вернуть в черновик?')) return;
+  } else if (action === 'reopen') {
+    if (!confirm('Вернуть готовое задание в черновик для редактирования?')) return;
   }
 
   try {
