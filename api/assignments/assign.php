@@ -19,7 +19,7 @@ $pdo = app_db();
 $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
-    'SELECT a.id, a.subject_id, a.title
+    'SELECT a.id, a.subject_id, a.title, a.workflow_status
      FROM assignments a
      WHERE a.id = :assignment_id AND a.school_id = :school_id
      LIMIT 1'
@@ -31,6 +31,14 @@ $stmt->execute([
 $assignment = $stmt->fetch();
 if (!$assignment) {
     json_response(['ok' => false, 'error' => 'Задание не найдено в выбранной школе.'], 404);
+}
+
+if (!in_array((string)$assignment['workflow_status'], ['ready', 'assigned'], true)) {
+    json_response([
+        'ok' => false,
+        'error' => 'Сначала переведите задание в статус «Готово».',
+        'code' => 'ASSIGNMENT_NOT_READY',
+    ], 409);
 }
 
 if (can_manage_school($user, $schoolId)) {
@@ -77,7 +85,10 @@ try {
 
     $stmt = $pdo->prepare(
         'UPDATE assignments
-         SET status = "published", updated_at = CURRENT_TIMESTAMP
+         SET status = "published",
+             workflow_status = "assigned",
+             completed_at = NULL,
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = :assignment_id'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
@@ -97,4 +108,5 @@ json_response([
     'assignment_id' => $assignmentId,
     'class_id' => $classId,
     'status' => 'published',
+    'workflow_status' => 'assigned',
 ]);
