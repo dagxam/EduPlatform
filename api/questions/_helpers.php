@@ -9,7 +9,7 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
 
     $schoolId = require_active_school($user, false);
     $stmt = $pdo->prepare(
-        'SELECT id, teacher_id, school_id, subject_id, title, status
+        'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status
          FROM assignments
          WHERE id = :id AND school_id = :school_id
          LIMIT 1'
@@ -42,7 +42,9 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
     $stmt->execute(['assignment_id' => $assignmentId]);
     $attemptsCount = (int)$stmt->fetchColumn();
     $assignment['attempts_count'] = $attemptsCount;
-    $assignment['editable'] = $assignment['status'] === 'draft' && $attemptsCount === 0;
+    $assignment['editable'] = (string)($assignment['workflow_status'] ?? 'draft') === 'draft'
+        && (string)$assignment['status'] === 'draft'
+        && $attemptsCount === 0;
 
     if ($requireEditable && !$assignment['editable']) {
         json_response([
@@ -58,7 +60,8 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
 function question_editor_question(PDO $pdo, array $user, int $questionId, bool $requireEditable = true): array
 {
     $stmt = $pdo->prepare(
-        'SELECT q.*, a.school_id, a.teacher_id, a.subject_id, a.status AS assignment_status
+        'SELECT q.*, a.school_id, a.teacher_id, a.subject_id,
+                a.status AS assignment_status, a.workflow_status AS assignment_workflow_status
          FROM questions q
          JOIN assignments a ON a.id = q.assignment_id
          WHERE q.id = :id
