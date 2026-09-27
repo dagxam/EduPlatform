@@ -1,9 +1,25 @@
-const CACHE = 'uvoria-v26';
-const APP_SHELL = ['./', './index.html', './login.html', './styles.css', './login.css', './app.js', './question-builder.js', './login.js', './attempt-security.js', './manifest.webmanifest', './favicon.png?v=3'];
+const CACHE = 'uvoria-v27';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './login.html',
+  './offline.html',
+  './styles.css',
+  './login.css',
+  './pwa.css',
+  './app.js',
+  './question-builder.js',
+  './login.js',
+  './attempt-security.js',
+  './pwa.js',
+  './manifest.webmanifest',
+  './favicon.png?v=3',
+  './icons/uvoria-app.svg',
+  './icons/uvoria-maskable.svg'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -12,6 +28,12 @@ self.addEventListener('activate', event => {
       .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', event => {
@@ -26,7 +48,11 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
-        .catch(() => caches.match('./index.html'))
+        .then(response => response)
+        .catch(async () => {
+          const offline = await caches.match('./offline.html');
+          return offline || Response.error();
+        })
     );
     return;
   }
