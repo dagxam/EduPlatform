@@ -225,3 +225,110 @@ if (($mixedQuestions[1]['options'][1]['is_correct'] ?? false) !== true
 }
 
 echo "Mixed Cyrillic/Latin answer labels OK\n";
+
+
+/*
+ * Regression: an older imported assignment may have lost/wrong correct flags,
+ * and option rows may have been reordered later in the builder.
+ * Repair must match correct answers by option text, not just row position.
+ */
+require_once dirname(__DIR__, 2) . '/api/attempts/_helpers.php';
+
+$repairDb = new PDO('sqlite::memory:');
+$repairDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$repairDb->exec('CREATE TABLE assignments (id INTEGER PRIMARY KEY, school_id INTEGER)');
+$repairDb->exec('CREATE TABLE assignment_imports (
+    assignment_id INTEGER PRIMARY KEY,
+    extracted_text TEXT
+)');
+$repairDb->exec('CREATE TABLE questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    type TEXT NOT NULL,
+    interaction_type TEXT,
+    points REAL NOT NULL,
+    correct_text TEXT,
+    settings_json TEXT
+)');
+$repairDb->exec('CREATE TABLE question_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    is_correct INTEGER NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL
+)');
+$repairDb->exec('CREATE TABLE attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT "submitted",
+    termination_reason TEXT,
+    score REAL,
+    max_score REAL,
+    percent REAL,
+    grade TEXT,
+    submitted_at TEXT,
+    last_seen_at TEXT
+)');
+$repairDb->exec('CREATE TABLE answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_id INTEGER NOT NULL,
+    question_id INTEGER NOT NULL,
+    answer_text TEXT,
+    score REAL,
+    is_correct INTEGER,
+    needs_review INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT
+)');
+
+$repairDb->prepare('INSERT INTO assignments (id, school_id) VALUES (1, 1)')->execute();
+$repairDb->prepare('INSERT INTO assignment_imports (assignment_id, extracted_text) VALUES (1, :text)')
+    ->execute(['text' => $teacherStyle]);
+$repairDb->prepare(
+    'INSERT INTO questions (assignment_id, position, text, type, interaction_type, points)
+     VALUES (1, 1, :text, "single", "single", 1)'
+)->execute(['text' => $teacherQuestions[0]['text']]);
+$repairQuestionId = (int)$repairDb->lastInsertId();
+
+// Deliberately store options in a different order and with no correct flag.
+$reordered = [
+    $teacherQuestions[0]['options'][2],
+    $teacherQuestions[0]['options'][0],
+    $teacherQuestions[0]['options'][3],
+    $teacherQuestions[0]['options'][1],
+];
+$insertRepairOption = $repairDb->prepare(
+    'INSERT INTO question_options (question_id, text, is_correct, position)
+     VALUES (:question_id, :text, 0, :position)'
+);
+foreach ($reordered as $i => $option) {
+    $insertRepairOption->execute([
+        'question_id' => $repairQuestionId,
+        'text' => $option['text'],
+        'position' => $i + 1,
+    ]);
+}
+
+$correctIds = repair_missing_correct_options($repairDb, $repairQuestionId);
+if (count($correctIds) !== 1) {
+    fwrite(STDERR, 'Imported answer-key repair did not restore exactly one correct option.' . PHP_EOL);
+    exit(1);
+}
+$repairStmt = $repairDb->prepare(
+    'SELECT text FROM question_options WHERE id = :id AND is_correct = 1 LIMIT 1'
+);
+$repairStmt->execute(['id' => $correctIds[0]]);
+if ((string)$repairStmt->fetchColumn() !== (string)$teacherQuestions[0]['options'][0]['text']) {
+    fwrite(STDERR, 'Imported answer-key repair matched the wrong option after reorder.' . PHP_EOL);
+    exit(1);
+}
+
+$gradedRepair = grade_question_answer($repairDb, $repairQuestionId, ['option_ids' => $correctIds]);
+if ((int)$gradedRepair['is_correct'] !== 1 || (float)$gradedRepair['score'] !== 1.0) {
+    fwrite(STDERR, 'Repaired imported answer was not graded correctly.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Imported answer-key repair and grading OK\n";
