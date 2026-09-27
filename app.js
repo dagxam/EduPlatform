@@ -2269,7 +2269,7 @@ async function openQuestionPreview(assignmentId) {
         let structured = '';
         if (interaction === 'matching') {
           structured = `<div class="question-preview-structured"><b>Левый столбец:</b> ${escapeHtml(Object.values(settings.left || {}).join(' · '))}<br><b>Правый столбец:</b> ${escapeHtml(Object.values(settings.right || {}).join(' · '))}</div>`;
-        } else if (interaction === 'ordering') {
+        } else if (interaction === 'order') {
           structured = `<div class="question-preview-structured"><b>Элементы:</b> ${escapeHtml(Object.values(settings.items || {}).join(' · '))}</div>`;
         } else if (interaction === 'correction' && settings.original_text) {
           structured = `<div class="question-preview-structured"><b>Текст с ошибкой:</b> ${escapeHtml(settings.original_text)}</div>`;
