@@ -937,7 +937,7 @@ function renderSubjectAssignments() {
       <article class="subject-assignment-row">
         <div class="subject-assignment-copy">
           <b>${escapeHtml(item.title)}</b>
-          <small>${escapeHtml(item.class_names || 'Без класса')} · ${importInfo}</small>
+          <small>${escapeHtml(item.class_names || 'Без класса')} · ${importInfo}${Number(item.variant_count || 1) > 1 ? ' · варианты ' + ['A','B','C','D'].slice(0, Number(item.variant_count)).join('/') : ''}</small>
           ${item.parser_message ? `<em>${escapeHtml(item.parser_message)}</em>` : ''}
         </div>
         <div class="subject-assignment-actions">
@@ -1196,6 +1196,13 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
   data.append('subject_id', String(selectedSubjectId));
   data.append('title', document.getElementById('subjectImportTitle')?.value || '');
   data.append('focus_policy', document.getElementById('subjectImportFocus')?.value || 'allow');
+  const importVariantCount = Number(document.getElementById('subjectImportVariantCount')?.value || 1);
+  data.append('variant_count', String(importVariantCount));
+  if (importVariantCount > 1) {
+    if (document.getElementById('subjectImportShuffleQuestions')?.checked) data.append('shuffle_questions', '1');
+    if (document.getElementById('subjectImportShuffleOptions')?.checked) data.append('shuffle_options', '1');
+    if (document.getElementById('subjectImportShuffleStructured')?.checked) data.append('shuffle_structured', '1');
+  }
   data.append('file', file);
 
   button.disabled = true;
@@ -1222,6 +1229,7 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
     }
 
     form.reset();
+    document.getElementById('subjectImportVariantChecks')?.classList.add('hidden');
     await loadAssignments();
     renderSubjectAssignments();
   } catch (e) {
@@ -1233,6 +1241,17 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
     button.disabled = false;
     button.textContent = 'Загрузить и создать черновик';
   }
+});
+
+function syncTaskVariantSettings() {
+  const enabled = Boolean(document.getElementById('taskVariantsEnabled')?.checked);
+  document.getElementById('taskVariantSettingsBody')?.classList.toggle('hidden', !enabled);
+}
+
+document.getElementById('taskVariantsEnabled')?.addEventListener('change', syncTaskVariantSettings);
+
+document.getElementById('subjectImportVariantCount')?.addEventListener('change', event => {
+  document.getElementById('subjectImportVariantChecks')?.classList.toggle('hidden', Number(event.target.value || 1) < 2);
 });
 
 document.getElementById('focusPolicy')?.addEventListener('change', event => {
@@ -1260,7 +1279,11 @@ function renderAssignments() {
     const source = item.source_school_name ? ` · получено из «${escapeHtml(item.source_school_name)}»` : '';
     return `
       <tr>
-        <td><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small></td>
+        <td>
+          <b>${escapeHtml(item.title)}</b>
+          <small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small>
+          ${Number(item.variant_count || 1) > 1 ? `<small class="variant-badge">Варианты: ${['A','B','C','D'].slice(0, Number(item.variant_count)).join(' / ')}</small>` : ''}
+        </td>
         <td>${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
         <td><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
         <td>${Number(item.attempts_count || 0)}</td>
@@ -1508,6 +1531,15 @@ document.getElementById('taskForm')?.addEventListener('submit', async event => {
 
   try {
     const payload = Object.fromEntries(new FormData(form).entries());
+    const variantsEnabled = Boolean(document.getElementById('taskVariantsEnabled')?.checked);
+    if (!variantsEnabled) {
+      payload.variant_count = '1';
+      delete payload.shuffle_questions;
+      delete payload.shuffle_options;
+      delete payload.shuffle_structured;
+    } else {
+      payload.variant_count = String(document.getElementById('taskVariantCount')?.value || '4');
+    }
     const response = await fetch('./api/assignments/create.php', {
       method: 'POST',
       credentials: 'same-origin',
@@ -1519,6 +1551,7 @@ document.getElementById('taskForm')?.addEventListener('submit', async event => {
 
     form.reset();
     document.getElementById('strictWarning')?.classList.add('hidden');
+    document.getElementById('taskVariantSettingsBody')?.classList.add('hidden');
     closeModal(taskModal);
     await loadAssignments();
     const createdSubjectId = Number(payload.subject_id || 0);
