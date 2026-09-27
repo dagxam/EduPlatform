@@ -29,6 +29,7 @@ const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   subjects: ['Учебные направления', 'Предметы'],
   assignments: ['Управление обучением', 'Задания'],
+  'activity-history': ['Контроль изменений', 'История действий'],
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
   classes: ['Ученики и группы', 'Классы'],
   'school-management': ['Администрирование', 'Управление школой'],
@@ -1075,11 +1076,213 @@ document.querySelectorAll('[data-incoming-filter]').forEach(button => {
   });
 });
 
+
+const historyEventLabels = {
+  assignment_created: 'Задание создано',
+  assignment_imported: 'Задание импортировано',
+  assignment_duplicated: 'Задание продублировано',
+  assignment_assigned: 'Задание назначено классу',
+  assignment_updated: 'Задание изменено',
+  assignment_deleted: 'Задание удалено',
+  assignment_submitted_for_review: 'Задание отправлено на проверку',
+  assignment_approved: 'Задание одобрено',
+  assignment_returned: 'Задание возвращено на доработку',
+  question_created: 'Вопрос добавлен',
+  question_updated: 'Вопрос изменён',
+  question_deleted: 'Вопрос удалён',
+  question_reordered: 'Изменён порядок вопросов',
+  question_image_uploaded: 'Изображение вопроса загружено',
+  question_image_deleted: 'Изображение вопроса удалено',
+  subject_created: 'Предмет создан',
+  subject_shared: 'Материалы предмета отправлены',
+  material_accepted: 'Полученные материалы приняты',
+  material_rejected: 'Полученные материалы отклонены',
+  class_created: 'Класс создан',
+  students_imported: 'Ученики импортированы',
+  student_pin_reset: 'Код доступа ученика обновлён',
+  teacher_created: 'Сотрудник добавлен',
+  teacher_updated: 'Профиль сотрудника изменён',
+  teacher_removed: 'Сотрудник удалён из школы',
+  teacher_promoted: 'Сотруднику выданы права администратора',
+  teacher_demoted: 'Права администратора сняты',
+  teacher_assignments_updated: 'Назначения учителя изменены',
+  teacher_access_sent: 'Доступ сотруднику отправлен',
+  school_created: 'Школа создана',
+  school_selected: 'Выбрана активная школа',
+  school_settings_updated: 'Настройки школы изменены',
+  school_branding_updated: 'Оформление школы изменено'
+};
+
+const historyEntityLabels = {
+  assignment: 'Задание',
+  question: 'Вопрос',
+  subject: 'Предмет',
+  class: 'Класс',
+  student: 'Ученик',
+  teacher: 'Сотрудник',
+  user: 'Пользователь',
+  school: 'Школа',
+  material: 'Материал'
+};
+
+const historyMetadataLabels = {
+  source_assignment_id: 'Исходное задание',
+  assignment_id: 'Задание',
+  subject_id: 'Предмет',
+  class_id: 'Класс',
+  teacher_id: 'Сотрудник',
+  student_id: 'Ученик',
+  source_school_id: 'Школа-источник',
+  target_school_id: 'Школа-получатель',
+  questions_count: 'Вопросов',
+  students_count: 'Учеников',
+  status: 'Статус',
+  from_status: 'Было',
+  to_status: 'Стало',
+  action: 'Действие',
+  title: 'Название',
+  name: 'Название'
+};
+
+function historyEventLabel(eventType) {
+  const type = String(eventType || '');
+  if (historyEventLabels[type]) return historyEventLabels[type];
+
+  const patterns = [
+    [/assignment.*creat/i, 'Задание создано'],
+    [/assignment.*duplicat/i, 'Задание продублировано'],
+    [/assignment.*assign/i, 'Задание назначено'],
+    [/assignment.*review/i, 'Изменён статус проверки задания'],
+    [/assignment.*status|workflow/i, 'Изменён статус задания'],
+    [/question.*creat/i, 'Вопрос добавлен'],
+    [/question.*updat|edit/i, 'Вопрос изменён'],
+    [/question.*delet/i, 'Вопрос удалён'],
+    [/subject.*shar|material.*send/i, 'Материалы отправлены'],
+    [/material.*accept/i, 'Материалы приняты'],
+    [/material.*reject/i, 'Материалы отклонены'],
+    [/class.*creat/i, 'Класс создан'],
+    [/student.*import/i, 'Ученики импортированы'],
+    [/teacher.*creat|user.*creat/i, 'Сотрудник добавлен'],
+    [/school.*brand/i, 'Оформление школы изменено']
+  ];
+  const match = patterns.find(([pattern]) => pattern.test(type));
+  return match ? match[1] : 'Действие в UVORIA';
+}
+
+function historyDateTime(value) {
+  if (!value) return '—';
+  const raw = String(value).trim();
+  const date = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function historyMetadataSummary(metadata) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return '';
+  const parts = [];
+  Object.entries(metadata).forEach(([key, value]) => {
+    if (value === null || value === '' || typeof value === 'object') return;
+    const label = historyMetadataLabels[key] || key.replaceAll('_', ' ');
+    parts.push(`<span><b>${escapeHtml(label)}:</b> ${escapeHtml(String(value))}</span>`);
+  });
+  return parts.slice(0, 6).join('');
+}
+
+function renderActivityHistory(data) {
+  const list = document.getElementById('activityHistoryList');
+  const total = document.getElementById('historyTotal');
+  const scope = document.getElementById('historyScopeHint');
+  if (!list) return;
+
+  const items = Array.isArray(data?.items) ? data.items : [];
+  if (total) total.textContent = `Записей: ${Number(data?.total || 0)}`;
+  if (scope) {
+    scope.textContent = data?.scope === 'school'
+      ? 'Показаны действия сотрудников выбранной школы.'
+      : 'Показаны только ваши действия.';
+  }
+
+  if (!items.length) {
+    list.innerHTML = '<div class="history-empty"><b>История пока пуста</b><span>Для выбранных условий действий не найдено.</span></div>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const entity = item.entity_type
+      ? (historyEntityLabels[item.entity_type] || item.entity_type) + (item.entity_id ? ' #' + item.entity_id : '')
+      : 'Система';
+    const role = roleLabels[item.actor?.role] || '';
+    const details = historyMetadataSummary(item.metadata);
+    return `
+      <article class="history-item">
+        <div class="history-marker" aria-hidden="true"></div>
+        <div class="history-item-main">
+          <div class="history-item-head">
+            <div>
+              <strong>${escapeHtml(historyEventLabel(item.event_type))}</strong>
+              <span>${escapeHtml(entity)}</span>
+            </div>
+            <time>${escapeHtml(historyDateTime(item.created_at))}</time>
+          </div>
+          <div class="history-actor">
+            <b>${escapeHtml(item.actor?.name || 'Системное действие')}</b>
+            ${role ? `<span>${escapeHtml(role)}</span>` : ''}
+          </div>
+          ${details ? `<div class="history-details">${details}</div>` : ''}
+          <small class="history-event-code">${escapeHtml(item.event_type || '')}</small>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+async function loadActivityHistory() {
+  const list = document.getElementById('activityHistoryList');
+  if (!list) return;
+
+  list.innerHTML = '<div class="history-empty">Загрузка истории действий...</div>';
+  const params = new URLSearchParams({ limit: '100' });
+  const search = document.getElementById('historySearch')?.value.trim() || '';
+  const entityType = document.getElementById('historyEntityFilter')?.value || '';
+  if (search) params.set('q', search);
+  if (entityType) params.set('entity_type', entityType);
+
+  const response = await fetch('./api/history/list.php?' + params.toString(), {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    list.innerHTML = `<div class="history-empty"><b>Не удалось загрузить историю</b><span>${escapeHtml(data.error || 'Попробуйте ещё раз.')}</span></div>`;
+    return;
+  }
+  renderActivityHistory(data);
+}
+
+document.getElementById('historyFilters')?.addEventListener('submit', event => {
+  event.preventDefault();
+  loadActivityHistory().catch(() => {});
+});
+
+document.getElementById('historyEntityFilter')?.addEventListener('change', () => {
+  loadActivityHistory().catch(() => {});
+});
+
+document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => {
+  loadActivityHistory().catch(() => {});
+});
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
   if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
