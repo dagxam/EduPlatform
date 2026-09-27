@@ -41,6 +41,12 @@ CREATE TABLE IF NOT EXISTS assignments (
     description TEXT,
     type TEXT NOT NULL DEFAULT 'quiz',
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'closed')),
+    workflow_status TEXT NOT NULL DEFAULT 'draft',
+    review_submitted_at TEXT,
+    reviewed_at TEXT,
+    reviewed_by INTEGER,
+    review_comment TEXT,
+    completed_at TEXT,
     max_attempts INTEGER NOT NULL DEFAULT 1,
     time_limit_minutes INTEGER,
     starts_at TEXT,
@@ -59,7 +65,8 @@ CREATE TABLE IF NOT EXISTS assignments (
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
     FOREIGN KEY (source_school_id) REFERENCES schools(id) ON DELETE SET NULL,
     FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE SET NULL,
-    FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS assignment_classes (
@@ -188,6 +195,7 @@ CREATE TABLE IF NOT EXISTS schools (
     slug TEXT UNIQUE COLLATE NOCASE,
     city TEXT,
     theme_color TEXT NOT NULL DEFAULT '#1d68f0',
+    assignment_review_required INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'archived')),
     created_by INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
