@@ -145,7 +145,7 @@ $activeAssignments = $stmt->fetchAll();
 $classSql =
     "SELECT c.id, COALESCE(c.display_name, c.name) AS name,
             COUNT(DISTINCT cs.student_id) AS students_count,
-            AVG(CASE WHEN at.status IN ('submitted', 'needs_review') THEN at.percent ELSE NULL END) AS average_percent
+            AVG(CASE WHEN a.id IS NOT NULL AND at.status IN ('submitted', 'needs_review') THEN at.percent ELSE NULL END) AS average_percent
      FROM classes c
      LEFT JOIN class_students cs ON cs.class_id = c.id
      LEFT JOIN attempts at ON at.student_id = cs.student_id
