@@ -1,4 +1,4 @@
-name: Deploy UVORIA to hosting
+name: Deploy UROVIA to hosting
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./
-          # FTP account is already rooted at the live UVORIA directory.
+          # FTP account is already rooted at the live UROVIA directory.
           # Do not prepend /www/... here or nested duplicate folders will be created.
           server-dir: /
           dangerous-clean-slate: false
