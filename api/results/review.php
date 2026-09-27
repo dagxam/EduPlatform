@@ -121,20 +121,30 @@ foreach ($questionOrder as $questionId) {
     $answer = $answers[$questionId] ?? null;
     $rawAnswer = (string)($answer['answer_text'] ?? '');
     $needsReview = (int)($answer['needs_review'] ?? 0) === 1;
-    $hasAnswer = $answer !== null && trim($rawAnswer) !== '';
+
+    if (in_array($interaction, ['single', 'multiple', 'true_false', 'order'], true)) {
+        $decodedPresence = json_decode($rawAnswer, true);
+        $hasAnswer = is_array($decodedPresence) && count($decodedPresence) > 0;
+    } elseif ($interaction === 'matching') {
+        $decodedPresence = json_decode($rawAnswer, true);
+        $hasAnswer = is_array($decodedPresence)
+            && count(array_filter($decodedPresence, static fn($value): bool => trim((string)$value) !== '')) > 0;
+    } else {
+        $hasAnswer = trim($rawAnswer) !== '';
+    }
 
     $status = 'unanswered';
-    if ($needsReview) {
+    if (!$hasAnswer) {
+        $unansweredCount++;
+    } elseif ($needsReview) {
         $status = 'review';
         $reviewCount++;
-    } elseif ($answer !== null && (int)($answer['is_correct'] ?? 0) === 1) {
+    } elseif ((int)($answer['is_correct'] ?? 0) === 1) {
         $status = 'correct';
         $correctCount++;
-    } elseif ($answer !== null) {
+    } else {
         $status = 'incorrect';
         $incorrectCount++;
-    } else {
-        $unansweredCount++;
     }
 
     $settings = json_decode((string)($row['settings_json'] ?? ''), true);
@@ -265,10 +275,19 @@ foreach ($questionOrder as $questionId) {
     ];
 }
 
+$automaticScore = 0.0;
+$automaticMax = 0.0;
+foreach ($items as $item) {
+    $automaticScore += (float)$item['earned_points'];
+    $automaticMax += (float)$item['points'];
+}
+$automaticPercent = $automaticMax > 0 ? round(($automaticScore / $automaticMax) * 100, 2) : 0.0;
+$automaticGrade = grade_from_percent($automaticPercent);
+
 $published = $attempt['published_score'] !== null;
-$displayScore = (float)($published ? $attempt['published_score'] : ($attempt['score'] ?? 0));
-$displayPercent = (float)($published ? $attempt['published_percent'] : ($attempt['percent'] ?? 0));
-$displayGrade = (string)($published ? $attempt['published_grade'] : ($attempt['grade'] ?? ''));
+$displayScore = (float)($published ? $attempt['published_score'] : $automaticScore);
+$displayPercent = (float)($published ? $attempt['published_percent'] : $automaticPercent);
+$displayGrade = (string)($published ? $attempt['published_grade'] : $automaticGrade);
 $displayComment = (string)($published ? ($attempt['published_comment'] ?? '') : '');
 
 json_response([
@@ -286,7 +305,7 @@ json_response([
         'submitted_at' => $attempt['submitted_at'] ?? null,
         'status' => (string)$attempt['status'],
         'score' => $displayScore,
-        'max_score' => (float)($attempt['max_score'] ?? 0),
+        'max_score' => $automaticMax,
         'percent' => $displayPercent,
         'grade' => $displayGrade,
         'comment' => $displayComment,
