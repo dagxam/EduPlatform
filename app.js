@@ -1329,6 +1329,10 @@ async function loadStaffProfile(userId = null, openView = false) {
   document.getElementById('profileAvatarSaveBtn')?.classList.toggle('hidden', !editable);
 
   document.getElementById('profileLoginName').textContent = data.profile.login_name || 'Вход по email';
+  const mailTestEmail = document.getElementById('mailTestEmail');
+  if (mailTestEmail && Number(currentUser?.is_platform_admin) === 1 && !mailTestEmail.value) {
+    mailTestEmail.value = data.profile.email || currentUser?.email || 'info@urovia.ru';
+  }
   document.getElementById('profileCredentialsState').textContent = Number(data.profile.must_change_password) === 1
     ? 'Нужно сменить временный пароль'
     : (data.profile.credentials_sent_at ? 'Доступ активирован' : 'Обычный доступ');
@@ -1457,6 +1461,47 @@ document.getElementById('profileAvatarForm')?.addEventListener('submit', async e
   } finally {
     button.disabled = false;
     button.textContent = 'Загрузить фото';
+  }
+});
+
+document.getElementById('mailTestForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const error = document.getElementById('mailTestError');
+  const result = document.getElementById('mailTestResult');
+  const button = form.querySelector('button[type="submit"]');
+  const email = String(new FormData(form).get('email') || '').trim();
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Отправляем...';
+
+  try {
+    const response = await fetch('./api/mail/test.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось отправить тестовое письмо.');
+    }
+    if (result) {
+      result.textContent = `${data.message || 'Письмо принято на отправку.'} Отправитель: ${data.from || 'info@urovia.ru'}.`;
+      result.classList.remove('hidden');
+    }
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Отправить тестовое письмо';
   }
 });
 
@@ -1778,7 +1823,8 @@ const historyEventLabels = {
   library_item_published: 'Материал опубликован в библиотеке',
   library_item_rejected: 'Публикация в библиотеке отклонена',
   library_item_withdrawn: 'Материал снят с публикации',
-  library_item_imported: 'Материал импортирован из библиотеки'
+  library_item_imported: 'Материал импортирован из библиотеки',
+  mail_test_sent: 'Отправлено тестовое письмо UVORIA'
 };
 
 const historyEntityLabels = {
