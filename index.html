@@ -671,13 +671,19 @@
   </div>
 
   <div class="modal-backdrop hidden" id="questionPreviewModal">
-    <div class="modal class-details-modal">
+    <div class="modal class-details-modal question-builder-modal">
       <button class="modal-close" data-close-modal="questionPreviewModal">×</button>
-      <span class="section-kicker">Черновик импорта</span>
-      <h2 id="questionPreviewTitle">Распознанные вопросы</h2>
-      <p>Проверьте, что UVORIA правильно определила типы и ответы. Задание остаётся черновиком и не публикуется автоматически.</p>
+      <div class="question-builder-titlebar">
+        <div>
+          <span class="section-kicker">Конструктор UVORIA</span>
+          <h2 id="questionPreviewTitle">Конструктор задания</h2>
+          <p id="questionBuilderHint">Редактируйте распознанные вопросы перед назначением классу.</p>
+        </div>
+        <button class="primary-btn compact-btn" id="builderAddQuestionBtn" type="button">＋ Добавить вопрос</button>
+      </div>
       <div class="question-preview-summary" id="questionPreviewSummary"></div>
-      <div class="question-preview-list" id="questionPreviewList">
+      <div class="question-builder-help" id="questionBuilderHelp">Перетаскивайте карточки за значок ⋮⋮, чтобы изменить порядок вопросов.</div>
+      <div class="question-preview-list question-builder-list" id="questionPreviewList">
         <p>Загрузка вопросов...</p>
       </div>
       <div class="form-error hidden" id="questionPreviewError"></div>
