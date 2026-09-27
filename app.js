@@ -874,9 +874,10 @@ function renderIncomingMaterials() {
 
     const actions = item.status === 'pending'
       ? `
+        <button class="secondary-btn" type="button" data-incoming-preview="${item.id}">Просмотреть</button>
         <button class="primary-btn" type="button" data-incoming-action="accept" data-transfer-id="${item.id}">Принять</button>
         <button class="secondary-btn" type="button" data-incoming-action="reject" data-transfer-id="${item.id}">Отклонить</button>`
-      : '';
+      : `<button class="secondary-btn" type="button" data-incoming-preview="${item.id}">Просмотреть</button>`;
 
     return `
       <article class="panel incoming-material-card" data-transfer-card="${item.id}">
@@ -910,6 +911,89 @@ function renderIncomingMaterials() {
       String(button.dataset.incomingAction)
     ));
   });
+  list.querySelectorAll('[data-incoming-preview]').forEach(button => {
+    button.addEventListener('click', () => openIncomingMaterialPreview(Number(button.dataset.incomingPreview)));
+  });
+}
+
+async function openIncomingMaterialPreview(transferId) {
+  const modal = document.getElementById('incomingMaterialPreviewModal');
+  const title = document.getElementById('incomingPreviewTitle');
+  const hint = document.getElementById('incomingPreviewHint');
+  const content = document.getElementById('incomingPreviewContent');
+  const error = document.getElementById('incomingPreviewError');
+  if (!modal || !content) return;
+
+  content.innerHTML = '<p>Загрузка содержимого...</p>';
+  error?.classList.add('hidden');
+  openModal(modal);
+
+  try {
+    const response = await fetch(`./api/materials/preview.php?transfer_id=${encodeURIComponent(transferId)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить содержимое.');
+
+    if (title) title.textContent = data.transfer?.subject_name || 'Полученные материалы';
+    if (hint) hint.textContent = `Источник: ${data.transfer?.source_school_name || 'другая школа'}. Это только предпросмотр — материалы ещё не добавлены в библиотеку.`;
+
+    const assignments = data.assignments || [];
+    if (!assignments.length) {
+      content.innerHTML = '<div class="incoming-subject-only">В пакете передан только предмет, без заданий.</div>';
+      return;
+    }
+
+    content.innerHTML = assignments.map((assignment, assignmentIndex) => {
+      const questions = assignment.questions || [];
+      return `
+        <section class="incoming-preview-assignment">
+          <div class="incoming-preview-assignment-head">
+            <div>
+              <span>Задание ${assignmentIndex + 1}</span>
+              <h3>${escapeHtml(assignment.title || 'Задание')}</h3>
+            </div>
+            <small>${questions.length} вопросов${Number(assignment.variant_count || 1) > 1 ? ' · варианты ' + ['A','B','C','D'].slice(0, Number(assignment.variant_count)).join('/') : ''}</small>
+          </div>
+          ${assignment.description ? `<p class="incoming-preview-description">${escapeHtml(assignment.description)}</p>` : ''}
+          <div class="incoming-preview-questions">
+            ${questions.length ? questions.map((question, index) => {
+              const interaction = question.interaction_type || question.type;
+              const options = (question.options || []).length
+                ? `<div class="question-preview-options">${question.options.map(option =>
+                    `<span class="${Number(option.is_correct) === 1 ? 'correct' : ''}">${escapeHtml(option.text)}</span>`
+                  ).join('')}</div>`
+                : '';
+              const assets = (question.assets || []).map(asset =>
+                `<img class="question-preview-image" src="${escapeHtml(asset.url)}" alt="Изображение к вопросу">`
+              ).join('');
+              return `
+                <article class="question-preview-card">
+                  <div class="question-preview-head">
+                    <span>№ ${index + 1}</span>
+                    <b>${escapeHtml(questionTypeLabel(interaction))}</b>
+                    <strong>${Number(question.points || 1)} балл.</strong>
+                  </div>
+                  <h4>${escapeHtml(question.text)}</h4>
+                  ${assets}
+                  ${options}
+                  <div class="question-preview-answer">
+                    <span>Правильный ответ</span>
+                    <b>${escapeHtml(renderQuestionCorrectAnswer(question))}</b>
+                  </div>
+                </article>`;
+            }).join('') : '<div class="incoming-subject-only">В этом задании пока нет вопросов.</div>'}
+          </div>
+        </section>`;
+    }).join('');
+  } catch (e) {
+    content.innerHTML = '';
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  }
 }
 
 async function loadIncomingMaterials() {
