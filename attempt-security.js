@@ -61,6 +61,16 @@ const AttemptSecurity = (() => {
     }
   }
 
+  function handlePageHide() {
+    if (!state || hiddenHandled) return;
+    hiddenHandled = true;
+    if (state.focusPolicy === 'strict') {
+      state.locked = true;
+      state.onLocked?.();
+    }
+    sendEvent('hidden', true).catch(() => {});
+  }
+
   function start({ attemptId, focusPolicy = 'allow', onLocked = null, onTerminated = null }) {
     stop();
     state = {
@@ -72,14 +82,14 @@ const AttemptSecurity = (() => {
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('pagehide', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
     heartbeatTimer = window.setInterval(heartbeat, 15000);
     heartbeat();
   }
 
   function stop() {
     document.removeEventListener('visibilitychange', handleVisibility);
-    window.removeEventListener('pagehide', handleVisibility);
+    window.removeEventListener('pagehide', handlePageHide);
     if (heartbeatTimer) window.clearInterval(heartbeatTimer);
     heartbeatTimer = null;
     state = null;
