@@ -16,7 +16,7 @@ const AttemptSecurity = (() => {
     if (data?.terminated) {
       const callback = state?.onTerminated;
       stop();
-      callback?.(data.result || null);
+      callback?.(data.result || null, data?.reason || null);
     }
     return data;
   }
