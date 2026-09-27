@@ -2161,6 +2161,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-actions">
           <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
           <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
+          ${assignmentDeleteButton(item)}
           ${libraryAssignmentAction(item)}
           ${assignmentWorkflowActionButtons(item)}
           <span class="status ${statusClass}">${statusText}</span>
@@ -2502,6 +2503,20 @@ function assignmentStatusLabel(itemOrStatus) {
   return labels[status] || ['Черновик', 'amber'];
 }
 
+function canDeleteAssignment(item) {
+  if (!item) return false;
+  const noAttempts = Number(item.all_attempts_count ?? item.attempts_count ?? 0) === 0;
+  const owner = Number(item.teacher_id || 0) === Number(currentUser?.id || 0);
+  const manager = Boolean(assignmentWorkflowContext.can_manage);
+  return noAttempts && (owner || manager);
+}
+
+function assignmentDeleteButton(item) {
+  if (!canDeleteAssignment(item)) return '';
+  return '<button class="mini-action danger-action assignment-delete-btn" type="button" data-delete-assignment="' +
+    Number(item.id) + '">Удалить</button>';
+}
+
 function assignmentWorkflowActionButtons(item) {
   const status = normalizedAssignmentWorkflowStatus(item);
   const reviewRequired = Boolean(assignmentWorkflowContext.review_required);
@@ -2578,6 +2593,9 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-duplicate-assignment]').forEach(button => {
     button.addEventListener('click', () => openDuplicateAssignment(Number(button.dataset.duplicateAssignment)));
   });
+  root.querySelectorAll('[data-delete-assignment]').forEach(button => {
+    button.addEventListener('click', () => deleteAssignment(Number(button.dataset.deleteAssignment), button));
+  });
   root.querySelectorAll('[data-library-submit]').forEach(button => {
     button.addEventListener('click', () => submitAssignmentToLibrary(Number(button.dataset.librarySubmit)));
   });
@@ -2632,6 +2650,58 @@ function renderAssignments() {
 function assignmentDateTimeLocal(value) {
   if (!value) return '';
   return String(value).replace(' ', 'T').slice(0, 16);
+}
+
+async function deleteAssignment(assignmentId, button) {
+  const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment) return;
+
+  if (Number(assignment.all_attempts_count ?? assignment.attempts_count ?? 0) > 0) {
+    alert('Удаление недоступно: по этому заданию уже есть попытки учеников.');
+    return;
+  }
+
+  const classesText = assignment.class_names
+    ? '\nЗадание также исчезнет у назначенных классов.'
+    : '';
+  const importText = assignment.source_format
+    ? '\nИсходный ' + String(assignment.source_format).toUpperCase() + '-файл и изображения этого задания тоже будут удалены.'
+    : '\nВсе вопросы и изображения этого задания тоже будут удалены.';
+
+  if (!confirm(
+    'Удалить задание «' + assignment.title + '»?' +
+    classesText +
+    importText +
+    '\n\nЭто действие нельзя отменить.'
+  )) return;
+
+  const oldText = button?.textContent || 'Удалить';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Удаляем...';
+  }
+
+  try {
+    const response = await fetch('./api/assignments/delete.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: assignmentId })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось удалить задание.');
+    }
+
+    await loadAssignments();
+    if (selectedSubjectId) renderSubjectAssignments();
+  } catch (error) {
+    alert(error.message);
+    if (button) {
+      button.disabled = false;
+      button.textContent = oldText;
+    }
+  }
 }
 
 function openDuplicateAssignment(assignmentId) {
