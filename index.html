@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" id="themeColorMeta" content="#1d68f0">
-  <meta name="description" content="UVORIA — задания, тесты и результаты для учителей и учеников.">
-  <title>UVORIA</title>
+  <meta name="description" content="UROVIA — задания, тесты и результаты для учителей и учеников.">
+  <title>UROVIA</title>
   <link rel="icon" id="siteFavicon" type="image/png" sizes="128x128" href="favicon.png?v=3">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="UVORIA">
+  <meta name="apple-mobile-web-app-title" content="UROVIA">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="pwa.css">
 </head>
@@ -19,7 +19,7 @@
   <div class="auth-boot-screen" id="authBootScreen" aria-live="polite">
     <div class="auth-boot-card">
       <div class="auth-boot-spinner" aria-hidden="true"></div>
-      <strong>UVORIA</strong>
+      <strong>UROVIA</strong>
       <span>Проверяем доступ...</span>
     </div>
   </div>
@@ -28,7 +28,7 @@
       <div class="brand">
         <div class="brand-mark">U</div>
         <div>
-          <strong>UVORIA</strong>
+          <strong>UROVIA</strong>
           <span>Обучение проще</span>
         </div>
       </div>
@@ -39,7 +39,7 @@
         <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
-        <button class="nav-item" data-view="uvoria-library"><span>◇</span> Библиотека UVORIA</button>
+        <button class="nav-item" data-view="uvoria-library"><span>◇</span> Библиотека UROVIA</button>
         <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
         <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span>⛁</span> Резервные копии</button>
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
@@ -177,7 +177,7 @@
                   </div>
                   <span class="file-format-badges"><b>DOCX</b><b>PDF</b><b>PPT</b><b>PPTX</b></span>
                 </div>
-                <p>Загрузите файл в библиотеку предмета. UVORIA создаст черновик задания и попробует автоматически распознать вопросы. Класс выбирается позже — при назначении задания.</p>
+                <p>Загрузите файл в библиотеку предмета. UROVIA создаст черновик задания и попробует автоматически распознать вопросы. Класс выбирается позже — при назначении задания.</p>
                 <details class="import-format-help">
                   <summary>Как оформить файл для точного распознавания</summary>
                   <div class="import-format-grid">
@@ -267,7 +267,7 @@
         <div class="profile-shell">
           <aside class="panel profile-card">
             <div class="profile-photo" id="profilePhoto"><span id="profilePhotoInitials">У</span></div>
-            <h3 id="profileDisplayName">Сотрудник UVORIA</h3>
+            <h3 id="profileDisplayName">Сотрудник UROVIA</h3>
             <span class="status blue" id="profileRoleBadge">Сотрудник</span>
             <p id="profileSchoolSummary">Загрузка...</p>
           </aside>
@@ -303,7 +303,7 @@
             <div class="profile-pane" data-profile-pane="photo">
               <div class="profile-pane-copy">
                 <h3>Фото сотрудника</h3>
-                <p>PNG, JPG или WebP до 5 МБ. UVORIA подготовит квадратную версию для аватара.</p>
+                <p>PNG, JPG или WebP до 5 МБ. UROVIA подготовит квадратную версию для аватара.</p>
               </div>
               <form id="profileAvatarForm" class="profile-form" enctype="multipart/form-data">
                 <input type="hidden" id="profileAvatarUserId" name="user_id">
@@ -334,7 +334,7 @@
               </div>
               <div class="platform-admin-only hidden mail-test-panel">
                 <h3>Проверка отправки почты</h3>
-                <p>Тест использует тот же механизм, которым UVORIA отправляет логины, временные пароли и ссылки восстановления.</p>
+                <p>Тест использует тот же механизм, которым UROVIA отправляет логины, временные пароли и ссылки восстановления.</p>
                 <form id="mailTestForm" class="profile-form">
                   <label>Email для теста<input id="mailTestEmail" name="email" type="email" placeholder="info@urovia.ru" required></label>
                   <div class="form-error hidden" id="mailTestError"></div>
@@ -366,7 +366,7 @@
         <div class="section-toolbar">
           <div>
             <span class="section-kicker">Обмен опытом</span>
-            <h2>Библиотека UVORIA</h2>
+            <h2>Библиотека UROVIA</h2>
             <p>Проверенные задания, которыми школы добровольно делятся друг с другом. Импорт создаёт независимый черновик.</p>
           </div>
           <button class="secondary-btn" id="refreshLibraryBtn" type="button">↻ Обновить</button>
@@ -398,7 +398,7 @@
           <div>
             <span class="section-kicker">Журнал школы</span>
             <h2>История действий</h2>
-            <p>Изменения заданий, материалов, пользователей и других объектов UVORIA в хронологическом порядке.</p>
+            <p>Изменения заданий, материалов, пользователей и других объектов UROVIA в хронологическом порядке.</p>
           </div>
           <button class="secondary-btn" id="refreshHistoryBtn" type="button">↻ Обновить</button>
         </div>
@@ -476,7 +476,7 @@
         <div class="section-toolbar">
           <div>
             <span class="section-kicker">Защита данных</span>
-            <h2>Резервные копии UVORIA</h2>
+            <h2>Резервные копии UROVIA</h2>
             <p>Полный снимок базы данных и загруженных материалов всех школ.</p>
           </div>
           <button class="primary-btn" id="createBackupBtn" type="button">＋ Создать копию сейчас</button>
@@ -510,7 +510,7 @@
           </div>
           <div class="backup-security-note">
             <b>Системная копия содержит данные всех школ.</b>
-            <span>Скачивание доступно только главному администратору UVORIA. Храните архивы в защищённом месте.</span>
+            <span>Скачивание доступно только главному администратору UROVIA. Храните архивы в защищённом месте.</span>
           </div>
           <div class="backup-status" id="backupStatus">Загрузка резервных копий...</div>
           <div class="table-wrap">
@@ -548,7 +548,7 @@
               <h3>Цвет интерфейса школы</h3>
             </div>
           </div>
-          <p class="panel-note">По умолчанию используется фирменный синий UVORIA. Главный администратор может задать каждой школе свой цвет меню, кнопок и акцентов.</p>
+          <p class="panel-note">По умолчанию используется фирменный синий UROVIA. Главный администратор может задать каждой школе свой цвет меню, кнопок и акцентов.</p>
           <form id="schoolBrandingForm" class="branding-form">
             <input type="hidden" name="theme_color" id="schoolThemeColor" value="#1d68f0">
             <div class="branding-presets" aria-label="Готовые цвета">
@@ -606,7 +606,7 @@
               <div><span class="section-kicker">Контроль доступа</span><h3>Администраторы школы</h3></div>
               <button class="primary-btn compact-btn platform-admin-only hidden" id="addSchoolAdminBtn" type="button">＋ Администратор</button>
             </div>
-            <p class="panel-note">Только главный администратор UVORIA управляет админскими правами. Один сотрудник может одновременно быть администратором школы и учителем.</p>
+            <p class="panel-note">Только главный администратор UROVIA управляет админскими правами. Один сотрудник может одновременно быть администратором школы и учителем.</p>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Администратор</th><th>Email</th><th>Статус</th><th></th></tr></thead>
@@ -645,7 +645,7 @@
       <section class="view" id="student-dashboard">
         <div class="student-welcome">
           <div><span class="pill" id="studentClassBadge">Класс</span><h2 id="studentWelcomeTitle">Мои задания</h2><p id="studentWelcomeText">Загрузка назначенных работ...</p></div>
-          <div class="student-score"><span>Текущие задания</span><strong id="studentActiveTasksCount">0</strong><small>из базы UVORIA</small></div>
+          <div class="student-score"><span>Текущие задания</span><strong id="studentActiveTasksCount">0</strong><small>из базы UROVIA</small></div>
         </div>
         <div class="student-layout">
           <div>
@@ -688,7 +688,7 @@
   <div class="modal-backdrop hidden" id="libraryPreviewModal">
     <div class="modal class-details-modal library-preview-modal">
       <button class="modal-close" data-close-modal="libraryPreviewModal">×</button>
-      <span class="section-kicker">Библиотека UVORIA</span>
+      <span class="section-kicker">Библиотека UROVIA</span>
       <h2 id="libraryPreviewTitle">Материал</h2>
       <p id="libraryPreviewMeta"></p>
       <div id="libraryPreviewQuestions" class="library-preview-questions"></div>
@@ -805,7 +805,7 @@
       </div>
       <div class="import-box">
         <h3>Загрузить учеников из Word</h3>
-        <p>Сначала UVORIA распознает список. Перед добавлением можно исправить фамилию или имя, удалить лишнюю строку и добавить пропущенного ученика вручную.</p>
+        <p>Сначала UROVIA распознает список. Перед добавлением можно исправить фамилию или имя, удалить лишнюю строку и добавить пропущенного ученика вручную.</p>
         <form id="importStudentsForm">
           <input type="file" name="file" accept=".docx" required>
           <button class="primary-btn" type="submit">Проверить DOCX</button>
@@ -856,7 +856,7 @@
           <label>Фамилия<input name="last_name" required></label>
         </div>
         <label>Email<input name="email" type="email" required></label>
-        <p class="form-hint">Пароль вручную задавать не нужно. После создания нажмите «Отправить доступ» — UVORIA сгенерирует логин и временный пароль и отправит их на email учителя.</p>
+        <p class="form-hint">Пароль вручную задавать не нужно. После создания нажмите «Отправить доступ» — UROVIA сгенерирует логин и временный пароль и отправит их на email учителя.</p>
         <div class="form-error hidden" id="teacherFormError"></div>
         <button class="primary-btn full" type="submit">Создать учителя</button>
       </form>
@@ -893,7 +893,7 @@
       <button class="modal-close" data-close-modal="schoolAdminModal">×</button>
       <span class="section-kicker">Права школы</span>
       <h2 id="schoolAdminModalTitle">Назначить администратора</h2>
-      <p id="schoolAdminModalHint">Создайте нового администратора школы или укажите email уже существующего администратора UVORIA.</p>
+      <p id="schoolAdminModalHint">Создайте нового администратора школы или укажите email уже существующего администратора UROVIA.</p>
       <form id="schoolAdminForm">
         <input type="hidden" name="admin_id" id="schoolAdminId">
         <div class="form-row">
@@ -1024,7 +1024,7 @@
       <button class="modal-close" data-close-modal="questionPreviewModal">×</button>
       <div class="question-builder-titlebar">
         <div>
-          <span class="section-kicker">Конструктор UVORIA</span>
+          <span class="section-kicker">Конструктор UROVIA</span>
           <h2 id="questionPreviewTitle">Конструктор задания</h2>
           <p id="questionBuilderHint">В одной работе можно сочетать тесты, перетаскивание, соответствия, короткие ответы и изображения.</p>
         </div>
