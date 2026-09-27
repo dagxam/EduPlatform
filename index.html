@@ -182,13 +182,14 @@
                 <details class="import-format-help">
                   <summary>Как оформить файл для точного распознавания</summary>
                   <div class="import-format-grid">
-                    <code>ТИП: тест<br>ВОПРОС: Столица России?<br>A) Москва<br>B) Казань<br>ОТВЕТ: A</code>
-                    <code>ТИП: хронология<br>ВОПРОС: Расставьте события<br>1) Событие А<br>2) Событие Б<br>ОТВЕТ: 2,1</code>
-                    <code>ТИП: соответствие<br>ВОПРОС: Соотнесите<br>1) Вторая мировая война<br>A) 1939<br>ОТВЕТ: 1-A</code>
-                    <code>ТИП: короткий<br>ВОПРОС: В каком году...?<br>ОТВЕТ: 1939</code>
-                    <code>ТИП: исправление<br>ВОПРОС: Найдите ошибку<br>ТЕКСТ: ...<br>ОТВЕТ: правильный текст</code>
-                    <code>ТИП: изображение<br>ВОПРОС: Какое событие изображено?<br>ОТВЕТ: ...</code>
+                    <code>Один ответ<br>Текст вопроса<br>A) вариант<br>B) вариант<br>TYPE: single<br>ANSWER: A<br>POINTS: 1</code>
+                    <code>Несколько ответов<br>Текст вопроса<br>A) вариант<br>B) вариант<br>C) вариант<br>TYPE: multiple<br>ANSWER: A | C<br>POINTS: 2</code>
+                    <code>Порядок<br>Текст вопроса<br>• элемент 1<br>• элемент 2<br>TYPE: order<br>ORDER: элемент 2 | элемент 1<br>POINTS: 2</code>
+                    <code>Соответствие<br>Текст вопроса<br>TYPE: matching<br>PAIRS: объект 1 = ответ 1 | объект 2 = ответ 2<br>POINTS: 2</code>
+                    <code>Короткий / число<br>Текст вопроса<br>TYPE: text<br>ANSWER: правильный ответ<br>ALTERNATIVES: вариант 1 | вариант 2<br>POINTS: 1</code>
+                    <code>Исправление / верно-неверно<br>TYPE: correction / true_false<br>ANSWER: правильный ответ<br>POINTS: 1</code>
                   </div>
+                  <p class="field-help">Используйте служебные поля шаблона UROVIA: TYPE, ANSWER, POINTS, PAIRS, ORDER и ALTERNATIVES. В одном файле можно смешивать разные типы заданий.</p>
                 </details>
                 <form id="subjectImportForm" class="subject-import-form">
                   <label>Название задания
@@ -204,19 +205,6 @@
                       <option value="strict">Строгий — уход со страницы завершает попытку</option>
                     </select>
                   </label>
-                  <label>Варианты контрольной
-                    <select id="subjectImportVariantCount">
-                      <option value="1">Один вариант</option>
-                      <option value="2">A / B</option>
-                      <option value="3">A / B / C</option>
-                      <option value="4">A / B / C / D</option>
-                    </select>
-                  </label>
-                  <div class="variant-checks compact hidden" id="subjectImportVariantChecks">
-                    <label><input type="checkbox" id="subjectImportShuffleQuestions" checked> Вопросы</label>
-                    <label><input type="checkbox" id="subjectImportShuffleOptions" checked> Ответы</label>
-                    <label><input type="checkbox" id="subjectImportShuffleStructured" checked> Порядок / соответствия</label>
-                  </div>
                   <div class="form-error hidden" id="subjectImportError"></div>
                   <div class="import-result hidden" id="subjectImportResult"></div>
                   <button class="primary-btn" type="submit">Загрузить и создать черновик</button>
@@ -788,28 +776,6 @@
           <small class="field-help">В строгом режиме при переключении вкладки, сворачивании браузера или переходе в другое приложение попытка автоматически сдаётся с уже сохранёнными ответами.</small>
         </label>
         <div class="strict-warning hidden" id="strictWarning"><b>Строгая контрольная</b><span>Предупредите учеников перед началом. Даже блокировка экрана телефона может завершить попытку.</span></div>
-
-        <div class="variant-settings">
-          <label class="variant-toggle">
-            <input type="checkbox" id="taskVariantsEnabled">
-            <span><b>Варианты контрольной</b><small>Создать варианты A/B/C/D с разным порядком вопросов и ответов.</small></span>
-          </label>
-          <div class="variant-settings-body hidden" id="taskVariantSettingsBody">
-            <label>Количество вариантов
-              <select name="variant_count" id="taskVariantCount">
-                <option value="2">A / B</option>
-                <option value="3">A / B / C</option>
-                <option value="4" selected>A / B / C / D</option>
-              </select>
-            </label>
-            <div class="variant-checks">
-              <label><input type="checkbox" name="shuffle_questions" value="1" checked> Перемешивать вопросы</label>
-              <label><input type="checkbox" name="shuffle_options" value="1" checked> Перемешивать варианты ответа</label>
-              <label><input type="checkbox" name="shuffle_structured" value="1" checked> Перемешивать даты, порядок и правый столбец соответствий</label>
-            </div>
-            <small class="field-help">Каждому ученику сервер закрепляет один вариант. При обновлении страницы вариант и порядок не меняются.</small>
-          </div>
-        </div>
 
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
