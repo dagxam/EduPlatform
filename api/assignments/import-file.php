@@ -102,6 +102,18 @@ if ($extractedText !== null && strlen($extractedText) > 1500000) {
 $media = import_extract_media($destination, $extension);
 $parsedQuestions = $extractedText !== null ? import_parse_questions($extractedText) : [];
 
+if ($parsedQuestions) {
+    $validationIssues = import_validate_questions($parsedQuestions);
+    if ($validationIssues) {
+        @unlink($destination);
+        json_response([
+            'ok' => false,
+            'error' => 'Файл распознан, но ключи ответов содержат ошибки: ' . implode(' ', array_slice($validationIssues, 0, 5)),
+            'validation_issues' => $validationIssues,
+        ], 422);
+    }
+}
+
 $parseStatus = 'uploaded_for_review';
 $parserMessage = 'Файл сохранён. Автоматическое извлечение текста для этого файла не дало достаточного результата.';
 if ($extractedText !== null && trim($extractedText) !== '') {
