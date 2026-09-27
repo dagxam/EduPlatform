@@ -154,6 +154,15 @@ function setSidebarOpen(open) {
   menuBtn?.setAttribute('aria-expanded', next ? 'true' : 'false');
 }
 
+document.addEventListener('pointerdown', event => {
+  if (!sidebar?.classList.contains('open')) return;
+  if (sidebar.contains(event.target) || menuBtn?.contains(event.target)) return;
+  setSidebarOpen(false);
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && sidebar?.classList.contains('open')) setSidebarOpen(false);
+});
+
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const view = document.getElementById(id);
@@ -2500,6 +2509,18 @@ function renderResults() {
       + (adjusted ? ' · <span>' + adjusted + ' скорректировано и опубликовано</span>' : '')
       + (drafts ? ' · <span class="results-draft-count">' + drafts + ' неопубликованных изменений</span>' : '');
   }
+
+  const percents = rows.map(item => Number(item.display?.percent)).filter(Number.isFinite);
+  const grades = rows.map(item => Number(item.display?.grade)).filter(value => Number.isFinite(value) && value >= 2 && value <= 5);
+  const attention = rows.filter(item => item.has_unpublished_draft || item.status === 'needs_review').length;
+  const overviewCount = document.getElementById('resultsOverviewCount');
+  const overviewAverage = document.getElementById('resultsOverviewAverage');
+  const overviewGrade = document.getElementById('resultsOverviewGrade');
+  const overviewAttention = document.getElementById('resultsOverviewAttention');
+  if (overviewCount) overviewCount.textContent = String(rows.length);
+  if (overviewAverage) overviewAverage.textContent = percents.length ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) + '%' : '—';
+  if (overviewGrade) overviewGrade.textContent = grades.length ? (grades.reduce((a,b) => a + b, 0) / grades.length).toLocaleString('ru-RU', { maximumFractionDigits:1 }) : '—';
+  if (overviewAttention) overviewAttention.textContent = String(attention);
 
   body.innerHTML = rows.length ? rows.map(item => {
     const display = item.display || {};
