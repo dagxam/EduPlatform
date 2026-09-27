@@ -2202,3 +2202,5 @@ html:not(.auth-pending) .auth-boot-screen{
     grid-column:3;
   }
 }
+
+.ordering-grip{touch-action:none;cursor:grab}
