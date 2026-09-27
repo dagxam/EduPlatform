@@ -411,7 +411,7 @@
       if (editable) {
         var remove = button('Удалить', 'mini-action danger-action');
         remove.addEventListener('click', async function () {
-          if (!confirm('Удалить изображение из вопроса?')) return;
+          if (!(await appConfirm('Удалить изображение из вопроса?', { tone: "danger", okText: "Удалить" }))) return;
           try {
             var response = await fetch('./api/questions/delete-image.php', {
               method: 'POST',
@@ -553,7 +553,7 @@
 
       var remove = button('Удалить', 'mini-action danger-action');
       remove.addEventListener('click', async function () {
-        if (!confirm('Удалить это задание из работы?')) return;
+        if (!(await appConfirm('Удалить это задание из работы?', { tone: "danger", okText: "Удалить" }))) return;
         try {
           var response = await fetch('./api/questions/delete.php', {
             method: 'POST',
