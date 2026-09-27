@@ -1029,3 +1029,65 @@ form select:focus{
     width:calc(50% - 5px);
   }
 }
+
+
+/* Assignment lifecycle workflow */
+.status.violet{
+  color:#6d46b8;
+  background:#f1ebff;
+}
+.workflow-review-note{
+  display:block;
+  margin-top:5px;
+  color:#a05b1a!important;
+  font-size:11px!important;
+  font-style:normal!important;
+  line-height:1.45;
+}
+.school-workflow-settings-panel{
+  margin-top:16px;
+}
+.school-setting-form{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.school-setting-toggle{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:flex-start!important;
+  gap:11px!important;
+  padding:13px 14px;
+  border:1px solid #e2e8ef;
+  border-radius:13px;
+  background:#fafbfd;
+  cursor:pointer;
+}
+.school-setting-toggle input{
+  width:auto!important;
+  margin-top:3px;
+}
+.school-setting-toggle span{
+  min-width:0;
+}
+.school-setting-toggle b,
+.school-setting-toggle small{
+  display:block;
+}
+.school-setting-toggle small{
+  margin-top:4px;
+  color:#7f8b97;
+  line-height:1.45;
+}
+.row-actions-cell{
+  min-width:220px;
+}
+.row-actions-cell .primary-btn,
+.row-actions-cell .secondary-btn{
+  margin:2px 3px 2px 0;
+}
+@media(max-width:760px){
+  .row-actions-cell{
+    min-width:180px;
+  }
+}
