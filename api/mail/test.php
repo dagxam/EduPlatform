@@ -5,7 +5,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 $user = require_user(['admin']);
 if (!is_platform_admin($user)) {
-    json_response(['ok' => false, 'error' => 'Тест почты доступен только главному администратору UVORIA.'], 403);
+    json_response(['ok' => false, 'error' => 'Тест почты доступен только главному администратору UROVIA.'], 403);
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
@@ -19,12 +19,12 @@ if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
 }
 
 $from = uvoria_mail_from();
-$subject = 'Проверка почты UVORIA';
-$body = "Это тестовое письмо UVORIA.\n\n"
+$subject = 'Проверка почты UROVIA';
+$body = "Это тестовое письмо UROVIA.\n\n"
     . "Отправитель: " . $from . "\n"
     . "Сайт: " . uvoria_app_url() . "\n"
     . "Время: " . date(DATE_ATOM) . "\n\n"
-    . "Если вы получили это письмо, механизм отправки UVORIA работает.\n";
+    . "Если вы получили это письмо, механизм отправки UROVIA работает.\n";
 
 $sent = send_uvoria_email($to, $subject, $body);
 
