@@ -226,6 +226,56 @@ if (($mixedQuestions[1]['options'][1]['is_correct'] ?? false) !== true
 
 echo "Mixed Cyrillic/Latin answer labels OK\n";
 
+$logicDocxSpacing = <<<'TXT'
+﻿ " Что такое логика ?"
+A ) наука о законах и формах познающего мышления
+B) наука о числах
+C) наука о природе
+D) наука о языке
+TYPE: single
+ANSWER: A
+POINTS: 1
+
+Сколько главных законов мышления выделяют в традиционной логике?
+A ) 2
+B ) 5
+C ) 4
+D) 3
+TYPE: single
+ANSWER : C
+POINTS : 1
+
+В чём суть приёма?
+A ) первый
+B ) второй
+C ) третий
+D ) четвёртый
+E ) пятый
+TYPE : multiple
+ANSWER : B | D
+POINTS : 2
+TXT;
+
+$logicQuestions = import_parse_questions($logicDocxSpacing);
+if (count($logicQuestions) !== 3) {
+    fwrite(STDERR, 'Logic DOCX spacing regression expected 3 questions, got ' . count($logicQuestions) . PHP_EOL);
+    exit(1);
+}
+$logicExpected = [[0], [2], [1, 3]];
+foreach ($logicQuestions as $index => $question) {
+    $correctPositions = [];
+    foreach ((array)($question['options'] ?? []) as $optionIndex => $option) {
+        if (!empty($option['is_correct'])) $correctPositions[] = $optionIndex;
+    }
+    if ($correctPositions !== $logicExpected[$index]) {
+        fwrite(STDERR, 'Logic DOCX answer key parsed incorrectly at question ' . ($index + 1) . PHP_EOL);
+        exit(1);
+    }
+}
+
+echo "Logic DOCX spaced labels and answer fields OK\n";
+
+
 
 /*
  * Regression: an older imported assignment may have lost/wrong correct flags,
