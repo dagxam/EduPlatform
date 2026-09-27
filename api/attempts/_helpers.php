@@ -621,101 +621,38 @@ function variant_permutation(array $values, string $seed, int $variantIndex): ar
 
 function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
 {
+    // UROVIA now uses one canonical test per assignment. Mixed question types
+    // are supported inside the same test; A/B/C/D variants are no longer used.
     $stmt = $pdo->prepare(
-        'SELECT variant_count, shuffle_questions, shuffle_options, shuffle_structured
-         FROM assignments
-         WHERE id = :assignment_id
-         LIMIT 1'
-    );
-    $stmt->execute(['assignment_id' => $assignmentId]);
-    $settings = $stmt->fetch();
-    if (!$settings) {
-        json_response(['ok' => false, 'error' => 'Задание не найдено.'], 404);
-    }
-
-    $variantCount = max(1, min(4, (int)($settings['variant_count'] ?? 1)));
-    $variantIndex = $variantCount > 1
-        ? (int)(sprintf('%u', crc32($assignmentId . ':' . $studentId)) % $variantCount)
-        : 0;
-    $variantLabel = variant_label_from_index($variantIndex);
-    $seedBase = 'assignment:' . $assignmentId;
-
-    $stmt = $pdo->prepare(
-        'SELECT id, interaction_type, settings_json
+        'SELECT id
          FROM questions
          WHERE assignment_id = :assignment_id
          ORDER BY position, id'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
-    $questions = $stmt->fetchAll();
-
-    $questionOrder = array_map('intval', array_column($questions, 'id'));
-    if ($variantCount > 1 && (int)($settings['shuffle_questions'] ?? 0) === 1) {
-        $questionOrder = variant_permutation($questionOrder, $seedBase . '|questions', $variantIndex);
-    }
+    $questionOrder = array_map('intval', array_column($stmt->fetchAll(), 'id'));
 
     $optionOrder = [];
-    $structuredOrder = [];
-
     $optionStmt = $pdo->prepare(
         'SELECT id
          FROM question_options
          WHERE question_id = :question_id
          ORDER BY position, id'
     );
-
-    foreach ($questions as $question) {
-        $questionId = (int)$question['id'];
-
+    foreach ($questionOrder as $questionId) {
         $optionStmt->execute(['question_id' => $questionId]);
         $optionIds = array_map('intval', array_column($optionStmt->fetchAll(), 'id'));
-        if (
-            $variantCount > 1
-            && (int)($settings['shuffle_options'] ?? 0) === 1
-            && count($optionIds) > 1
-        ) {
-            $optionIds = variant_permutation($optionIds, $seedBase . '|options:' . $questionId, $variantIndex);
-        }
         if ($optionIds) {
             $optionOrder[(string)$questionId] = $optionIds;
-        }
-
-        if ($variantCount > 1 && (int)($settings['shuffle_structured'] ?? 0) === 1) {
-            $interaction = (string)($question['interaction_type'] ?? '');
-            $questionSettings = json_decode((string)($question['settings_json'] ?? ''), true);
-            $questionSettings = is_array($questionSettings) ? $questionSettings : [];
-
-            if (in_array($interaction, ['order', 'ordering'], true) && is_array($questionSettings['items'] ?? null)) {
-                $keys = array_map('strval', array_keys($questionSettings['items']));
-                if (count($keys) > 1) {
-                    $structuredOrder[(string)$questionId] = [
-                        'items' => variant_permutation($keys, $seedBase . '|order:' . $questionId, $variantIndex),
-                    ];
-                }
-            } elseif ($interaction === 'matching') {
-                $leftKeys = is_array($questionSettings['left'] ?? null)
-                    ? array_map('strval', array_keys($questionSettings['left']))
-                    : [];
-                $rightKeys = is_array($questionSettings['right'] ?? null)
-                    ? array_map('strval', array_keys($questionSettings['right']))
-                    : [];
-
-                $structuredOrder[(string)$questionId] = [
-                    'left' => $leftKeys,
-                    'right' => count($rightKeys) > 1
-                        ? variant_permutation($rightKeys, $seedBase . '|matching-right:' . $questionId, $variantIndex)
-                        : $rightKeys,
-                ];
-            }
         }
     }
 
     return [
-        'variant_index' => $variantIndex,
-        'variant_label' => $variantLabel,
+        'variant_index' => 0,
+        'variant_label' => '',
         'question_order_json' => json_encode($questionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'option_order_json' => json_encode($optionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'structured_order_json' => json_encode($structuredOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'structured_order_json' => json_encode([], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ];
 }
 
