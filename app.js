@@ -4150,6 +4150,17 @@ async function startRealStudentAssignment(assignmentId) {
   }
 }
 
+function requestedInitialView(user) {
+  const requested = new URLSearchParams(window.location.search).get('view');
+  if (!requested) return null;
+
+  const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
+  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'staff-profile']);
+  if (user?.role === 'student' && studentViews.has(requested)) return requested;
+  if (user?.role !== 'student' && staffViews.has(requested)) return requested;
+  return null;
+}
+
 loadSession().then(async user => {
   if (!user) return;
   applyUser(user);
@@ -4157,6 +4168,8 @@ loadSession().then(async user => {
   if (user.role === 'student') {
     try {
       await Promise.all([loadSchoolBranding(), loadStudentAssignments()]);
+      const requested = requestedInitialView(user);
+      if (requested) showView(requested);
     } catch {}
     finally {
       revealAuthenticatedApp();
@@ -4175,7 +4188,16 @@ loadSession().then(async user => {
 
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding()]);
 
-    if (user.role === 'admin') {
+    const requested = requestedInitialView(user);
+    if (requested) {
+      showView(requested);
+      if (requested === 'classes') await loadClasses();
+      if (requested === 'subjects') await loadSubjectsWorkspace();
+      if (requested === 'assignments') await loadAssignments();
+      if (requested === 'uvoria-library') await loadLibrary().catch(() => {});
+      if (requested === 'activity-history') await loadActivityHistory().catch(() => {});
+      if (requested === 'staff-profile') await loadStaffProfile().catch(() => {});
+    } else if (user.role === 'admin') {
       await loadSchoolManagement();
       showView('school-management');
     } else {
@@ -4188,6 +4210,3 @@ loadSession().then(async user => {
   }
 });
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
-}
