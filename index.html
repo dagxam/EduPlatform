@@ -619,24 +619,20 @@
 
       <section class="view" id="results">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Проценты, оценки и статус выполнения по каждому ученику.</p></div>
+          <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Реальные результаты учеников. Спорную оценку можно скорректировать и отдельно опубликовать ученику.</p></div>
           <button class="secondary-btn" id="exportResultsBtn">⇩ Экспорт</button>
         </div>
-        <div class="panel">
-          <div class="filters">
-            <input class="search" type="search" placeholder="Фамилия ученика">
-            <select><option>7А</option><option>6Б</option><option>8А</option></select>
-            <select><option>Контрольная работа №2</option><option>Все задания</option></select>
+        <div class="panel results-panel">
+          <div class="filters results-filters">
+            <input class="search" id="resultsSearch" type="search" placeholder="Поиск ученика или задания">
+            <select id="resultsClassFilter"><option value="">Все классы</option></select>
+            <select id="resultsAssignmentFilter"><option value="">Все задания</option></select>
           </div>
+          <div class="results-summary" id="resultsSummary">Загрузка реальных результатов...</div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Ученик</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th></tr></thead>
-              <tbody>
-                <tr><td><b>Магомедов Магомед</b></td><td>Контрольная работа №2</td><td>18 / 20</td><td><b>90%</b></td><td><span class="grade grade-5">5</span></td></tr>
-                <tr><td><b>Ахмедов Али</b></td><td>Контрольная работа №2</td><td>16 / 20</td><td><b>80%</b></td><td><span class="grade grade-4">4</span></td></tr>
-                <tr><td><b>Гаджиев Мурад</b></td><td>Контрольная работа №2</td><td>13 / 20</td><td><b>65%</b></td><td><span class="grade grade-3">3</span></td></tr>
-                <tr><td><b>Омарова Амина</b></td><td>Контрольная работа №2</td><td>19 / 20</td><td><b>95%</b></td><td><span class="grade grade-5">5</span></td></tr>
-              </tbody>
+            <table class="results-table">
+              <thead><tr><th>Ученик</th><th>Класс</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th><th>Статус</th><th></th></tr></thead>
+              <tbody id="resultsBody"><tr><td colspan="8">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -656,9 +652,7 @@
           </div>
           <aside class="panel recent-grades">
             <div class="panel-head"><div><span class="section-kicker">Недавно</span><h3>Последние оценки</h3></div></div>
-            <div class="grade-row"><div><strong>Русский язык</strong><span>Части речи</span></div><span class="grade grade-5">5</span></div>
-            <div class="grade-row"><div><strong>Биология</strong><span>Строение клетки</span></div><span class="grade grade-4">4</span></div>
-            <div class="grade-row"><div><strong>История</strong><span>Повторение</span></div><span class="grade grade-5">5</span></div>
+            <div id="studentRecentGrades"><div class="dashboard-empty">Загрузка оценок...</div></div>
           </aside>
         </div>
       </section>
@@ -671,18 +665,61 @@
       </section>
 
       <section class="view" id="student-results">
-        <div class="section-toolbar"><div><span class="section-kicker">Успеваемость</span><h2>Мои оценки</h2><p>История выполненных работ и результаты.</p></div></div>
+        <div class="section-toolbar"><div><span class="section-kicker">Успеваемость</span><h2>Мои оценки</h2><p>Реальная история выполненных работ и опубликованных результатов.</p></div></div>
         <div class="panel">
           <div class="table-wrap">
-            <table><thead><tr><th>Предмет</th><th>Задание</th><th>Результат</th><th>Оценка</th></tr></thead><tbody>
-              <tr><td>Русский язык</td><td><b>Части речи</b></td><td>93%</td><td><span class="grade grade-5">5</span></td></tr>
-              <tr><td>Биология</td><td><b>Строение клетки</b></td><td>84%</td><td><span class="grade grade-4">4</span></td></tr>
-              <tr><td>История</td><td><b>Повторение</b></td><td>92%</td><td><span class="grade grade-5">5</span></td></tr>
-            </tbody></table>
+            <table class="student-results-table"><thead><tr><th>Дата</th><th>Предмет</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th><th>Комментарий</th></tr></thead>
+              <tbody id="studentResultsBody"><tr><td colspan="7">Загрузка...</td></tr></tbody>
+            </table>
           </div>
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="resultEditModal">
+    <div class="modal result-edit-modal">
+      <button class="modal-close" data-close-modal="resultEditModal">×</button>
+      <span class="section-kicker">Корректировка результата</span>
+      <h2 id="resultEditTitle">Результат ученика</h2>
+      <p id="resultEditMeta"></p>
+
+      <div class="result-baseline-grid">
+        <div><span>Автоматически</span><strong id="resultAutoScore">—</strong><small id="resultAutoGrade">—</small></div>
+        <div><span>Сейчас видит ученик</span><strong id="resultPublishedScore">—</strong><small id="resultPublishedGrade">—</small></div>
+        <div><span>Версия</span><strong id="resultRevision">0</strong><small id="resultPublishedAt">Не корректировалась</small></div>
+      </div>
+
+      <form id="resultEditForm" class="result-edit-form">
+        <input type="hidden" name="attempt_id" id="resultAttemptId">
+        <div class="form-row">
+          <label>Баллы
+            <input name="score" id="resultEditScore" type="number" min="0" step="0.01" required>
+            <small id="resultScoreLimit">Максимум: —</small>
+          </label>
+          <label>Оценка
+            <select name="grade" id="resultEditGrade">
+              <option value="5">5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+            </select>
+            <small id="resultCalculatedPercent">Процент: —</small>
+          </label>
+        </div>
+        <label>Комментарий ученику
+          <textarea name="comment" id="resultEditComment" rows="4" maxlength="2000" placeholder="Например: после разбора спорного ответа добавлен 1 балл."></textarea>
+        </label>
+        <div class="result-edit-note">Сохранение создаёт черновик. Ученик увидит изменения только после отдельной публикации.</div>
+        <div class="form-error hidden" id="resultEditError"></div>
+        <div class="import-result hidden" id="resultEditSuccess"></div>
+        <div class="result-edit-actions">
+          <button class="secondary-btn" type="button" id="resultResetAutoBtn">Вернуть автоматический результат</button>
+          <button class="secondary-btn" type="submit" id="resultSaveDraftBtn">Сохранить черновик</button>
+          <button class="primary-btn" type="button" id="resultPublishBtn">Опубликовать обновлённую оценку</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="modal-backdrop hidden" id="libraryPreviewModal">
