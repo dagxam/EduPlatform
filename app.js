@@ -4839,7 +4839,7 @@ function renderRealAttemptResult(result, note = '') {
     </div>`;
   document.getElementById('finishRealResultBtn')?.addEventListener('click', async () => {
     closeModal(quizModal);
-    await loadStudentAssignments();
+    await Promise.all([loadStudentAssignments(), loadStudentResults()]);
     showView('student-tasks');
   });
 }
