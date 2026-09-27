@@ -28,6 +28,7 @@
         <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
         <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
         <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
+        <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span>⛁</span> Резервные копии</button>
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
@@ -336,6 +337,67 @@
         <div class="large-class-grid" id="classesGrid">
           <article class="panel"><p>Загрузка классов...</p></article>
         </div>
+      </section>
+
+      <section class="view" id="system-backups">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Защита данных</span>
+            <h2>Резервные копии UVORIA</h2>
+            <p>Полный снимок базы данных и загруженных материалов всех школ.</p>
+          </div>
+          <button class="primary-btn" id="createBackupBtn" type="button">＋ Создать копию сейчас</button>
+        </div>
+
+        <div class="backup-overview-grid">
+          <article class="panel backup-overview-card">
+            <span>Автоматически</span>
+            <strong>1 раз в день</strong>
+            <small>Копия создаётся при первом обращении к платформе в новый день.</small>
+          </article>
+          <article class="panel backup-overview-card">
+            <span>Хранение</span>
+            <strong>30 дней</strong>
+            <small>Старые архивы удаляются автоматически.</small>
+          </article>
+          <article class="panel backup-overview-card">
+            <span>Состав копии</span>
+            <strong>База + файлы</strong>
+            <small>SQLite, импортированные задания, изображения и другие материалы storage.</small>
+          </article>
+        </div>
+
+        <article class="panel backup-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">Архивы</span>
+              <h3>Сохранённые копии</h3>
+            </div>
+            <button class="secondary-btn compact-btn" id="refreshBackupsBtn" type="button">↻ Обновить</button>
+          </div>
+          <div class="backup-security-note">
+            <b>Системная копия содержит данные всех школ.</b>
+            <span>Скачивание доступно только главному администратору UVORIA. Храните архивы в защищённом месте.</span>
+          </div>
+          <div class="backup-status" id="backupStatus">Загрузка резервных копий...</div>
+          <div class="table-wrap">
+            <table class="backup-table">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Тип</th>
+                  <th>Размер</th>
+                  <th>Материалы</th>
+                  <th>Контроль</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="backupsBody">
+                <tr><td colspan="6">Загрузка...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
       </section>
 
       <section class="view" id="school-management">
