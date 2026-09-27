@@ -11,6 +11,7 @@ const states={
 };
 
 let studentSession={code:'',className:'',students:[],selected:null};
+let passwordResetToken='';
 
 function normalizeHexColor(value){
   const color=String(value||'').trim().toLowerCase();
@@ -122,6 +123,8 @@ async function api(url,options={}){
 async function initialize(){
   const resetToken=new URLSearchParams(window.location.search).get('reset')||'';
   if(/^[a-f0-9]{64}$/i.test(resetToken)){
+    passwordResetToken=resetToken;
+    window.history.replaceState(null,'','./login.html');
     showState('resetPassword');
     return;
   }
@@ -150,6 +153,7 @@ document.getElementById('forgotPasswordBtn')?.addEventListener('click',()=>{
 
 document.getElementById('backToLoginFromRecovery')?.addEventListener('click',()=>showState('login'));
 document.getElementById('backToLoginFromReset')?.addEventListener('click',()=>{
+  passwordResetToken='';
   window.history.replaceState(null,'','./login.html');
   showState('login');
 });
@@ -196,8 +200,7 @@ document.getElementById('resetPasswordForm')?.addEventListener('submit',async ev
   clearError(error);
   result?.classList.add('hidden');
 
-  const params=new URLSearchParams(window.location.search);
-  const token=params.get('reset')||'';
+  const token=passwordResetToken;
   const values=Object.fromEntries(new FormData(form).entries());
 
   button.disabled=true;
@@ -218,6 +221,7 @@ document.getElementById('resetPasswordForm')?.addEventListener('submit',async ev
       result.innerHTML=escapeHtml(data.message||'Пароль изменён.')+'<br><b>Теперь войдите с новым паролем.</b>';
       result.classList.remove('hidden');
     }
+    passwordResetToken='';
     window.history.replaceState(null,'','./login.html');
     const back=document.getElementById('backToLoginFromReset');
     if(back) back.textContent='Перейти ко входу';
