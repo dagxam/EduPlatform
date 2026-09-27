@@ -173,11 +173,13 @@ try {
             'INSERT INTO assignments
              (teacher_id, school_id, subject_id, title, description, type, status,
               max_attempts, time_limit_minutes, starts_at, due_at, show_answers,
-              focus_policy, source_school_id, source_assignment_id, shared_by_user_id)
+              focus_policy, variant_count, shuffle_questions, shuffle_options, shuffle_structured,
+              source_school_id, source_assignment_id, shared_by_user_id)
              VALUES
              (:teacher_id, :school_id, :subject_id, :title, :description, :type, "draft",
               :max_attempts, :time_limit_minutes, NULL, NULL, :show_answers,
-              :focus_policy, :source_school_id, :source_assignment_id, :shared_by_user_id)'
+              :focus_policy, :variant_count, :shuffle_questions, :shuffle_options, :shuffle_structured,
+              :source_school_id, :source_assignment_id, :shared_by_user_id)'
         );
         $stmt->execute([
             'teacher_id' => $targetOwnerId,
@@ -190,6 +192,10 @@ try {
             'time_limit_minutes' => $assignment['time_limit_minutes'],
             'show_answers' => (int)$assignment['show_answers'],
             'focus_policy' => (string)($assignment['focus_policy'] ?? 'allow'),
+            'variant_count' => max(1, min(4, (int)($assignment['variant_count'] ?? 1))),
+            'shuffle_questions' => (int)($assignment['shuffle_questions'] ?? 0),
+            'shuffle_options' => (int)($assignment['shuffle_options'] ?? 0),
+            'shuffle_structured' => (int)($assignment['shuffle_structured'] ?? 0),
             'source_school_id' => $originSchoolId,
             'source_assignment_id' => $originAssignmentId,
             'shared_by_user_id' => (int)$user['id'],
