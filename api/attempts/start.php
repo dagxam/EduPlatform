@@ -58,6 +58,8 @@ if ($existing) {
             'id' => (int)$existing['id'],
             'focus_policy' => $assignment['focus_policy'],
             'time_limit_minutes' => $assignment['time_limit_minutes'],
+            'variant_label' => (string)($existing['variant_label'] ?? 'A'),
+            'variant_index' => (int)($existing['variant_index'] ?? 0),
             'resumed' => true,
         ],
     ]);
@@ -73,18 +75,32 @@ if ($completedCount >= (int)$assignment['max_attempts']) {
     json_response(['ok' => false, 'error' => 'Доступные попытки закончились.'], 409);
 }
 
+$variant = build_attempt_variant($pdo, $assignmentId, (int)$user['id']);
+
 $stmt = $pdo->prepare(
-    'INSERT INTO attempts (assignment_id, student_id, last_seen_at, attempt_session_hash)
-     VALUES (:assignment_id, :student_id, CURRENT_TIMESTAMP, :session_hash)'
+    'INSERT INTO attempts
+     (assignment_id, student_id, last_seen_at, attempt_session_hash,
+      variant_index, variant_label, question_order_json, option_order_json, structured_order_json)
+     VALUES
+     (:assignment_id, :student_id, CURRENT_TIMESTAMP, :session_hash,
+      :variant_index, :variant_label, :question_order_json, :option_order_json, :structured_order_json)'
 );
 $stmt->execute([
     'assignment_id' => $assignmentId,
     'student_id' => (int)$user['id'],
     'session_hash' => $sessionHash,
+    'variant_index' => (int)$variant['variant_index'],
+    'variant_label' => (string)$variant['variant_label'],
+    'question_order_json' => $variant['question_order_json'],
+    'option_order_json' => $variant['option_order_json'],
+    'structured_order_json' => $variant['structured_order_json'],
 ]);
 $attemptId = (int)$pdo->lastInsertId();
 
-audit_event('attempt_started', 'attempt', $attemptId, ['assignment_id' => $assignmentId], null, (int)$user['id']);
+audit_event('attempt_started', 'attempt', $attemptId, [
+    'assignment_id' => $assignmentId,
+    'variant_label' => (string)$variant['variant_label'],
+], null, (int)$user['id']);
 
 json_response([
     'ok' => true,
@@ -92,6 +108,8 @@ json_response([
         'id' => $attemptId,
         'focus_policy' => $assignment['focus_policy'],
         'time_limit_minutes' => $assignment['time_limit_minutes'],
+        'variant_label' => (string)$variant['variant_label'],
+        'variant_index' => (int)$variant['variant_index'],
         'resumed' => false,
     ],
 ], 201);
