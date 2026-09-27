@@ -1864,3 +1864,57 @@ form select:focus{
   .profile-photo{grid-row:auto}
   .profile-assignment-item,.profile-school-item{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Authentication boot guard: never reveal protected UI before session verification */
+html.auth-pending,
+html.auth-pending body{
+  min-height:100%;
+}
+html.auth-pending .app-shell{
+  visibility:hidden;
+}
+.auth-boot-screen{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:grid;
+  place-items:center;
+  background:#f5f7fb;
+}
+html:not(.auth-pending) .auth-boot-screen{
+  display:none;
+}
+.auth-boot-card{
+  display:grid;
+  justify-items:center;
+  gap:8px;
+  color:#18212c;
+}
+.auth-boot-card strong{
+  font-size:19px;
+  letter-spacing:.05em;
+}
+.auth-boot-card span{
+  color:#84909d;
+  font-size:12px;
+}
+.auth-boot-spinner{
+  width:38px;
+  height:38px;
+  border:4px solid #e2e8f0;
+  border-top-color:var(--brand,#1d68f0);
+  border-radius:50%;
+  animation:authBootSpin .75s linear infinite;
+}
+@keyframes authBootSpin{
+  to{transform:rotate(360deg)}
+}
+
+/* School theme selector: presets only */
+.branding-form{
+  margin-top:14px;
+}
+.branding-presets{
+  margin-bottom:2px;
+}
