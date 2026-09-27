@@ -244,6 +244,36 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'question_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'option_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'structured_order_json', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'manual_score', 'REAL');
+    add_column_if_missing($pdo, 'attempts', 'manual_percent', 'REAL');
+    add_column_if_missing($pdo, 'attempts', 'manual_grade', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'manual_comment', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'manual_updated_at', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'manual_updated_by', 'INTEGER');
+    add_column_if_missing($pdo, 'attempts', 'published_score', 'REAL');
+    add_column_if_missing($pdo, 'attempts', 'published_percent', 'REAL');
+    add_column_if_missing($pdo, 'attempts', 'published_grade', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'published_comment', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'result_published_at', 'TEXT');
+    add_column_if_missing($pdo, 'attempts', 'result_published_by', 'INTEGER');
+    add_column_if_missing($pdo, 'attempts', 'result_revision', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS attempt_result_revisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        attempt_id INTEGER NOT NULL,
+        revision INTEGER NOT NULL,
+        score REAL NOT NULL,
+        max_score REAL NOT NULL,
+        percent REAL NOT NULL,
+        grade TEXT NOT NULL,
+        comment TEXT,
+        published_by INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
+        FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (attempt_id, revision)
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempt_result_revisions_attempt
+        ON attempt_result_revisions(attempt_id, revision)");
     add_column_if_missing($pdo, 'answers', 'updated_at', 'TEXT');
     add_column_if_missing($pdo, 'questions', 'interaction_type', 'TEXT');
     add_column_if_missing($pdo, 'questions', 'settings_json', 'TEXT');
