@@ -30,7 +30,7 @@ $where = 'WHERE ' . implode(' AND ', $conditions);
 
 $stmt = app_db()->prepare(
     "SELECT a.id, a.subject_id, a.title, a.type, a.status, a.max_attempts, a.time_limit_minutes,
-            a.focus_policy, a.created_at,
+            a.focus_policy, a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured, a.created_at,
             s.name AS subject_name,
             ai.source_format, ai.parse_status, ai.parsed_question_count, ai.parser_message,
             COUNT(DISTINCT q.id) AS questions_count,
