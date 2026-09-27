@@ -332,3 +332,44 @@ if ((int)$gradedRepair['is_correct'] !== 1 || (float)$gradedRepair['score'] !== 
 }
 
 echo "Imported answer-key repair and grading OK\n";
+
+/*
+ * Regression: if a teacher intentionally changes the correct answer in the
+ * constructor after import, repair logic must preserve that valid current key.
+ */
+$repairDb->prepare(
+    'INSERT INTO questions (assignment_id, position, text, type, interaction_type, points)
+     VALUES (1, 1, :text, "single", "single", 1)'
+)->execute(['text' => $teacherQuestions[0]['text']]);
+$editedQuestionId = (int)$repairDb->lastInsertId();
+
+$editedCorrectId = 0;
+$insertEditedOption = $repairDb->prepare(
+    'INSERT INTO question_options (question_id, text, is_correct, position)
+     VALUES (:question_id, :text, :is_correct, :position)'
+);
+foreach ($teacherQuestions[0]['options'] as $i => $option) {
+    $isCorrect = $i === 1 ? 1 : 0; // deliberately differs from imported source
+    $insertEditedOption->execute([
+        'question_id' => $editedQuestionId,
+        'text' => $option['text'],
+        'is_correct' => $isCorrect,
+        'position' => $i + 1,
+    ]);
+    if ($isCorrect === 1) $editedCorrectId = (int)$repairDb->lastInsertId();
+}
+
+$preservedIds = repair_missing_correct_options($repairDb, $editedQuestionId);
+if ($preservedIds !== [$editedCorrectId]) {
+    fwrite(STDERR, 'Imported answer-key repair overwrote a valid editor answer key.' . PHP_EOL);
+    exit(1);
+}
+
+$editedGraded = grade_question_answer($repairDb, $editedQuestionId, ['option_ids' => [$editedCorrectId]]);
+if ((int)$editedGraded['is_correct'] !== 1 || (float)$editedGraded['score'] !== 1.0) {
+    fwrite(STDERR, 'Edited imported answer key was not used for grading.' . PHP_EOL);
+    exit(1);
+}
+
+echo "Edited imported answer key is preserved\\n";
+
