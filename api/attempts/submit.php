@@ -22,6 +22,7 @@ if ($attempt['status'] !== 'in_progress') {
         'ok' => true,
         'already_submitted' => true,
         'result' => [
+            'attempt_id' => (int)$attempt['id'],
             'score' => (float)$attempt['score'],
             'max_score' => (float)$attempt['max_score'],
             'percent' => (float)$attempt['percent'],
