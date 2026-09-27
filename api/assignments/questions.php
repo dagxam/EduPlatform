@@ -12,7 +12,7 @@ $schoolId = require_active_school($user, false);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT id, teacher_id, school_id, subject_id, title, status
+    'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status
      FROM assignments
      WHERE id = :id AND school_id = :school_id
      LIMIT 1'
@@ -48,7 +48,9 @@ if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (
 $attemptStmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
 $attemptStmt->execute(['assignment_id' => $assignmentId]);
 $attemptsCount = (int)$attemptStmt->fetchColumn();
-$editable = (string)$assignment['status'] === 'draft' && $attemptsCount === 0;
+$editable = (string)($assignment['workflow_status'] ?? 'draft') === 'draft'
+    && (string)$assignment['status'] === 'draft'
+    && $attemptsCount === 0;
 
 $stmt = $pdo->prepare(
     'SELECT q.id, q.type, q.interaction_type, q.text, q.points, q.position,
@@ -100,6 +102,7 @@ json_response([
         'id' => (int)$assignment['id'],
         'title' => (string)$assignment['title'],
         'status' => (string)$assignment['status'],
+        'workflow_status' => (string)($assignment['workflow_status'] ?? 'draft'),
         'attempts_count' => $attemptsCount,
         'editable' => $editable,
     ],
