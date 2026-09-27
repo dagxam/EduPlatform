@@ -63,3 +63,136 @@
   font-size:13px;
   line-height:1.5;
 }
+
+
+/* UROVIA responsive auth v39 */
+@media(max-width:1100px) and (min-width:701px){
+  .auth-shell{
+    grid-template-columns:minmax(300px,.8fr) minmax(390px,1.2fr);
+  }
+  .auth-info{
+    padding:38px 4vw;
+  }
+  .info-copy h1{
+    font-size:clamp(34px,4vw,48px);
+  }
+  .info-copy p{
+    font-size:15px;
+  }
+  .info-points{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .info-points>div{
+    padding-top:9px;
+  }
+  .auth-panel{
+    padding:28px 22px;
+  }
+  .auth-card{
+    padding:30px;
+  }
+}
+@media(max-width:900px){
+  .auth-shell{
+    display:block;
+    min-height:100dvh;
+  }
+  .auth-info{
+    min-height:auto;
+    padding:24px 28px;
+  }
+  .info-copy{
+    margin:28px 0 6px;
+    max-width:720px;
+  }
+  .info-copy h1{
+    max-width:650px;
+    margin:10px 0 12px;
+    font-size:32px;
+  }
+  .info-copy p{
+    font-size:14px;
+    line-height:1.5;
+  }
+  .info-points{
+    display:none;
+  }
+  .auth-panel{
+    min-height:auto;
+    padding:24px 18px max(30px,env(safe-area-inset-bottom));
+  }
+  .auth-card{
+    width:min(560px,100%);
+  }
+}
+@media(max-width:600px){
+  .auth-info{
+    padding:18px 16px;
+  }
+  .auth-info .brand{
+    gap:10px;
+  }
+  .auth-info .brand-mark{
+    width:40px;
+    height:40px;
+    border-radius:12px;
+    font-size:20px;
+  }
+  .info-copy{
+    margin:20px 0 0;
+  }
+  .info-copy h1{
+    font-size:26px;
+    line-height:1.08;
+  }
+  .info-copy p{
+    display:none;
+  }
+  .auth-panel{
+    padding:14px 10px max(22px,env(safe-area-inset-bottom));
+  }
+  .auth-card{
+    padding:20px 15px;
+    border-radius:18px;
+  }
+  .state-block h2{
+    font-size:23px;
+  }
+  .login-mode{
+    grid-template-columns:1fr;
+  }
+  .mode-btn,
+  .primary-btn,
+  .secondary-btn,
+  .auth-text-btn{
+    min-height:46px;
+  }
+  .state-block input{
+    min-height:48px;
+    font-size:16px;
+  }
+  .password-field input{
+    padding-right:90px;
+  }
+  .student-picker{
+    max-height:48dvh;
+  }
+  .student-option{
+    min-height:58px;
+  }
+}
+@media(max-width:380px){
+  .auth-info{
+    padding:14px;
+  }
+  .info-copy{
+    display:none;
+  }
+  .auth-panel{
+    padding-top:10px;
+  }
+  .auth-card{
+    padding:18px 13px;
+  }
+}
