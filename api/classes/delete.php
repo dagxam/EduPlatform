@@ -56,8 +56,13 @@ $attemptsCount = count($attemptIds);
 $pdo->beginTransaction();
 try {
     $pdo->prepare(
-        'DELETE FROM audit_log WHERE entity_type = "class" AND entity_id = :class_id'
-    )->execute(['class_id' => $classId]);
+        'DELETE FROM audit_log
+         WHERE (entity_type = "class" AND entity_id = :class_id)
+            OR metadata_json LIKE :class_pattern'
+    )->execute([
+        'class_id' => $classId,
+        'class_pattern' => '%"class_id":' . $classId . '%',
+    ]);
 
     if ($attemptIds) {
         $attemptPlaceholders = implode(',', array_fill(0, count($attemptIds), '?'));
@@ -75,6 +80,15 @@ try {
                 OR (entity_type = 'user' AND entity_id IN ($studentPlaceholders))"
         );
         $stmt->execute(array_merge($studentIds, $studentIds));
+
+        $deleteStudentAuditByMetadata = $pdo->prepare(
+            'DELETE FROM audit_log WHERE metadata_json LIKE :student_pattern'
+        );
+        foreach ($studentIds as $studentId) {
+            $deleteStudentAuditByMetadata->execute([
+                'student_pattern' => '%"student_id":' . $studentId . '%',
+            ]);
+        }
 
         $deleteStudent = $pdo->prepare('DELETE FROM users WHERE id = :id AND role = "student"');
         foreach ($studentIds as $studentId) {
@@ -107,8 +121,6 @@ foreach ($students as $student) {
 }
 
 audit_event('class_deleted', 'school', $schoolId, [
-    'class_name' => (string)$class['name'],
-    'academic_year' => (string)($class['academic_year'] ?? ''),
     'students_deleted' => count($studentIds),
     'attempts_deleted' => $attemptsCount,
 ], $schoolId, (int)$user['id']);
