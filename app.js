@@ -3010,15 +3010,28 @@ function closeModal(modal) {
   document.body.style.overflow = '';
 }
 
+async function requestModalClose(modal) {
+  if (!modal) return;
+  if (modal === quizModal && activeStudentAttempt?.id) {
+    await finishActiveStudentAttemptFromClose();
+    return;
+  }
+  closeModal(modal);
+}
+
 ['createTaskBtn', 'createTaskBtn2', 'heroCreateBtn'].forEach(id => {
   document.getElementById(id)?.addEventListener('click', () => openModal(taskModal));
 });
 document.querySelectorAll('[data-close-modal]').forEach(btn => {
-  btn.addEventListener('click', () => closeModal(document.getElementById(btn.dataset.closeModal)));
+  btn.addEventListener('click', () => {
+    void requestModalClose(document.getElementById(btn.dataset.closeModal));
+  });
 });
 document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
   backdrop.addEventListener('click', e => {
-    if (e.target === backdrop && backdrop.dataset.locked !== '1') closeModal(backdrop);
+    if (e.target === backdrop && backdrop.dataset.locked !== '1') {
+      void requestModalClose(backdrop);
+    }
   });
 });
 
@@ -4850,9 +4863,11 @@ document.getElementById('temporaryPasswordForm')?.addEventListener('submit', asy
 let studentAssignmentsCache = [];
 let activeStudentAssignment = null;
 let activeStudentAttempt = null;
+let activeStudentQuestions = [];
 let activeStaffPreview = null;
 let quizCountdownTimer = null;
 let quizTimeoutHandled = false;
+let quizSubmitting = false;
 
 function stopQuizCountdown() {
   if (quizCountdownTimer) {
@@ -5122,19 +5137,7 @@ function updateQuizProgress() {
 
   questions.forEach(question => {
     const interaction = String(question.dataset.interaction || '');
-    let complete = false;
-
-    if (['single', 'multiple', 'true_false'].includes(interaction)) {
-      complete = Boolean(question.querySelector('.real-answer-options input:checked'));
-    } else if (interaction === 'matching') {
-      const selects = [...question.querySelectorAll('select[data-match-left]')];
-      complete = selects.length > 0 && selects.every(select => Boolean(select.value));
-    } else if (interaction === 'order') {
-      complete = question.querySelector('[data-ordering-question]')?.dataset.orderTouched === '1';
-    } else {
-      complete = Boolean(question.querySelector('[data-text-question]')?.value.trim());
-    }
-
+    const complete = quizQuestionIsComplete(question, interaction);
     question.classList.toggle('answered', complete);
     if (complete) answered++;
   });
@@ -5320,6 +5323,9 @@ function renderRealAttemptResult(result, note = '') {
   AttemptSecurity.stop();
   stopQuizCountdown();
   activeStudentAttempt = null;
+  activeStudentAssignment = null;
+  activeStudentQuestions = [];
+  quizSubmitting = false;
   quizModal.dataset.locked = '0';
   quizModal.querySelector('.modal-close')?.classList.remove('hidden');
 
@@ -5385,10 +5391,14 @@ async function startRealStudentAssignment(assignmentId) {
     activeStudentAssignment = assignment;
     activeStudentAttempt = questionData.attempt;
     const questions = questionData.questions || [];
+    activeStudentQuestions = questions;
+    quizSubmitting = false;
     const savedAnswers = questionData.saved_answers || {};
 
-    quizModal.dataset.locked = '1';
-    quizModal.querySelector('.modal-close')?.classList.add('hidden');
+    // Closing the test is allowed, but it is not a pause: closing submits the
+    // current attempt with only the answers the student actually entered.
+    quizModal.dataset.locked = '0';
+    quizModal.querySelector('.modal-close')?.classList.remove('hidden');
 
     const variantBadge = Number(assignment.variant_count || 1) > 1
       ? `<span class="variant-pill">Вариант ${escapeHtml(questionData.attempt.variant_label || 'A')}</span>`
@@ -5456,18 +5466,7 @@ async function startRealStudentAssignment(assignmentId) {
       button.disabled = true;
       button.textContent = 'Сдаём...';
       try {
-        const response = await fetch('./api/attempts/submit.php', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            attempt_id: activeStudentAttempt.id,
-            answers: collectQuizAnswerSnapshot(questions)
-          })
-        });
-        const data = await response.json();
-        if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сдать работу.');
-        renderRealAttemptResult(data.result || {});
+        await submitActiveStudentAttempt('student_submit', true);
       } catch (e) {
         alert(e.message);
         button.disabled = false;
@@ -5480,7 +5479,31 @@ async function startRealStudentAssignment(assignmentId) {
 }
 
 
-function collectQuizAnswerSnapshot(questions = []) {
+function quizQuestionHasResponse(section, interaction) {
+  if (!section) return false;
+  if (['single', 'multiple', 'true_false'].includes(interaction)) {
+    return Boolean(section.querySelector('.real-answer-options input:checked'));
+  }
+  if (interaction === 'order') {
+    return section.querySelector('[data-ordering-question]')?.dataset.orderTouched === '1';
+  }
+  if (interaction === 'matching') {
+    return [...section.querySelectorAll('select[data-match-left]')].some(select => Boolean(select.value));
+  }
+  return Boolean(section.querySelector('[data-text-question]')?.value.trim());
+}
+
+function quizQuestionIsComplete(section, interaction) {
+  if (!section) return false;
+  if (interaction === 'matching') {
+    const selects = [...section.querySelectorAll('select[data-match-left]')];
+    return selects.length > 0 && selects.every(select => Boolean(select.value));
+  }
+  return quizQuestionHasResponse(section, interaction);
+}
+
+function collectQuizAnswerSnapshot(questions = [], options = {}) {
+  const onlyAnswered = Boolean(options.onlyAnswered);
   return (questions || []).map(question => {
     const questionId = Number(question.id);
     const interaction = canonicalQuestionType(question.interaction_type || question.type);
@@ -5488,7 +5511,10 @@ function collectQuizAnswerSnapshot(questions = []) {
     let payload = {};
 
     if (!section) {
-      return { question_id: questionId, payload };
+      return null;
+    }
+    if (onlyAnswered && !quizQuestionHasResponse(section, interaction)) {
+      return null;
     }
 
     if (['single', 'multiple', 'true_false'].includes(interaction)) {
@@ -5509,7 +5535,85 @@ function collectQuizAnswerSnapshot(questions = []) {
     }
 
     return { question_id: questionId, payload };
-  });
+  }).filter(Boolean);
+}
+
+async function submitActiveStudentAttempt(reason = 'student_submit', renderResult = true) {
+  if (!activeStudentAttempt?.id) {
+    throw new Error('Попытка не активна.');
+  }
+  if (quizSubmitting) {
+    throw new Error('Работа уже завершается.');
+  }
+
+  quizSubmitting = true;
+  const attemptId = Number(activeStudentAttempt.id);
+  const answers = collectQuizAnswerSnapshot(activeStudentQuestions, { onlyAnswered: true });
+
+  try {
+    const response = await fetch('./api/attempts/submit.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        attempt_id: attemptId,
+        finish_reason: reason,
+        answers
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось завершить работу.');
+    }
+
+    if (renderResult) {
+      const note = reason === 'window_closed'
+        ? 'Тест был закрыт. Учтены только ответы, которые вы успели дать.'
+        : '';
+      renderRealAttemptResult(data.result || {}, note);
+    } else {
+      AttemptSecurity.stop();
+      stopQuizCountdown();
+      activeStudentAttempt = null;
+      activeStudentAssignment = null;
+      activeStudentQuestions = [];
+      quizModal.dataset.locked = '0';
+      quizModal.querySelector('.modal-close')?.classList.remove('hidden');
+      closeModal(quizModal);
+      await Promise.all([
+        loadStudentAssignments().catch(() => {}),
+        loadStudentResults().catch(() => {})
+      ]);
+    }
+
+    return data.result || {};
+  } finally {
+    quizSubmitting = false;
+  }
+}
+
+async function finishActiveStudentAttemptFromClose() {
+  if (!activeStudentAttempt?.id || quizSubmitting) return;
+
+  const confirmed = await appConfirm(
+    'Закрыть тест? Попытка будет завершена сразу. В результат попадут только ответы, которые вы успели дать; вернуться к этой попытке после закрытия нельзя.',
+    {
+      title: 'Закрыть и завершить тест',
+      tone: 'danger',
+      okText: 'Закрыть и завершить',
+      cancelText: 'Продолжить тест'
+    }
+  );
+  if (!confirmed) return;
+
+  try {
+    await submitActiveStudentAttempt('window_closed', false);
+  } catch (error) {
+    await appAlert(error.message, {
+      title: 'Не удалось завершить тест',
+      tone: 'danger'
+    });
+  }
 }
 
 function collectStaffTestAnswers() {
