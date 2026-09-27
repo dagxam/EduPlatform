@@ -941,7 +941,7 @@ function renderSubjectAssignments() {
           ${item.parser_message ? `<em>${escapeHtml(item.parser_message)}</em>` : ''}
         </div>
         <div class="subject-assignment-actions">
-          ${questionsCount ? `<button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Проверить вопросы</button>` : ''}
+          ${questionsCount ? `<button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Открыть конструктор</button>` : ''}
           <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>
           <span class="status ${statusClass}">${statusText}</span>
         </div>
@@ -1016,7 +1016,7 @@ async function openQuestionPreview(assignmentId) {
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить вопросы.');
 
     const questions = data.questions || [];
-    if (title) title.textContent = data.assignment?.title || 'Распознанные вопросы';
+    if (title) title.textContent = data.assignment?.title || 'Конструктор задания';
 
     const counts = {};
     questions.forEach(question => {
@@ -1219,7 +1219,7 @@ document.getElementById('subjectImportForm')?.addEventListener('submit', async e
 
     const parsedCount = Number(payload.import?.parsed_question_count || 0);
     const status = payload.import?.parse_status === 'questions_parsed'
-      ? `UVORIA распознала ${parsedCount} вопросов. Откройте «Проверить вопросы» перед публикацией.`
+      ? `UVORIA распознала ${parsedCount} вопросов. Откройте «Конструктор» и проверьте вопросы перед публикацией.`
       : payload.import?.parse_status === 'text_extracted'
         ? 'Текст извлечён, но вопросы по шаблону не распознаны. Проверьте структуру файла.'
         : 'Файл сохранён в черновике. Для этого файла автоматическое извлечение текста ограничено.';
