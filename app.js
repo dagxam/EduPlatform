@@ -850,6 +850,7 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
 
 let subjectsCache = [];
 let assignmentsCache = [];
+let assignmentWorkflowContext = { review_required: false, can_manage: false };
 let teacherOptionsCache = [];
 let selectedSubjectId = null;
 
@@ -921,7 +922,7 @@ function renderSubjectAssignments() {
 
   const rows = assignmentsCache.filter(item => Number(item.subject_id) === Number(selectedSubjectId));
   list.innerHTML = rows.length ? rows.map(item => {
-    const [statusText, statusClass] = assignmentStatusLabel(item.status);
+    const [statusText, statusClass] = assignmentStatusLabel(item);
     const questionsCount = Number(item.questions_count || item.parsed_question_count || 0);
     const importInfo = item.source_format
       ? escapeHtml(String(item.source_format).toUpperCase()) + (
@@ -933,27 +934,27 @@ function renderSubjectAssignments() {
         )
       : `Задание UVORIA${questionsCount ? ' · вопросов: ' + questionsCount : ''}`;
 
+    const reviewNote = item.review_comment
+      ? `<em class="workflow-review-note">Комментарий администратора: ${escapeHtml(item.review_comment)}</em>`
+      : '';
+
     return `
       <article class="subject-assignment-row">
         <div class="subject-assignment-copy">
           <b>${escapeHtml(item.title)}</b>
           <small>${escapeHtml(item.class_names || 'Без класса')} · ${importInfo}${Number(item.variant_count || 1) > 1 ? ' · варианты ' + ['A','B','C','D'].slice(0, Number(item.variant_count)).join('/') : ''}</small>
           ${item.parser_message ? `<em>${escapeHtml(item.parser_message)}</em>` : ''}
+          ${reviewNote}
         </div>
         <div class="subject-assignment-actions">
-          ${questionsCount ? `<button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Открыть конструктор</button>` : ''}
-          <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>
+          <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+          ${assignmentWorkflowActionButtons(item)}
           <span class="status ${statusClass}">${statusText}</span>
         </div>
       </article>`;
   }).join('') : '<div class="subject-empty-list"><b>Заданий пока нет</b><span>Создайте задание вручную или импортируйте файл.</span></div>';
 
-  list.querySelectorAll('[data-preview-questions]').forEach(button => {
-    button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
-  });
-  list.querySelectorAll('[data-assign-class]').forEach(button => {
-    button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
-  });
+  wireAssignmentWorkflowButtons(list);
 }
 
 function questionTypeLabel(type) {
@@ -1258,8 +1259,99 @@ document.getElementById('focusPolicy')?.addEventListener('change', event => {
   document.getElementById('strictWarning')?.classList.toggle('hidden', event.target.value !== 'strict');
 });
 
-function assignmentStatusLabel(status) {
-  return status === 'published' ? ['Опубликовано', 'green'] : status === 'closed' ? ['Завершено', 'blue'] : ['Черновик', 'amber'];
+function normalizedAssignmentWorkflowStatus(itemOrStatus) {
+  if (typeof itemOrStatus === 'string') return itemOrStatus;
+  const item = itemOrStatus || {};
+  if (item.workflow_status) return String(item.workflow_status);
+  if (item.status === 'published') return 'assigned';
+  if (item.status === 'closed') return 'completed';
+  return 'draft';
+}
+
+function assignmentStatusLabel(itemOrStatus) {
+  const status = normalizedAssignmentWorkflowStatus(itemOrStatus);
+  const labels = {
+    draft: ['Черновик', 'amber'],
+    review: ['На проверке', 'blue'],
+    ready: ['Готово', 'violet'],
+    assigned: ['Назначено', 'green'],
+    completed: ['Завершено', 'blue']
+  };
+  return labels[status] || ['Черновик', 'amber'];
+}
+
+function assignmentWorkflowActionButtons(item) {
+  const status = normalizedAssignmentWorkflowStatus(item);
+  const reviewRequired = Boolean(assignmentWorkflowContext.review_required);
+  const manager = Boolean(assignmentWorkflowContext.can_manage);
+
+  if (status === 'draft') {
+    const label = reviewRequired && !manager ? 'Отправить на проверку' : 'Готово к назначению';
+    return `<button class="primary-btn compact-btn" type="button" data-workflow-action="prepare" data-assignment-id="${item.id}">${label}</button>`;
+  }
+  if (status === 'review') {
+    if (manager) {
+      return `
+        <button class="primary-btn compact-btn" type="button" data-workflow-action="approve" data-assignment-id="${item.id}">Одобрить</button>
+        <button class="secondary-btn compact-btn" type="button" data-workflow-action="return" data-assignment-id="${item.id}">На доработку</button>`;
+    }
+    return `<button class="secondary-btn compact-btn" type="button" data-workflow-action="withdraw" data-assignment-id="${item.id}">Отозвать</button>`;
+  }
+  if (status === 'ready') {
+    return `<button class="primary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>`;
+  }
+  if (status === 'assigned') {
+    return `
+      <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">＋ Ещё классу</button>
+      <button class="secondary-btn compact-btn" type="button" data-workflow-action="complete" data-assignment-id="${item.id}">Завершить</button>`;
+  }
+  return '';
+}
+
+async function transitionAssignmentWorkflow(assignmentId, action) {
+  const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment) return;
+
+  let comment = '';
+  if (action === 'return') {
+    const value = prompt('Комментарий учителю: что нужно исправить?');
+    if (value === null) return;
+    comment = value.trim();
+  } else if (action === 'complete') {
+    if (!confirm('Завершить это задание? Новые попытки учеников будут закрыты.')) return;
+  } else if (action === 'withdraw') {
+    if (!confirm('Отозвать задание с проверки и вернуть в черновик?')) return;
+  }
+
+  try {
+    const response = await fetch('./api/assignments/workflow.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: assignmentId, action, comment })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить статус задания.');
+    await loadAssignments();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function wireAssignmentWorkflowButtons(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-workflow-action]').forEach(button => {
+    button.addEventListener('click', () => transitionAssignmentWorkflow(
+      Number(button.dataset.assignmentId),
+      String(button.dataset.workflowAction || '')
+    ));
+  });
+  root.querySelectorAll('[data-assign-class]').forEach(button => {
+    button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
+  });
+  root.querySelectorAll('[data-preview-questions]').forEach(button => {
+    button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
+  });
 }
 
 function renderAssignments() {
@@ -1270,31 +1362,37 @@ function renderAssignments() {
 
   const rows = assignmentsCache.filter(item => {
     const haystack = [item.title, item.subject_name, item.class_names, item.source_school_name].join(' ').toLowerCase();
-    return (!query || haystack.includes(query)) && (!statusFilter || item.status === statusFilter);
+    const workflowStatus = normalizedAssignmentWorkflowStatus(item);
+    return (!query || haystack.includes(query)) && (!statusFilter || workflowStatus === statusFilter);
   });
 
   body.innerHTML = rows.length ? rows.map(item => {
-    const [statusText, statusClass] = assignmentStatusLabel(item.status);
+    const [statusText, statusClass] = assignmentStatusLabel(item);
     const strict = item.focus_policy === 'strict';
     const source = item.source_school_name ? ` · получено из «${escapeHtml(item.source_school_name)}»` : '';
+    const reviewNote = item.review_comment
+      ? `<small class="workflow-review-note">Комментарий: ${escapeHtml(item.review_comment)}</small>`
+      : '';
     return `
       <tr>
         <td>
           <b>${escapeHtml(item.title)}</b>
           <small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small>
           ${Number(item.variant_count || 1) > 1 ? `<small class="variant-badge">Варианты: ${['A','B','C','D'].slice(0, Number(item.variant_count)).join(' / ')}</small>` : ''}
+          ${reviewNote}
         </td>
         <td>${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
         <td><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
         <td>${Number(item.attempts_count || 0)}</td>
         <td><span class="status ${statusClass}">${statusText}</span></td>
-        <td class="row-actions-cell"><button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button></td>
+        <td class="row-actions-cell">
+          <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+          ${assignmentWorkflowActionButtons(item)}
+        </td>
       </tr>`;
   }).join('') : '<tr><td colspan="6">Задания не найдены.</td></tr>';
 
-  body.querySelectorAll('[data-assign-class]').forEach(button => {
-    button.addEventListener('click', () => openAssignToClass(Number(button.dataset.assignClass)));
-  });
+  wireAssignmentWorkflowButtons(body);
 }
 
 async function openAssignToClass(assignmentId) {
@@ -1510,6 +1608,10 @@ async function loadAssignments() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить задания.');
     assignmentsCache = data.assignments || [];
+    assignmentWorkflowContext = {
+      review_required: Boolean(data.workflow?.review_required),
+      can_manage: Boolean(data.workflow?.can_manage)
+    };
     renderAssignments();
     renderSubjectAssignments();
   } catch (error) {
@@ -1672,8 +1774,70 @@ let schoolAdminsCache = [];
 let selectedTeacherForAssignments = null;
 let editingSchoolAdminId = null;
 
+async function loadAssignmentReviewSettings() {
+  if (currentUser?.role !== 'admin') return;
+  const checkbox = document.getElementById('assignmentReviewRequired');
+  try {
+    const response = await fetch('./api/school/settings.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки школы.');
+    if (checkbox) checkbox.checked = Boolean(data.settings?.assignment_review_required);
+  } catch (error) {
+    const node = document.getElementById('assignmentReviewSettingsError');
+    if (node) {
+      node.textContent = error.message;
+      node.classList.remove('hidden');
+    }
+  }
+}
+
+document.getElementById('assignmentReviewSettingsForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const checkbox = document.getElementById('assignmentReviewRequired');
+  const error = document.getElementById('assignmentReviewSettingsError');
+  const result = document.getElementById('assignmentReviewSettingsResult');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/school/settings.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_review_required: Boolean(checkbox?.checked) })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить настройку.');
+
+    assignmentWorkflowContext.review_required = Boolean(data.settings?.assignment_review_required);
+    if (result) {
+      result.textContent = assignmentWorkflowContext.review_required
+        ? 'Проверка заданий администратором включена.'
+        : 'Учителя могут готовить задания к назначению без обязательной проверки.';
+      result.classList.remove('hidden');
+    }
+    await loadAssignments();
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить настройку';
+  }
+});
+
 async function loadSchoolManagement() {
   if (currentUser?.role !== 'admin') return;
+  loadAssignmentReviewSettings().catch(() => {});
   const subjectList = document.getElementById('schoolSubjectsList');
   const teacherBody = document.getElementById('schoolTeachersBody');
   const adminsBody = document.getElementById('schoolAdminsBody');
