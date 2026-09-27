@@ -143,10 +143,10 @@ try {
         'due_at' => $dueAt,
         'show_answers' => (int)$source['show_answers'],
         'focus_policy' => $focusPolicy,
-        'variant_count' => max(1, min(4, (int)($source['variant_count'] ?? 1))),
-        'shuffle_questions' => (int)($source['shuffle_questions'] ?? 0),
-        'shuffle_options' => (int)($source['shuffle_options'] ?? 0),
-        'shuffle_structured' => (int)($source['shuffle_structured'] ?? 0),
+        'variant_count' => 1,
+        'shuffle_questions' => 0,
+        'shuffle_options' => 0,
+        'shuffle_structured' => 0,
     ]);
     $newAssignmentId = (int)$pdo->lastInsertId();
 
