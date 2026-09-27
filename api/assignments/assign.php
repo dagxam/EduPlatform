@@ -10,9 +10,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $assignmentId = (int)($data['assignment_id'] ?? 0);
 $classId = (int)($data['class_id'] ?? 0);
+$timeLimitRaw = $data['time_limit_minutes'] ?? null;
+$timeLimit = ($timeLimitRaw === null || $timeLimitRaw === '' || (int)$timeLimitRaw === 0)
+    ? null
+    : (int)$timeLimitRaw;
+$allowedTimeLimits = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
 
 if ($assignmentId < 1 || $classId < 1) {
     json_response(['ok' => false, 'error' => 'Выберите задание и класс.'], 422);
+}
+if ($timeLimit !== null && !in_array($timeLimit, $allowedTimeLimits, true)) {
+    json_response(['ok' => false, 'error' => 'Выберите доступное время выполнения.'], 422);
 }
 
 $pdo = app_db();
@@ -75,12 +83,15 @@ if (!$stmt->fetchColumn()) {
 $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
-        'INSERT OR IGNORE INTO assignment_classes (assignment_id, class_id)
-         VALUES (:assignment_id, :class_id)'
+        'INSERT INTO assignment_classes (assignment_id, class_id, time_limit_minutes)
+         VALUES (:assignment_id, :class_id, :time_limit_minutes)
+         ON CONFLICT(assignment_id, class_id) DO UPDATE SET
+           time_limit_minutes = excluded.time_limit_minutes'
     );
     $stmt->execute([
         'assignment_id' => $assignmentId,
         'class_id' => $classId,
+        'time_limit_minutes' => $timeLimit,
     ]);
 
     $stmt = $pdo->prepare(
@@ -101,12 +112,14 @@ try {
 
 audit_event('assignment_assigned_to_class', 'assignment', $assignmentId, [
     'class_id' => $classId,
+    'time_limit_minutes' => $timeLimit,
 ], $schoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,
     'assignment_id' => $assignmentId,
     'class_id' => $classId,
+    'time_limit_minutes' => $timeLimit,
     'status' => 'published',
     'workflow_status' => 'assigned',
 ]);
