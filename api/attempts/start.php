@@ -16,16 +16,16 @@ if ($assignmentId < 1) {
 
 $pdo = app_db();
 $stmt = $pdo->prepare(
-    'SELECT ass.id, ass.max_attempts, ass.focus_policy, ass.time_limit_minutes
+    'SELECT ass.id,
+            ass.max_attempts,
+            ass.focus_policy,
+            COALESCE(ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes
      FROM assignments ass
+     JOIN assignment_classes ac ON ac.assignment_id = ass.id
+     JOIN class_students cs ON cs.class_id = ac.class_id
      WHERE ass.id = :assignment_id
        AND ass.status = "published"
-       AND EXISTS (
-          SELECT 1
-          FROM assignment_classes ac
-          JOIN class_students cs ON cs.class_id = ac.class_id
-          WHERE ac.assignment_id = ass.id AND cs.student_id = :student_id
-       )
+       AND cs.student_id = :student_id
      LIMIT 1'
 );
 $stmt->execute(['assignment_id' => $assignmentId, 'student_id' => (int)$user['id']]);
@@ -57,7 +57,9 @@ if ($existing) {
         'attempt' => [
             'id' => (int)$existing['id'],
             'focus_policy' => $assignment['focus_policy'],
-            'time_limit_minutes' => $assignment['time_limit_minutes'],
+            'time_limit_minutes' => $existing['time_limit_snapshot'] !== null
+                ? (int)$existing['time_limit_snapshot']
+                : ($assignment['time_limit_minutes'] !== null ? (int)$assignment['time_limit_minutes'] : null),
             'variant_label' => (string)($existing['variant_label'] ?? 'A'),
             'variant_index' => (int)($existing['variant_index'] ?? 0),
             'resumed' => true,
@@ -80,10 +82,12 @@ $variant = build_attempt_variant($pdo, $assignmentId, (int)$user['id']);
 $stmt = $pdo->prepare(
     'INSERT INTO attempts
      (assignment_id, student_id, last_seen_at, attempt_session_hash,
-      variant_index, variant_label, question_order_json, option_order_json, structured_order_json)
+      variant_index, variant_label, question_order_json, option_order_json, structured_order_json,
+      time_limit_snapshot)
      VALUES
      (:assignment_id, :student_id, CURRENT_TIMESTAMP, :session_hash,
-      :variant_index, :variant_label, :question_order_json, :option_order_json, :structured_order_json)'
+      :variant_index, :variant_label, :question_order_json, :option_order_json, :structured_order_json,
+      :time_limit_snapshot)'
 );
 $stmt->execute([
     'assignment_id' => $assignmentId,
@@ -94,6 +98,9 @@ $stmt->execute([
     'question_order_json' => $variant['question_order_json'],
     'option_order_json' => $variant['option_order_json'],
     'structured_order_json' => $variant['structured_order_json'],
+    'time_limit_snapshot' => $assignment['time_limit_minutes'] !== null
+        ? (int)$assignment['time_limit_minutes']
+        : null,
 ]);
 $attemptId = (int)$pdo->lastInsertId();
 
@@ -107,7 +114,7 @@ json_response([
     'attempt' => [
         'id' => $attemptId,
         'focus_policy' => $assignment['focus_policy'],
-        'time_limit_minutes' => $assignment['time_limit_minutes'],
+        'time_limit_minutes' => $assignment['time_limit_minutes'] !== null ? (int)$assignment['time_limit_minutes'] : null,
         'variant_label' => (string)$variant['variant_label'],
         'variant_index' => (int)$variant['variant_index'],
         'resumed' => false,
