@@ -33,6 +33,10 @@ $stmt->execute([
     'id' => (int)$user['id'],
 ]);
 
+$versionStmt = $pdo->prepare('SELECT session_version FROM users WHERE id = :id');
+$versionStmt->execute(['id' => (int)$user['id']]);
+$_SESSION['session_version'] = (int)($versionStmt->fetchColumn() ?: 0);
+
 audit_event('temporary_password_changed', 'user', (int)$user['id'], [], current_school_id(), (int)$user['id']);
 
 json_response(['ok' => true]);
