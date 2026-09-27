@@ -66,6 +66,7 @@
         </div>
       </div>
     </aside>
+    <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="Закрыть меню" tabindex="-1"></button>
 
     <main class="main">
       <header class="topbar">
@@ -665,8 +666,25 @@
       </section>
 
       <section class="view" id="student-results">
-        <div class="section-toolbar"><div><span class="section-kicker">Успеваемость</span><h2>Мои оценки</h2><p>Реальная история выполненных работ и опубликованных результатов.</p></div></div>
-        <div class="panel">
+        <div class="section-toolbar student-results-toolbar">
+          <div><span class="section-kicker">Успеваемость</span><h2>Мои оценки</h2><p>Все выполненные работы, проценты и опубликованные оценки в одном месте.</p></div>
+        </div>
+
+        <div class="student-results-overview" id="studentResultsOverview">
+          <article><span>Выполнено работ</span><strong id="studentResultsCount">—</strong><small>за всё время</small></article>
+          <article><span>Средний результат</span><strong id="studentResultsAverage">—</strong><small>по выполненным работам</small></article>
+          <article><span>Средняя оценка</span><strong id="studentResultsGradeAverage">—</strong><small>по шкале 2–5</small></article>
+          <article><span>Лучший результат</span><strong id="studentResultsBest">—</strong><small>максимальный процент</small></article>
+        </div>
+
+        <div class="student-results-cards" id="studentResultsCards">
+          <article class="student-result-card loading-card">Загрузка результатов...</article>
+        </div>
+
+        <div class="panel student-results-desktop-panel">
+          <div class="panel-head">
+            <div><span class="section-kicker">История</span><h3>Все работы</h3></div>
+          </div>
           <div class="table-wrap">
             <table class="student-results-table"><thead><tr><th>Дата</th><th>Предмет</th><th>Задание</th><th>Баллы</th><th>Результат</th><th>Оценка</th><th>Комментарий</th></tr></thead>
               <tbody id="studentResultsBody"><tr><td colspan="7">Загрузка...</td></tr></tbody>
