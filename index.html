@@ -246,7 +246,7 @@
         <div class="panel">
           <div class="filters">
             <input class="search" id="assignmentSearch" type="search" placeholder="Поиск задания">
-            <select id="assignmentStatusFilter"><option value="">Все статусы</option><option value="draft">Черновики</option><option value="published">Опубликованные</option><option value="closed">Завершённые</option></select>
+            <select id="assignmentStatusFilter"><option value="">Все статусы</option><option value="draft">Черновики</option><option value="review">На проверке</option><option value="ready">Готовые</option><option value="assigned">Назначенные</option><option value="completed">Завершённые</option></select>
           </div>
           <div class="table-wrap">
             <table>
@@ -303,6 +303,28 @@
             <div class="form-error hidden" id="schoolBrandingError"></div>
             <div class="import-result hidden" id="schoolBrandingResult"></div>
             <button class="primary-btn" type="submit">Сохранить цвет школы</button>
+          </form>
+        </article>
+
+        <article class="panel admin-only hidden school-workflow-settings-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">Проверка заданий</span>
+              <h3>Согласование перед назначением</h3>
+            </div>
+          </div>
+          <p class="panel-note">Если включено, учитель сначала отправляет готовый черновик администратору школы. Только после одобрения задание можно назначить классу.</p>
+          <form id="assignmentReviewSettingsForm" class="school-setting-form">
+            <label class="school-setting-toggle">
+              <input type="checkbox" id="assignmentReviewRequired">
+              <span>
+                <b>Требовать проверку администратором</b>
+                <small>Черновик → На проверке → Готово → Назначено → Завершено</small>
+              </span>
+            </label>
+            <div class="form-error hidden" id="assignmentReviewSettingsError"></div>
+            <div class="import-result hidden" id="assignmentReviewSettingsResult"></div>
+            <button class="primary-btn" type="submit">Сохранить настройку</button>
           </form>
         </article>
 
