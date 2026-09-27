@@ -1032,20 +1032,41 @@
   </div>
 
   <div class="modal-backdrop hidden" id="assignToClassModal">
-    <div class="modal">
+    <div class="modal assign-class-modal">
       <button class="modal-close" data-close-modal="assignToClassModal">×</button>
       <span class="section-kicker">Публикация</span>
       <h2 id="assignToClassTitle">Назначить задание классу</h2>
-      <p>Выберите класс. После назначения задание станет доступно ученикам этого класса.</p>
-      <form id="assignToClassForm">
+      <p>Выберите класс и время выполнения. Лимит задаётся отдельно для каждого класса.</p>
+      <form id="assignToClassForm" class="assign-class-form">
         <input type="hidden" id="assignToClassAssignmentId">
-        <label>Класс
+
+        <label class="assign-class-field">Класс
           <select id="assignToClassSelect" required>
             <option value="">Выберите класс</option>
           </select>
         </label>
+
+        <fieldset class="assign-time-field">
+          <legend>Время выполнения</legend>
+          <div class="assign-time-options">
+            <label><input type="radio" name="assign_time_limit" value="" checked><span>Без ограничения</span></label>
+            <label><input type="radio" name="assign_time_limit" value="10"><span>10 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="15"><span>15 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="20"><span>20 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="25"><span>25 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="30"><span>30 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="35"><span>35 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="40"><span>40 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="45"><span>45 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="50"><span>50 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="55"><span>55 мин</span></label>
+            <label><input type="radio" name="assign_time_limit" value="60"><span>1 час</span></label>
+          </div>
+          <small>После начала попытки время фиксируется и не изменится у уже начавшего ученика.</small>
+        </fieldset>
+
         <div class="form-error hidden" id="assignToClassError"></div>
-        <button class="primary-btn full" type="submit">Назначить классу</button>
+        <button class="primary-btn full assign-class-submit" type="submit">Назначить классу</button>
       </form>
     </div>
   </div>
