@@ -13,6 +13,17 @@ $title = trim((string)($_POST['title'] ?? ''));
 $focusPolicy = in_array(($_POST['focus_policy'] ?? 'allow'), ['allow', 'strict'], true)
     ? (string)$_POST['focus_policy']
     : 'allow';
+$variantCount = max(1, min(4, (int)($_POST['variant_count'] ?? 1)));
+$shuffleQuestions = !empty($_POST['shuffle_questions']) ? 1 : 0;
+$shuffleOptions = !empty($_POST['shuffle_options']) ? 1 : 0;
+$shuffleStructured = !empty($_POST['shuffle_structured']) ? 1 : 0;
+
+if ($variantCount < 2) {
+    $variantCount = 1;
+    $shuffleQuestions = 0;
+    $shuffleOptions = 0;
+    $shuffleStructured = 0;
+}
 
 if ($subjectId < 1 || empty($_FILES['file'])) {
     json_response(['ok' => false, 'error' => 'Выберите предмет и файл задания.'], 422);
@@ -113,9 +124,11 @@ $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
         'INSERT INTO assignments
-         (teacher_id, school_id, subject_id, title, description, type, status, max_attempts, focus_policy)
+         (teacher_id, school_id, subject_id, title, description, type, status, max_attempts, focus_policy,
+          variant_count, shuffle_questions, shuffle_options, shuffle_structured)
          VALUES
-         (:teacher_id, :school_id, :subject_id, :title, :description, "file", "draft", 1, :focus_policy)'
+         (:teacher_id, :school_id, :subject_id, :title, :description, "file", "draft", 1, :focus_policy,
+          :variant_count, :shuffle_questions, :shuffle_options, :shuffle_structured)'
     );
     $stmt->execute([
         'teacher_id' => (int)$user['id'],
@@ -124,6 +137,10 @@ try {
         'title' => $title,
         'description' => 'Импортировано из ' . strtoupper($extension) . '.',
         'focus_policy' => $focusPolicy,
+        'variant_count' => $variantCount,
+        'shuffle_questions' => $shuffleQuestions,
+        'shuffle_options' => $shuffleOptions,
+        'shuffle_structured' => $shuffleStructured,
     ]);
     $assignmentId = (int)$pdo->lastInsertId();
 
@@ -177,6 +194,10 @@ audit_event('assignment_file_imported', 'assignment', $assignmentId, [
     'parse_status' => $parseStatus,
     'parsed_question_count' => (int)($stored['count'] ?? 0),
     'parsed_types' => $stored['types'] ?? [],
+    'variant_count' => $variantCount,
+    'shuffle_questions' => $shuffleQuestions,
+    'shuffle_options' => $shuffleOptions,
+    'shuffle_structured' => $shuffleStructured,
 ], $schoolId, (int)$user['id']);
 
 json_response([
