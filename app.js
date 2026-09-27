@@ -2,6 +2,7 @@ const teacherNav = document.querySelector('.teacher-nav');
 const studentNav = document.querySelector('.student-nav');
 const sidebar = document.getElementById('sidebar');
 const menuBtn = document.getElementById('menuBtn');
+const sidebarScrim = document.getElementById('sidebarScrim');
 const pageTitle = document.getElementById('pageTitle');
 const eyebrow = document.getElementById('eyebrow');
 const sidebarName = document.getElementById('sidebarName');
@@ -146,6 +147,13 @@ const titles = {
   'student-results': ['Успеваемость', 'Мои оценки']
 };
 
+function setSidebarOpen(open) {
+  const next = Boolean(open);
+  sidebar?.classList.toggle('open', next);
+  document.body.classList.toggle('sidebar-open', next);
+  menuBtn?.setAttribute('aria-expanded', next ? 'true' : 'false');
+}
+
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const view = document.getElementById(id);
@@ -163,7 +171,7 @@ function showView(id) {
     eyebrow.textContent = small;
     pageTitle.textContent = title;
   }
-  sidebar.classList.remove('open');
+  setSidebarOpen(false);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2703,8 +2711,11 @@ async function publishResultRevision() {
 
 async function loadStudentResults() {
   const body = document.getElementById('studentResultsBody');
+  const cards = document.getElementById('studentResultsCards');
   const recent = document.getElementById('studentRecentGrades');
+
   if (body) body.innerHTML = '<tr><td colspan="7">Загрузка реальных оценок...</td></tr>';
+  if (cards) cards.innerHTML = '<article class="student-result-card loading-card">Загрузка результатов...</article>';
   if (recent) recent.innerHTML = '<div class="dashboard-empty">Загрузка оценок...</div>';
 
   try {
@@ -2712,6 +2723,21 @@ async function loadStudentResults() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить оценки.');
     const items = data.items || [];
+
+    const percents = items.map(item => Number(item.percent || 0)).filter(Number.isFinite);
+    const grades = items.map(item => Number(item.grade)).filter(value => Number.isFinite(value) && value >= 2 && value <= 5);
+    const averagePercent = percents.length ? Math.round(percents.reduce((sum, value) => sum + value, 0) / percents.length) : null;
+    const averageGrade = grades.length ? (grades.reduce((sum, value) => sum + value, 0) / grades.length).toFixed(1).replace('.', ',') : null;
+    const bestPercent = percents.length ? Math.round(Math.max(...percents)) : null;
+
+    const countNode = document.getElementById('studentResultsCount');
+    const averageNode = document.getElementById('studentResultsAverage');
+    const gradeAverageNode = document.getElementById('studentResultsGradeAverage');
+    const bestNode = document.getElementById('studentResultsBest');
+    if (countNode) countNode.textContent = String(items.length);
+    if (averageNode) averageNode.textContent = averagePercent === null ? '—' : averagePercent + '%';
+    if (gradeAverageNode) gradeAverageNode.textContent = averageGrade ?? '—';
+    if (bestNode) bestNode.textContent = bestPercent === null ? '—' : bestPercent + '%';
 
     if (body) {
       body.innerHTML = items.length ? items.map(item => `
@@ -2726,15 +2752,43 @@ async function loadStudentResults() {
         </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
     }
 
+    if (cards) {
+      cards.innerHTML = items.length ? items.map(item => {
+        const percent = Math.round(Number(item.percent || 0));
+        const score = Number(item.score || 0).toLocaleString('ru-RU');
+        const maxScore = Number(item.max_score || 0).toLocaleString('ru-RU');
+        return `
+          <article class="student-result-card">
+            <div class="student-result-card-head">
+              <div>
+                <span class="student-result-subject">${escapeHtml(item.subject_name || 'Предмет')}</span>
+                <h3>${escapeHtml(item.assignment_title)}</h3>
+                <small>${escapeHtml(resultDateTime(item.submitted_at))}${item.variant_label ? ' · вариант ' + escapeHtml(item.variant_label) : ''}</small>
+              </div>
+              <span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
+            </div>
+            <div class="student-result-metrics">
+              <div><span>Результат</span><strong>${percent}%</strong></div>
+              <div><span>Баллы</span><strong>${score} / ${maxScore}</strong></div>
+              <div><span>Версия</span><strong>${item.adjusted ? 'Исправлена' : 'Автоматическая'}</strong></div>
+            </div>
+            <div class="student-result-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
+            ${item.comment ? `<div class="student-result-message"><b>Комментарий учителя</b><span>${escapeHtml(item.comment)}</span></div>` : ''}
+            ${item.adjusted ? '<div class="student-result-adjusted">Оценка была пересмотрена и опубликована учителем.</div>' : ''}
+          </article>`;
+      }).join('') : '<article class="student-result-card student-results-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></article>';
+    }
+
     if (recent) {
       recent.innerHTML = items.length ? items.slice(0, 4).map(item => `
         <div class="grade-row">
-          <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)}</span></div>
+          <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)} · ${Math.round(Number(item.percent || 0))}%</span></div>
           <span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
     }
   } catch (error) {
     if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
+    if (cards) cards.innerHTML = '<article class="student-result-card student-results-empty">' + escapeHtml(error.message) + '</article>';
     if (recent) recent.innerHTML = '<div class="dashboard-empty">' + escapeHtml(error.message) + '</div>';
   }
 }
@@ -2800,7 +2854,22 @@ document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListene
   if (target === 'assignments') loadAssignments();
   if (target === 'classes') loadClasses();
 }));
-menuBtn?.addEventListener('click', () => sidebar.classList.toggle('open'));
+menuBtn?.addEventListener('click', event => {
+  event.stopPropagation();
+  setSidebarOpen(!sidebar.classList.contains('open'));
+});
+sidebarScrim?.addEventListener('click', () => setSidebarOpen(false));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && sidebar?.classList.contains('open')) {
+    setSidebarOpen(false);
+  }
+});
+document.addEventListener('pointerdown', event => {
+  if (!sidebar?.classList.contains('open')) return;
+  if (window.matchMedia('(min-width: 1051px) and (orientation: landscape)').matches) return;
+  if (sidebar.contains(event.target) || menuBtn?.contains(event.target)) return;
+  setSidebarOpen(false);
+});
 
 document.getElementById('notificationsBtn')?.addEventListener('click', () => {
   alert('Новых уведомлений пока нет.');
@@ -5150,15 +5219,32 @@ function renderRealAttemptResult(result, note = '') {
   const percent = Math.round(Number(result?.percent || 0));
   const grade = result?.grade ?? '—';
   document.getElementById('quizContent').innerHTML = `
-    <div class="result-card">
+    <div class="result-card student-finish-result">
       <span class="section-kicker">Работа завершена</span>
-      <h2>Результат</h2>
+      <h2>Готово! Результат сохранён</h2>
       ${note ? `<p class="strict-result-note">${escapeHtml(note)}</p>` : ''}
-      <div class="result-circle" style="--score:${percent}%"><strong>${percent}%</strong></div>
-      <p>Баллы: <b>${Number(result?.score || 0)} из ${Number(result?.max_score || 0)}</b></p>
-      <div class="result-grade">${escapeHtml(grade)}</div>
-      <button class="primary-btn" id="finishRealResultBtn" type="button">Вернуться к заданиям</button>
+      <div class="student-finish-hero">
+        <div class="result-circle" style="--score:${percent}%"><strong>${percent}%</strong></div>
+        <div class="student-finish-grade">
+          <span>Оценка</span>
+          <strong class="${resultGradeClass(grade)}">${escapeHtml(grade)}</strong>
+          <small>${Number(result?.score || 0).toLocaleString('ru-RU')} из ${Number(result?.max_score || 0).toLocaleString('ru-RU')} баллов</small>
+        </div>
+      </div>
+      <div class="student-finish-message">
+        <b>${percent >= 90 ? 'Отличный результат' : percent >= 75 ? 'Хорошая работа' : percent >= 50 ? 'Работа зачтена' : 'Результат сохранён'}</b>
+        <span>Оценку и историю выполненных работ всегда можно посмотреть в разделе «Мои оценки».</span>
+      </div>
+      <div class="student-finish-actions">
+        <button class="secondary-btn" id="finishOpenGradesBtn" type="button">Мои оценки</button>
+        <button class="primary-btn" id="finishRealResultBtn" type="button">К заданиям</button>
+      </div>
     </div>`;
+  document.getElementById('finishOpenGradesBtn')?.addEventListener('click', async () => {
+    closeModal(quizModal);
+    await Promise.all([loadStudentAssignments(), loadStudentResults()]);
+    showView('student-results');
+  });
   document.getElementById('finishRealResultBtn')?.addEventListener('click', async () => {
     closeModal(quizModal);
     await Promise.all([loadStudentAssignments(), loadStudentResults()]);
