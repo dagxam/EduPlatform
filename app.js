@@ -2353,7 +2353,9 @@ async function loadStudentAssignments() {
 
 function parseSavedAnswer(raw, fallback) {
   if (!raw) return fallback;
-  try { return JSON.parse(raw); } catch { return raw; }
+  const value = String(raw).trim();
+  if (!value.startsWith('[') && !value.startsWith('{')) return raw;
+  try { return JSON.parse(value); } catch { return raw; }
 }
 
 async function saveRealStudentAnswer(questionId, payload) {
