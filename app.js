@@ -26,6 +26,106 @@ let currentUser = null;
 let activeSchoolName = '';
 let currentBranding = { theme_color: '#1d68f0' };
 
+let appDialogResolver = null;
+
+function ensureAppDialog() {
+  let backdrop = document.getElementById('appDialogBackdrop');
+  if (backdrop) return backdrop;
+
+  backdrop = document.createElement('div');
+  backdrop.id = 'appDialogBackdrop';
+  backdrop.className = 'app-dialog-backdrop hidden';
+  backdrop.innerHTML = `
+    <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+      <button class="app-dialog-close" type="button" aria-label="Закрыть">×</button>
+      <div class="app-dialog-icon" aria-hidden="true">i</div>
+      <div class="app-dialog-copy">
+        <span class="section-kicker">UROVIA</span>
+        <h3 id="appDialogTitle">Сообщение</h3>
+        <p id="appDialogMessage"></p>
+      </div>
+      <div class="app-dialog-actions">
+        <button class="secondary-btn app-dialog-cancel hidden" type="button">Отмена</button>
+        <button class="primary-btn app-dialog-ok" type="button">Понятно</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const finish = value => {
+    backdrop.classList.add('hidden');
+    document.body.classList.remove('dialog-open');
+    const resolve = appDialogResolver;
+    appDialogResolver = null;
+    if (resolve) resolve(value);
+  };
+
+  backdrop.querySelector('.app-dialog-ok').addEventListener('click', () => finish(true));
+  backdrop.querySelector('.app-dialog-cancel').addEventListener('click', () => finish(false));
+  backdrop.querySelector('.app-dialog-close').addEventListener('click', () => finish(false));
+  backdrop.addEventListener('click', event => {
+    if (event.target === backdrop) finish(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !backdrop.classList.contains('hidden')) finish(false);
+  });
+
+  return backdrop;
+}
+
+function openAppDialog(message, options = {}) {
+  const backdrop = ensureAppDialog();
+  const dialog = backdrop.querySelector('.app-dialog');
+  const title = backdrop.querySelector('#appDialogTitle');
+  const body = backdrop.querySelector('#appDialogMessage');
+  const icon = backdrop.querySelector('.app-dialog-icon');
+  const cancel = backdrop.querySelector('.app-dialog-cancel');
+  const ok = backdrop.querySelector('.app-dialog-ok');
+
+  const tone = options.tone || 'info';
+  dialog.dataset.tone = tone;
+  title.textContent = options.title || (options.confirm ? 'Подтвердите действие' : 'UROVIA');
+  body.textContent = String(message || '');
+  icon.textContent = tone === 'danger' ? '!' : tone === 'success' ? '✓' : options.confirm ? '?' : 'i';
+  cancel.classList.toggle('hidden', !options.confirm);
+  cancel.textContent = options.cancelText || 'Отмена';
+  ok.textContent = options.okText || (options.confirm ? 'Подтвердить' : 'Понятно');
+  ok.classList.toggle('app-dialog-danger', tone === 'danger');
+
+  backdrop.classList.remove('hidden');
+  document.body.classList.add('dialog-open');
+  requestAnimationFrame(() => ok.focus());
+
+  return new Promise(resolve => {
+    if (appDialogResolver) appDialogResolver(false);
+    appDialogResolver = resolve;
+  });
+}
+
+function appAlert(message, options = {}) {
+  const text = String(message || '');
+  const danger = /ошиб|не удалось|недоступ|невозможно|заблок|не найден/i.test(text);
+  return openAppDialog(text, {
+    title: options.title || (danger ? 'Что-то пошло не так' : 'UROVIA'),
+    tone: options.tone || (danger ? 'danger' : 'info'),
+    okText: options.okText || 'Понятно'
+  });
+}
+
+function appConfirm(message, options = {}) {
+  return openAppDialog(message, {
+    ...options,
+    confirm: true,
+    title: options.title || 'Подтвердите действие',
+    tone: options.tone || 'info',
+    okText: options.okText || 'Подтвердить',
+    cancelText: options.cancelText || 'Отмена'
+  });
+}
+
+window.alert = message => { void appAlert(message); };
+window.appAlert = appAlert;
+window.appConfirm = appConfirm;
+
 const titles = {
   'teacher-dashboard': ['Кабинет учителя', 'Добрый день!'],
   subjects: ['Учебные направления', 'Предметы'],
@@ -554,7 +654,7 @@ async function loadClassStudents() {
       const studentId = Number(button.dataset.resetPin);
       const student = students.find(item => Number(item.id) === studentId);
       if (!student) return;
-      if (!confirm(`Сбросить PIN для ${student.last_name} ${student.first_name}?`)) return;
+      if (!(await appConfirm(`Сбросить PIN для ${student.last_name} ${student.first_name}?`))) return;
 
       button.disabled = true;
       try {
@@ -1037,9 +1137,9 @@ async function resolveIncomingMaterial(transferId, action) {
 
   if (action === 'accept') {
     const count = Number(item.assignment_count || item.assignments?.length || 0);
-    if (!confirm(`Принять предмет «${item.subject_name}»${count ? ' и ' + count + ' задан.' : ''} из школы «${item.source_school_name}»?\n\nЗадания будут добавлены как черновики без классов и учеников.`)) return;
+    if (!(await appConfirm(`Принять предмет «${item.subject_name}»${count ? ' и ' + count + ' задан.' : ''} из школы «${item.source_school_name}»?\n\nЗадания будут добавлены как черновики без классов и учеников.`))) return;
   } else {
-    if (!confirm(`Отклонить материалы из школы «${item.source_school_name}»? Они не будут добавлены в библиотеку.`)) return;
+    if (!(await appConfirm(`Отклонить материалы из школы «${item.source_school_name}»? Они не будут добавлены в библиотеку.`))) return;
   }
 
   const buttons = document.querySelectorAll(`[data-transfer-card="${transferId}"] button`);
@@ -1223,7 +1323,7 @@ async function createBackupNow() {
 
 async function deleteBackup(file) {
   if (Number(currentUser?.is_platform_admin) !== 1 || !file) return;
-  if (!confirm('Удалить эту резервную копию? Восстановить удалённый архив будет невозможно.')) return;
+  if (!(await appConfirm('Удалить эту резервную копию? Восстановить удалённый архив будет невозможно.'))) return;
 
   try {
     const response = await fetch('./api/backups/delete.php', {
@@ -1568,7 +1668,7 @@ function libraryAssignmentAction(item) {
 async function submitAssignmentToLibrary(assignmentId) {
   const item = assignmentsCache.find(row => Number(row.id) === Number(assignmentId));
   if (!item) return;
-  if (!confirm(`Отправить «${item.title}» в библиотеку UROVIA? Учителя отправляют материал на согласование администратору школы.`)) return;
+  if (!(await appConfirm(`Отправить «${item.title}» в библиотеку UROVIA? Учителя отправляют материал на согласование администратору школы.`))) return;
 
   try {
     const response = await fetch('./api/library/request.php', {
@@ -1720,7 +1820,7 @@ async function openLibraryPreview(itemId) {
 
 async function importLibraryItem(itemId) {
   if (!libraryCanManage) return;
-  if (!confirm('Импортировать материал в выбранную школу? Будет создан независимый черновик без классов, учеников и результатов.')) return;
+  if (!(await appConfirm('Импортировать материал в выбранную школу? Будет создан независимый черновик без классов, учеников и результатов.'))) return;
 
   try {
     const response = await fetch('./api/library/import.php', {
@@ -1741,7 +1841,7 @@ async function importLibraryItem(itemId) {
 
 async function moderateLibraryItem(itemId, action) {
   const labels = { approve: 'опубликовать', reject: 'отклонить', withdraw: 'снять с публикации' };
-  if (!confirm(`Подтвердить действие: ${labels[action] || action}?`)) return;
+  if (!(await appConfirm(`Подтвердить действие: ${labels[action] || action}?`))) return;
   try {
     const response = await fetch('./api/library/moderate.php', {
       method: 'POST',
@@ -2707,11 +2807,11 @@ async function transitionAssignmentWorkflow(assignmentId, action) {
     if (value === null) return;
     comment = value.trim();
   } else if (action === 'complete') {
-    if (!confirm('Завершить это задание? Новые попытки учеников будут закрыты.')) return;
+    if (!(await appConfirm('Завершить это задание? Новые попытки учеников будут закрыты.'))) return;
   } else if (action === 'withdraw') {
-    if (!confirm('Отозвать задание с проверки и вернуть в черновик?')) return;
+    if (!(await appConfirm('Отозвать задание с проверки и вернуть в черновик?'))) return;
   } else if (action === 'reopen') {
-    if (!confirm('Вернуть готовое задание в черновик для редактирования?')) return;
+    if (!(await appConfirm('Вернуть готовое задание в черновик для редактирования?'))) return;
   }
 
   try {
@@ -2823,12 +2923,12 @@ async function deleteAssignment(assignmentId, button) {
     ? '\nИсходный ' + String(assignment.source_format).toUpperCase() + '-файл и изображения этого задания тоже будут удалены.'
     : '\nВсе вопросы и изображения этого задания тоже будут удалены.';
 
-  if (!confirm(
+  if (!(await appConfirm(
     'Удалить задание «' + assignment.title + '»?' +
     classesText +
     importText +
     '\n\nЭто действие нельзя отменить.'
-  )) return;
+  ))) return;
 
   const oldText = button?.textContent || 'Удалить';
   if (button) {
@@ -3623,7 +3723,7 @@ document.getElementById('schoolAdminForm')?.addEventListener('submit', async eve
 async function removeSchoolAdmin(adminId) {
   const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
   if (!admin) return;
-  if (!confirm(`Снять права администратора у ${admin.last_name} ${admin.first_name}?`)) return;
+  if (!(await appConfirm(`Снять права администратора у ${admin.last_name} ${admin.first_name}?`))) return;
 
   try {
     const response = await fetch('./api/school/admins/remove.php', {
@@ -3645,7 +3745,7 @@ async function promoteTeacherToAdmin(teacherId) {
   if (Number(currentUser?.is_platform_admin) !== 1) return;
   const teacher = schoolTeachersCache.find(item => Number(item.id) === Number(teacherId));
   if (!teacher) return;
-  if (!confirm(`Добавить ${teacher.last_name} ${teacher.first_name} права администратора школы? Права учителя и текущие назначения сохранятся.`)) return;
+  if (!(await appConfirm(`Добавить ${teacher.last_name} ${teacher.first_name} права администратора школы? Права учителя и текущие назначения сохранятся.`))) return;
 
   try {
     const response = await fetch('./api/school/teachers/promote.php', {
@@ -3668,7 +3768,7 @@ async function setAdminTeacherRole(adminId, enabled) {
   if (!admin) return;
 
   const action = enabled ? 'добавить роль учителя' : 'убрать роль учителя';
-  if (!confirm(`${enabled ? 'Добавить' : 'Убрать'} роль учителя для ${admin.last_name} ${admin.first_name}?`)) return;
+  if (!(await appConfirm(`${enabled ? 'Добавить' : 'Убрать'} роль учителя для ${admin.last_name} ${admin.first_name}?`))) return;
 
   try {
     const response = await fetch('./api/school/admins/set-teacher.php', {
@@ -3689,7 +3789,7 @@ async function demoteAdminToTeacher(adminId) {
   if (Number(currentUser?.is_platform_admin) !== 1) return;
   const admin = schoolAdminsCache.find(item => Number(item.id) === Number(adminId));
   if (!admin) return;
-  if (!confirm(`Снять у ${admin.last_name} ${admin.first_name} права администратора и оставить только роль учителя?`)) return;
+  if (!(await appConfirm(`Снять у ${admin.last_name} ${admin.first_name} права администратора и оставить только роль учителя?`))) return;
 
   try {
     const response = await fetch('./api/school/admins/demote.php', {
@@ -3835,7 +3935,7 @@ async function sendTeacherAccess(teacherId, button) {
   const message = repeated
     ? `Отправить новые данные доступа на ${teacher.email}? Старые логин и пароль перестанут работать.`
     : `Отправить логин и временный пароль на ${teacher.email}?`;
-  if (!confirm(message)) return;
+  if (!(await appConfirm(message))) return;
 
   const originalText = button?.textContent || 'Отправить доступ';
   if (button) {
@@ -4437,7 +4537,7 @@ async function startRealStudentAssignment(assignmentId) {
       event.preventDefault();
       if (!activeStudentAttempt || AttemptSecurity.isLocked()) return;
       const button = event.currentTarget.querySelector('button[type="submit"]');
-      if (!confirm('Завершить работу? После сдачи изменить ответы нельзя.')) return;
+      if (!(await appConfirm('Завершить работу? После сдачи изменить ответы нельзя.'))) return;
       button.disabled = true;
       button.textContent = 'Сдаём...';
       try {
