@@ -203,28 +203,35 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
     }
 
     $correctIds = [];
+    foreach ($parsedOptions as $index => $parsedOption) {
+        if (empty($parsedOption['is_correct'])) continue;
+
+        $optionTextKey = $normalize((string)($parsedOption['text'] ?? ''));
+        $optionId = $optionTextKey !== '' && isset($dbByText[$optionTextKey])
+            ? (int)$dbByText[$optionTextKey]
+            : (int)($dbOptions[$index]['id'] ?? 0);
+
+        if ($optionId > 0) $correctIds[] = $optionId;
+    }
+
+    $correctIds = array_values(array_unique(array_map('intval', $correctIds)));
+    sort($correctIds, SORT_NUMERIC);
+    if (!$correctIds) return [];
+
+    $current = $existingCorrect;
+    sort($current, SORT_NUMERIC);
+    if ($current === $correctIds) {
+        return $correctIds;
+    }
+
     $pdo->beginTransaction();
     try {
         $reset = $pdo->prepare('UPDATE question_options SET is_correct = 0 WHERE question_id = :question_id');
         $reset->execute(['question_id' => $questionId]);
 
         $mark = $pdo->prepare('UPDATE question_options SET is_correct = 1 WHERE id = :id AND question_id = :question_id');
-        foreach ($parsedOptions as $index => $parsedOption) {
-            if (empty($parsedOption['is_correct'])) continue;
-
-            $optionTextKey = $normalize((string)($parsedOption['text'] ?? ''));
-            $optionId = $optionTextKey !== '' && isset($dbByText[$optionTextKey])
-                ? (int)$dbByText[$optionTextKey]
-                : (int)($dbOptions[$index]['id'] ?? 0);
-
-            if ($optionId < 1) continue;
+        foreach ($correctIds as $optionId) {
             $mark->execute(['id' => $optionId, 'question_id' => $questionId]);
-            $correctIds[] = $optionId;
-        }
-
-        if (!$correctIds) {
-            $pdo->rollBack();
-            return [];
         }
         $pdo->commit();
     } catch (Throwable $e) {
@@ -232,7 +239,6 @@ function repair_missing_correct_options(PDO $pdo, int $questionId): array
         return [];
     }
 
-    sort($correctIds, SORT_NUMERIC);
     return $correctIds;
 }
 
@@ -290,6 +296,15 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
 
         $correctIds = repair_missing_correct_options($pdo, $questionId);
         if (!$correctIds) continue;
+
+        $beforeIds = $currentCorrect;
+        sort($beforeIds, SORT_NUMERIC);
+        $afterIds = $correctIds;
+        sort($afterIds, SORT_NUMERIC);
+        if ($beforeIds === $afterIds) {
+            continue;
+        }
+
         $repairedQuestions++;
 
         $stmt = $pdo->prepare(
