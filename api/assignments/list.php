@@ -29,7 +29,9 @@ if (!can_manage_school($user, $schoolId)) {
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
 $stmt = app_db()->prepare(
-    "SELECT a.id, a.subject_id, a.title, a.type, a.status, a.max_attempts, a.time_limit_minutes,
+    "SELECT a.id, a.subject_id, a.title, a.type, a.status, a.workflow_status,
+            a.review_submitted_at, a.reviewed_at, a.reviewed_by, a.review_comment, a.completed_at,
+            a.max_attempts, a.time_limit_minutes,
             a.focus_policy, a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured, a.created_at,
             s.name AS subject_name,
             ai.source_format, ai.parse_status, ai.parsed_question_count, ai.parser_message,
@@ -55,5 +57,22 @@ $stmt = app_db()->prepare(
      ORDER BY a.id DESC"
 );
 $stmt->execute($params);
+$assignments = $stmt->fetchAll();
 
-json_response(['ok' => true, 'assignments' => $stmt->fetchAll()]);
+$settingsStmt = app_db()->prepare(
+    'SELECT assignment_review_required
+     FROM schools
+     WHERE id = :school_id
+     LIMIT 1'
+);
+$settingsStmt->execute(['school_id' => $schoolId]);
+$reviewRequired = (int)($settingsStmt->fetchColumn() ?: 0) === 1;
+
+json_response([
+    'ok' => true,
+    'assignments' => $assignments,
+    'workflow' => [
+        'review_required' => $reviewRequired,
+        'can_manage' => can_manage_school($user, $schoolId),
+    ],
+]);
