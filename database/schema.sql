@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
     is_platform_admin INTEGER NOT NULL DEFAULT 0,
     session_version INTEGER NOT NULL DEFAULT 0,
+    middle_name TEXT,
+    phone TEXT,
+    avatar_name TEXT,
     class_name TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -345,3 +348,46 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user
     ON password_reset_tokens(user_id, expires_at);
+
+CREATE TABLE IF NOT EXISTS library_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_school_id INTEGER NOT NULL,
+    source_assignment_id INTEGER NOT NULL,
+    subject_id INTEGER,
+    submitted_by INTEGER,
+    approved_by INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'rejected', 'withdrawn')),
+    title_snapshot TEXT NOT NULL,
+    description_snapshot TEXT,
+    questions_count_snapshot INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TEXT,
+    FOREIGN KEY (source_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (source_assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
+    FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (source_school_id, source_assignment_id)
+);
+
+CREATE TABLE IF NOT EXISTS library_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    library_item_id INTEGER NOT NULL,
+    target_school_id INTEGER NOT NULL,
+    target_assignment_id INTEGER NOT NULL,
+    imported_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_school_id) REFERENCES schools(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (library_item_id, target_school_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_library_items_status
+    ON library_items(status, published_at);
+CREATE INDEX IF NOT EXISTS idx_library_items_school
+    ON library_items(source_school_id, status);
+CREATE INDEX IF NOT EXISTS idx_library_imports_target
+    ON library_imports(target_school_id, created_at);
