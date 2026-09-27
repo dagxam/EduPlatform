@@ -144,6 +144,25 @@ if ($action === 'prepare') {
         'reviewed_by = NULL',
         'review_comment = NULL',
     ];
+} elseif ($action === 'reopen') {
+    if ($current !== 'ready') {
+        json_response(['ok' => false, 'error' => 'Вернуть в черновик можно только готовое, ещё не назначенное задание.'], 409);
+    }
+
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM assignment_classes WHERE assignment_id = :assignment_id');
+    $stmt->execute(['assignment_id' => $assignmentId]);
+    if ((int)$stmt->fetchColumn() > 0) {
+        json_response(['ok' => false, 'error' => 'Задание уже связано с классом и не может быть возвращено в черновик.'], 409);
+    }
+
+    $next = 'draft';
+    $event = 'assignment_reopened_as_draft';
+    $updates = [
+        'review_submitted_at = NULL',
+        'reviewed_at = NULL',
+        'reviewed_by = NULL',
+        'review_comment = NULL',
+    ];
 } elseif ($action === 'complete') {
     if ($current !== 'assigned') {
         json_response(['ok' => false, 'error' => 'Завершить можно только назначенное задание.'], 409);
