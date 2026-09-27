@@ -580,6 +580,66 @@ function regrade_attempt_answers(PDO $pdo, int $attemptId): void
     }
 }
 
+function repair_zero_total_attempts(PDO $pdo, ?int $studentId = null, ?int $schoolId = null): int
+{
+    $sql =
+        'SELECT DISTINCT at.id
+         FROM attempts at
+         JOIN assignments ass ON ass.id = at.assignment_id
+         WHERE at.status <> "in_progress"
+           AND COALESCE(at.score, 0) = 0
+           AND EXISTS (
+             SELECT 1 FROM answers ans WHERE ans.attempt_id = at.id
+           )';
+    $params = [];
+
+    if ($studentId !== null) {
+        $sql .= ' AND at.student_id = :student_id';
+        $params['student_id'] = $studentId;
+    }
+    if ($schoolId !== null) {
+        $sql .= ' AND ass.school_id = :school_id';
+        $params['school_id'] = $schoolId;
+    }
+
+    $sql .= ' ORDER BY at.id DESC LIMIT 500';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $attemptIds = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+
+    $repaired = 0;
+    foreach ($attemptIds as $attemptId) {
+        $stmt = $pdo->prepare(
+            'SELECT termination_reason FROM attempts WHERE id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => $attemptId]);
+        $row = $stmt->fetch();
+        if (!$row) continue;
+
+        $before = $pdo->prepare('SELECT COALESCE(score, 0) FROM attempts WHERE id = :id');
+        $before->execute(['id' => $attemptId]);
+        $beforeScore = (float)$before->fetchColumn();
+
+        finalize_attempt(
+            $pdo,
+            $attemptId,
+            trim((string)($row['termination_reason'] ?? '')) !== ''
+                ? (string)$row['termination_reason']
+                : null
+        );
+
+        $after = $pdo->prepare('SELECT COALESCE(score, 0) FROM attempts WHERE id = :id');
+        $after->execute(['id' => $attemptId]);
+        $afterScore = (float)$after->fetchColumn();
+
+        if (abs($afterScore - $beforeScore) > 0.000001) {
+            $repaired++;
+        }
+    }
+
+    return $repaired;
+}
+
 function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): array
 {
     // Never trust a stale score stored by an older grading implementation.
@@ -594,13 +654,15 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
     $maxScore = (float)$stmt->fetchColumn();
 
     $stmt = $pdo->prepare(
-        'SELECT COALESCE(SUM(score), 0), COALESCE(MAX(needs_review), 0)
-         FROM answers WHERE attempt_id = :attempt_id'
+        'SELECT COALESCE(SUM(score), 0) AS total_score,
+                COALESCE(MAX(needs_review), 0) AS needs_review
+         FROM answers
+         WHERE attempt_id = :attempt_id'
     );
     $stmt->execute(['attempt_id' => $attemptId]);
     $row = $stmt->fetch();
-    $score = (float)($row[0] ?? 0);
-    $needsReview = (int)($row[1] ?? 0);
+    $score = (float)($row['total_score'] ?? 0);
+    $needsReview = (int)($row['needs_review'] ?? 0);
 
     $percent = $maxScore > 0 ? round(($score / $maxScore) * 100, 2) : 0.0;
     $grade = grade_from_percent($percent);
