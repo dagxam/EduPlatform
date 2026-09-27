@@ -242,15 +242,17 @@ function import_normalize_type(string $raw): string
     $value = function_exists('mb_strtolower') ? mb_strtolower(trim($raw)) : strtolower(trim($raw));
     $value = str_replace(['ё', '_'], ['е', ' '], $value);
 
-    if (preg_match('/(несколько|множеств|multiple|multi)/u', $value)) return 'multiple';
-    if (preg_match('/(верно|неверно|true|false)/u', $value)) return 'true_false';
-    if (preg_match('/(хронолог|порядок|ordering|order)/u', $value)) return 'ordering';
-    if (preg_match('/(соответ|matching|match)/u', $value)) return 'matching';
-    if (preg_match('/(ошиб|исправ|correction|correct error)/u', $value)) return 'correction';
-    if (preg_match('/(изображ|картин|фото|image|picture)/u', $value)) return 'image_answer';
-    if (preg_match('/(эссе|развернут|essay)/u', $value)) return 'essay';
-    if (preg_match('/(корот|слово|дата|определен|short|text|number)/u', $value)) return 'short_answer';
-    if (preg_match('/(тест|один ответ|single|choice)/u', $value)) return 'single';
+    if (preg_match('/^(single|один|один правильный)/u', $value)) return 'single';
+    if (preg_match('/^(multiple|multi|несколько|множеств)/u', $value)) return 'multiple';
+    if (preg_match('/^(true false|truefalse|верно|неверно)/u', $value)) return 'true_false';
+    if (preg_match('/^(order|ordering|порядок|хронолог)/u', $value)) return 'order';
+    if (preg_match('/^(matching|match|соответ)/u', $value)) return 'matching';
+    if (preg_match('/^(number|числ)/u', $value)) return 'number';
+    if (preg_match('/^(correction|исправ|ошиб)/u', $value)) return 'correction';
+    if (preg_match('/^(text|short|корот|слово|дата)/u', $value)) return 'text';
+
+    // Старый формат оставляем читаемым, но новые шаблоны его не используют.
+    if (preg_match('/^(essay|эссе|развернут)/u', $value)) return 'essay';
 
     return '';
 }
@@ -258,78 +260,125 @@ function import_normalize_type(string $raw): string
 function import_split_question_blocks(string $text): array
 {
     $text = str_replace(["\r\n", "\r"], "\n", $text);
-    $text = preg_replace('/[ \\t]+$/m', '', $text) ?? $text;
+    $text = preg_replace('/[ \t]+$/m', '', $text) ?? $text;
+    $lines = preg_split('/\n/u', $text) ?: [];
 
-    $rawBlocks = preg_split('/\\n\\s*---+\\s*\\n|\\n{2,}/u', $text) ?: [];
     $blocks = [];
+    $current = [];
+    $started = false;
 
-    foreach ($rawBlocks as $raw) {
-        $raw = trim($raw);
-        if ($raw === '') continue;
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
 
-        $lines = preg_split('/\\n/u', $raw) ?: [];
-        $current = [];
-        $hasQuestionMarker = false;
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '') continue;
-
-            $isQuestionMarker = preg_match('/^(?:вопрос|question|задание)\\s*\\d*\\s*[:.)-]/iu', $line) === 1;
-            if ($current && $isQuestionMarker && $hasQuestionMarker) {
-                $blocks[] = implode("\n", $current);
-                $current = [];
-                $hasQuestionMarker = false;
-            }
-
-            $current[] = $line;
-            if ($isQuestionMarker) $hasQuestionMarker = true;
+        if (preg_match('/^справочник\s+служебных\s+полей\s+uvoria/iu', $line)) {
+            if ($current) $blocks[] = implode("\n", $current);
+            $current = [];
+            break;
         }
-        if ($current) $blocks[] = implode("\n", $current);
+
+        $isQuestionMarker = preg_match('/^(?:вопрос|question|задание)\s*\d+\b/iu', $line) === 1;
+        if ($isQuestionMarker) {
+            if ($current) $blocks[] = implode("\n", $current);
+            $current = [$line];
+            $started = true;
+            continue;
+        }
+
+        if ($started) $current[] = $line;
+    }
+
+    if ($current) $blocks[] = implode("\n", $current);
+
+    // Совместимость со старыми документами без заголовков «ЗАДАНИЕ N».
+    if (!$blocks) {
+        foreach (preg_split('/\n\s*---+\s*\n|\n{2,}/u', $text) ?: [] as $raw) {
+            $raw = trim($raw);
+            if ($raw !== '') $blocks[] = $raw;
+        }
     }
 
     return $blocks;
 }
 
+function import_prompt_candidate(array $lines): string
+{
+    foreach ($lines as $line) {
+        $value = trim((string)$line);
+        if ($value === '') continue;
+        if (
+            str_contains($value, '?')
+            || preg_match('/^(?:расположите|сопоставьте|исправьте|рассмотрите|выберите|укажите|найдите|определите|в\s+каком|какие|какой|какая|какое|как|когда|где|кто|что|сколько)\b/iu', $value)
+        ) {
+            return $value;
+        }
+    }
+
+    $filtered = array_values(array_filter($lines, static function ($line): bool {
+        $value = trim((string)$line);
+        if ($value === '') return false;
+        return preg_match('/^(?:тест\s*:|ученик\b|картинка\b|изображение\s*\+|событие\s*↔|один\s+правильный|несколько\s+правильных|восстановить\s+хронологию|соответствие\s*:|короткий\s+ответ\s*:|найти\s+и\s+исправить|вопрос\s+по\s+изображению)/iu', $value) !== 1;
+    }));
+
+    return trim((string)($filtered[0] ?? $lines[0] ?? ''));
+}
+
 function import_parse_question_block(string $block): ?array
 {
-    $lines = preg_split('/\\n/u', trim($block)) ?: [];
+    $lines = preg_split('/\n/u', trim($block)) ?: [];
     if (!$lines) return null;
 
     $rawType = '';
-    $prompt = '';
     $answer = '';
+    $orderRaw = '';
+    $pairsRaw = '';
+    $alternativesRaw = '';
     $points = 1.0;
     $textBody = '';
     $contentLines = [];
-    $answerLineIndex = null;
+    $heading = '';
 
-    foreach ($lines as $index => $line) {
+    foreach ($lines as $line) {
         $line = trim($line);
         if ($line === '') continue;
 
-        if (preg_match('/^(?:тип|type)\\s*:\\s*(.+)$/iu', $line, $m)) {
+        if (preg_match('/^(?:вопрос|question|задание)\s*\d+\b\s*[:.)-]?\s*(.*)$/iu', $line, $m)) {
+            $heading = trim((string)($m[1] ?? ''));
+            continue;
+        }
+        if (preg_match('/^(?:тип|type)\s*:\s*(.+)$/iu', $line, $m)) {
             $rawType = trim($m[1]);
             continue;
         }
-        if (preg_match('/^(?:вопрос|question|задание)\\s*\\d*\\s*[:.)-]\\s*(.+)$/iu', $line, $m)) {
-            $prompt = trim($m[1]);
+        if (preg_match('/^(?:order|порядок)\s*:\s*(.+)$/iu', $line, $m)) {
+            $orderRaw = trim($m[1]);
             continue;
         }
-        if (preg_match('/^(?:ответ|answer|правильный ответ|порядок)\\s*:\\s*(.+)$/iu', $line, $m)) {
+        if (preg_match('/^(?:pairs|пары)\s*:\s*(.+)$/iu', $line, $m)) {
+            $pairsRaw = trim($m[1]);
+            continue;
+        }
+        if (preg_match('/^(?:alternatives|альтернативы|варианты ответа)\s*:\s*(.+)$/iu', $line, $m)) {
+            $alternativesRaw = trim($m[1]);
+            continue;
+        }
+        if (preg_match('/^(?:ответ|answer|правильный ответ)\s*:\s*(.+)$/iu', $line, $m)) {
             $answer = trim($m[1]);
-            $answerLineIndex = $index;
             continue;
         }
-        if (preg_match('/^(?:баллы|points?)\\s*:\\s*([0-9]+(?:[.,][0-9]+)?)$/iu', $line, $m)) {
+        if (preg_match('/^(?:баллы|points?)\s*:\s*([0-9]+(?:[.,][0-9]+)?)$/iu', $line, $m)) {
             $points = max(0.1, (float)str_replace(',', '.', $m[1]));
             continue;
         }
-        if (preg_match('/^(?:текст|text)\\s*:\\s*(.+)$/iu', $line, $m)) {
+        if (preg_match('/^(?:текст|text)\s*:\s*(.+)$/iu', $line, $m)) {
             $textBody = trim($m[1]);
             continue;
         }
-        if (preg_match('/^слайд\\s+\\d+\\s*:\\s*(.*)$/iu', $line, $m)) {
-            if ($prompt === '' && trim($m[1]) !== '') $contentLines[] = trim($m[1]);
+        if (preg_match('/^примечание\s*:/iu', $line)) {
+            continue;
+        }
+        if (preg_match('/^слайд\s+\d+\s*:\s*(.*)$/iu', $line, $m)) {
+            if (trim($m[1]) !== '') $contentLines[] = trim($m[1]);
             continue;
         }
 
@@ -340,47 +389,51 @@ function import_parse_question_block(string $block): ?array
 
     $alphaOptions = [];
     $numberOptions = [];
+    $bulletItems = [];
     $freeLines = [];
+
     foreach ($contentLines as $line) {
-        if (preg_match('/^([A-HА-З])\\s*[).:-]\\s*(.+)$/u', $line, $m)) {
+        if (preg_match('/^([A-HА-З])\s*[).:-]\s*(.+)$/u', $line, $m)) {
             $alphaOptions[strtoupper($m[1])] = trim($m[2]);
-        } elseif (preg_match('/^(\\d{1,2})\\s*[).:-]\\s*(.+)$/u', $line, $m)) {
+        } elseif (preg_match('/^(\d{1,2})\s*[).:-]\s*(.+)$/u', $line, $m)) {
             $numberOptions[(string)(int)$m[1]] = trim($m[2]);
+        } elseif (preg_match('/^[•·\-–—]\s*(.+)$/u', $line, $m)) {
+            $bulletItems[] = trim($m[1]);
         } else {
             $freeLines[] = $line;
         }
     }
 
-    if ($prompt === '') {
-        if ($textBody !== '') {
-            $prompt = $textBody;
-        } elseif ($freeLines) {
-            $prompt = array_shift($freeLines);
-        }
-    }
-
     if ($interaction === '') {
         if (count($alphaOptions) >= 2 && $answer !== '') {
-            $answerTokens = preg_split('/[,;\\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-            $interaction = count($answerTokens) > 1 ? 'multiple' : 'single';
+            $tokens = preg_split('/[|,;\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $interaction = count($tokens) > 1 ? 'multiple' : 'single';
+        } elseif ($orderRaw !== '') {
+            $interaction = 'order';
+        } elseif ($pairsRaw !== '') {
+            $interaction = 'matching';
         } elseif ($answer !== '') {
-            $interaction = 'short_answer';
+            $interaction = 'text';
         } else {
             $interaction = 'essay';
         }
     }
 
+    $prompt = $textBody !== '' ? $textBody : import_prompt_candidate($freeLines);
     if ($prompt === '') return null;
+
+    $haystack = $heading . "\n" . implode("\n", $contentLines);
+    $needsImage = preg_match('/(?:изображ|картин|фото|портрет|карта|схема)/iu', $haystack) === 1;
 
     $question = [
         'interaction_type' => $interaction,
         'db_type' => 'text',
         'text' => $prompt,
         'points' => $points,
-        'correct_text' => $answer !== '' ? $answer : null,
+        'correct_text' => null,
         'settings' => [],
         'options' => [],
-        'needs_image' => false,
+        'needs_image' => $needsImage,
     ];
 
     if ($interaction === 'single' || $interaction === 'multiple') {
@@ -388,8 +441,9 @@ function import_parse_question_block(string $block): ?array
         if (count($options) < 2) return null;
 
         $question['db_type'] = $interaction;
-        $tokens = preg_split('/[,;\\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $tokens = preg_split('/[|,;\s]+/u', strtoupper($answer), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $tokens = array_map(static fn(string $v): string => trim($v, " .)"), $tokens);
+
         foreach ($options as $label => $optionText) {
             $question['options'][] = [
                 'label' => (string)$label,
@@ -397,7 +451,6 @@ function import_parse_question_block(string $block): ?array
                 'is_correct' => in_array(strtoupper((string)$label), $tokens, true),
             ];
         }
-        $question['correct_text'] = null;
     } elseif ($interaction === 'true_false') {
         $question['db_type'] = 'true_false';
         $normalized = function_exists('mb_strtolower') ? mb_strtolower($answer) : strtolower($answer);
@@ -406,58 +459,103 @@ function import_parse_question_block(string $block): ?array
             ['label' => 'TRUE', 'text' => 'Верно', 'is_correct' => $truthy],
             ['label' => 'FALSE', 'text' => 'Неверно', 'is_correct' => !$truthy],
         ];
-        $question['correct_text'] = null;
-    } elseif ($interaction === 'ordering') {
-        $items = $numberOptions;
-        if (!$items && $freeLines) {
-            foreach (array_values($freeLines) as $i => $line) $items[(string)($i + 1)] = $line;
+    } elseif ($interaction === 'order') {
+        $orderedValues = array_values(array_filter(array_map(
+            static fn(string $value): string => trim($value),
+            preg_split('/\s*\|\s*/u', $orderRaw !== '' ? $orderRaw : $answer) ?: []
+        ), static fn(string $value): bool => $value !== ''));
+
+        $displayValues = count($bulletItems) >= 2 ? $bulletItems : $orderedValues;
+        if (count($displayValues) < 2) {
+            $displayValues = array_values($numberOptions);
         }
-        if (count($items) < 2) return null;
+        if (count($displayValues) < 2) return null;
+        if (!$orderedValues) $orderedValues = $displayValues;
 
-        $order = preg_split('/[,;>\\-\\s]+/u', $answer, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $order = array_values(array_filter(array_map(static fn(string $v): string => trim($v, " .)"), $order), static fn(string $v): bool => isset($items[$v])));
-        if (!$order) $order = array_keys($items);
+        $items = [];
+        $keyByText = [];
+        foreach ($displayValues as $i => $value) {
+            $key = (string)($i + 1);
+            $items[$key] = $value;
+            $normalizedKey = function_exists('mb_strtolower') ? mb_strtolower(trim($value)) : strtolower(trim($value));
+            $keyByText[$normalizedKey] = $key;
+        }
 
-        $question['db_type'] = 'text';
-        $question['correct_text'] = json_encode($order, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $question['settings'] = [
-            'items' => $items,
-            'correct_order' => $order,
-        ];
+        $correctOrder = [];
+        foreach ($orderedValues as $value) {
+            $normalizedKey = function_exists('mb_strtolower') ? mb_strtolower(trim($value)) : strtolower(trim($value));
+            if (!isset($keyByText[$normalizedKey])) {
+                $key = (string)(count($items) + 1);
+                $items[$key] = $value;
+                $keyByText[$normalizedKey] = $key;
+            }
+            $correctOrder[] = $keyByText[$normalizedKey];
+        }
+
+        $question['correct_text'] = json_encode($correctOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $question['settings'] = ['items' => $items, 'correct_order' => $correctOrder];
     } elseif ($interaction === 'matching') {
-        if (count($numberOptions) < 1 || count($alphaOptions) < 1) return null;
-
+        $left = [];
+        $right = [];
         $pairs = [];
-        foreach (preg_split('/[,;]+/u', $answer, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $pair) {
-            if (preg_match('/(\\d+)\\s*[-:=]\\s*([A-HА-З])/u', trim($pair), $m)) {
-                $pairs[(string)(int)$m[1]] = strtoupper($m[2]);
+
+        if ($pairsRaw !== '') {
+            $pairParts = preg_split('/\s*\|\s*/u', $pairsRaw) ?: [];
+            $index = 0;
+            foreach ($pairParts as $pairText) {
+                if (!preg_match('/^\s*(.+?)\s*=\s*(.+?)\s*$/u', trim($pairText), $m)) continue;
+                $index++;
+                $lk = 'L' . $index;
+                $rk = 'R' . $index;
+                $left[$lk] = trim($m[1]);
+                $right[$rk] = trim($m[2]);
+                $pairs[$lk] = $rk;
+            }
+        } else {
+            foreach ($numberOptions as $key => $value) $left[(string)$key] = $value;
+            foreach ($alphaOptions as $key => $value) $right[(string)$key] = $value;
+            foreach (preg_split('/[,;]+/u', $answer, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $pair) {
+                if (preg_match('/(\d+)\s*[-:=]\s*([A-HА-З])/u', trim($pair), $m)) {
+                    $pairs[(string)(int)$m[1]] = strtoupper($m[2]);
+                }
             }
         }
 
-        $question['db_type'] = 'text';
+        if (count($pairs) < 2) return null;
         $question['correct_text'] = json_encode($pairs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $question['settings'] = [
-            'left' => $numberOptions,
-            'right' => $alphaOptions,
-            'pairs' => $pairs,
-        ];
+        $question['settings'] = ['left' => $left, 'right' => $right, 'pairs' => $pairs];
     } elseif ($interaction === 'correction') {
-        $question['db_type'] = 'text';
-        if ($textBody !== '') {
-            $question['settings']['original_text'] = $textBody;
-            if ($question['text'] === $textBody) $question['text'] = 'Найдите ошибку и напишите правильный вариант.';
-        } elseif ($freeLines) {
-            $question['settings']['original_text'] = implode(' ', $freeLines);
+        $original = '';
+        foreach ($freeLines as $line) {
+            if ($line === $prompt) continue;
+            if (
+                preg_match('/^(?:ученик\b|найти\s+и\s+исправить)/iu', $line)
+                || preg_match('/^исправьте\b/iu', $line)
+            ) continue;
+            $original = trim($line);
+            if ($original !== '') break;
         }
-    } elseif ($interaction === 'image_answer') {
-        $question['db_type'] = 'text';
-        $question['needs_image'] = true;
-        $question['settings']['answer_hint'] = 'Событие / год / место / объект';
+        if ($textBody !== '' && $textBody !== $prompt) $original = $textBody;
+        $question['settings']['original_text'] = $original;
+        $question['correct_text'] = $answer;
+    } elseif ($interaction === 'number') {
+        $question['db_type'] = 'number';
+        $question['correct_text'] = str_replace(',', '.', trim($answer));
     } elseif ($interaction === 'essay') {
         $question['db_type'] = 'essay';
         $question['correct_text'] = null;
     } else {
-        $question['db_type'] = 'text';
+        $answers = [];
+        foreach (array_merge(
+            preg_split('/\s*\|\s*/u', $answer) ?: [],
+            preg_split('/\s*\|\s*/u', $alternativesRaw) ?: []
+        ) as $value) {
+            $value = trim((string)$value);
+            if ($value === '') continue;
+            $key = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+            $answers[$key] = $value;
+        }
+        $question['correct_text'] = implode(' | ', array_values($answers));
     }
 
     return $question;
@@ -502,8 +600,10 @@ function import_store_questions(PDO $pdo, int $assignmentId, array $questions, a
     foreach ($questions as $position => $question) {
         $settings = $question['settings'] ?? [];
         $assetToSave = null;
-        if (!empty($question['needs_image']) && isset($media[$mediaIndex])) {
-            $assetToSave = $media[$mediaIndex++];
+        if (!empty($question['needs_image']) && $media) {
+            $safeIndex = min($mediaIndex, count($media) - 1);
+            $assetToSave = $media[$safeIndex];
+            if ($mediaIndex < count($media) - 1) $mediaIndex++;
             $settings['has_image'] = true;
         } elseif (!empty($question['needs_image'])) {
             $settings['has_image'] = false;
