@@ -327,12 +327,12 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
         sort($beforeIds, SORT_NUMERIC);
         $afterIds = $correctIds;
         sort($afterIds, SORT_NUMERIC);
-        if ($beforeIds === $afterIds) {
-            continue;
+        if ($beforeIds !== $afterIds) {
+            $repairedQuestions++;
         }
 
-        $repairedQuestions++;
-
+        // Regrade stored answers even when the key itself did not change.
+        // Older versions could save a correct selection with score=0.
         $stmt = $pdo->prepare(
             'SELECT a.id, a.attempt_id, a.answer_text, q.points
              FROM answers a
