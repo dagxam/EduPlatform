@@ -163,6 +163,36 @@ function db_is_mysql(PDO $pdo): bool
     return db_driver($pdo) === 'mysql';
 }
 
+function db_insert_ignore_prefix(PDO $pdo): string
+{
+    return db_is_mysql($pdo) ? 'INSERT IGNORE' : 'INSERT OR IGNORE';
+}
+
+function db_upsert_clause(PDO $pdo, array $conflictColumns, array $updateColumns): string
+{
+    $safe = static function (string $name): string {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new InvalidArgumentException('Некорректное имя поля базы данных.');
+        }
+        return $name;
+    };
+
+    $conflictColumns = array_values(array_map($safe, $conflictColumns));
+    $updateColumns = array_values(array_map($safe, $updateColumns));
+
+    if (db_is_mysql($pdo)) {
+        return ' ON DUPLICATE KEY UPDATE ' . implode(', ', array_map(
+            static fn(string $column): string => $column . ' = VALUES(' . $column . ')',
+            $updateColumns
+        ));
+    }
+
+    return ' ON CONFLICT(' . implode(', ', $conflictColumns) . ') DO UPDATE SET ' . implode(', ', array_map(
+        static fn(string $column): string => $column . ' = excluded.' . $column,
+        $updateColumns
+    ));
+}
+
 function mysql_apply_schema(PDO $pdo): void
 {
     static $applied = false;
