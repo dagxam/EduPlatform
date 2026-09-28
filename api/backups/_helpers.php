@@ -58,6 +58,8 @@ function backup_asset_files(): array
                 'db-config.php.tmp',
                 'maintenance.flag',
                 '.mysql-migration.lock',
+                'mysql-migration-private.pem',
+                'mysql-machine-migration.done',
             ], true)
         ) {
             continue;
