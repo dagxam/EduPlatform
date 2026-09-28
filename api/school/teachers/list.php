@@ -15,7 +15,7 @@ $stmt = $pdo->prepare(
      WHERE su.school_id = :school_id
        AND su.can_teach = 1
        AND su.is_active = 1
-     ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE'
+     ORDER BY u.last_name, u.first_name'
 );
 $stmt->execute(['school_id' => $schoolId]);
 $teachers = $stmt->fetchAll();
@@ -27,7 +27,7 @@ $assignStmt = $pdo->prepare(
      JOIN subjects s ON s.id = tc.subject_id
      JOIN classes c ON c.id = tc.class_id
      WHERE tc.school_id = :school_id
-     ORDER BY s.name COLLATE NOCASE, class_name COLLATE NOCASE'
+     ORDER BY s.name, class_name'
 );
 $assignStmt->execute(['school_id' => $schoolId]);
 $assignments = [];
