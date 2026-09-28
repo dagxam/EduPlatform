@@ -8,8 +8,6 @@ try {
     json_response([
         'ok' => true,
         'service' => 'UVORIA API',
-        'database' => 'sqlite',
-        'php' => PHP_VERSION,
     ]);
 } catch (Throwable $e) {
     json_response([
