@@ -5655,7 +5655,14 @@ async function startRealStudentAssignment(assignmentId) {
       try {
         await submitActiveStudentAttempt('student_submit', true);
       } catch (e) {
-        alert(e.message);
+        await appAlert(
+          e?.message || 'Не удалось завершить работу. Нажмите кнопку сдачи ещё раз.',
+          {
+            title: 'Не удалось завершить тест',
+            tone: 'danger',
+            okText: 'Вернуться к тесту'
+          }
+        );
         button.disabled = false;
         button.textContent = 'Завершить и сдать работу';
       }
@@ -5748,9 +5755,12 @@ async function submitActiveStudentAttempt(reason = 'student_submit', renderResul
         answers
       })
     });
-    const data = await response.json();
+    const data = await readJsonResponse(
+      response,
+      'Не удалось завершить работу. Проверьте соединение и нажмите «Завершить» ещё раз.'
+    );
     if (!response.ok || data.ok === false) {
-      throw new Error(data.error || 'Не удалось завершить работу.');
+      throw new Error(data.error || 'Не удалось завершить работу. Попробуйте ещё раз.');
     }
 
     quizExitBeaconSent = true;
