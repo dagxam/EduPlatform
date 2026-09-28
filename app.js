@@ -2861,18 +2861,91 @@ function renderJournal() {
     </tr>`;
   }).join('');
 
-  wrap.innerHTML = `
-    <table class="journal-table">
-      <thead><tr>
-        <th class="journal-student-head">Ученик</th>
-        ${headerCells}
-        <th class="journal-average-head">Ср. оценка</th>
-        <th class="journal-average-head">Ср. %</th>
-        <th class="journal-browser-head" title="Закрытие или скрытие браузера во время теста">Выход</th>
-        <th class="journal-actions-head">Действия</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+  const mobileRows = students.map(student => {
+    const visibleCells = assignments.map(assignment => ({
+      assignment,
+      cell: student.cells?.[String(assignment.id)] || null
+    }));
+    const completedCells = visibleCells.filter(item => Boolean(item.cell));
+    const percents = completedCells.map(item => Number(item.cell.percent || 0));
+    const grades = completedCells.map(item => Number(item.cell.grade || 0));
+    const avgPercent = percents.length ? percents.reduce((sum,value) => sum + value, 0) / percents.length : null;
+    const avgGrade = grades.length ? grades.reduce((sum,value) => sum + value, 0) / grades.length : null;
+    const browserClosedCount = completedCells.filter(item => Boolean(item.cell.closed_by_browser)).length;
+
+    const workItems = visibleCells.map(({ assignment, cell }) => {
+      const date = journalShortDate(assignment.due_at || assignment.created_at);
+      if (!cell) {
+        return '<article class="journal-mobile-work is-missing">'
+          + '<div class="journal-mobile-work-main">'
+          + '<div class="journal-mobile-work-copy"><b>' + escapeHtml(assignment.title) + '</b><small>' + escapeHtml(date) + '</small></div>'
+          + '<span class="journal-mobile-not-done">Не сдано</span>'
+          + '</div>'
+          + '</article>';
+      }
+
+      const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
+      const percent = Math.round(Number(cell.percent || 0));
+      const browserMarker = cell.closed_by_browser
+        ? '<span class="journal-mobile-browser-marker" title="Закрытие или скрытие браузера" aria-label="Закрытие браузера"></span>'
+        : '';
+      const adjustedMarker = cell.adjusted
+        ? '<span class="journal-mobile-adjusted" title="Оценка скорректирована">●</span>'
+        : '';
+
+      return '<article class="journal-mobile-work">'
+        + '<div class="journal-mobile-work-main">'
+        + '<div class="journal-mobile-work-copy"><b>' + escapeHtml(assignment.title) + '</b><small>' + escapeHtml(date) + '</small></div>'
+        + '<button class="journal-mobile-grade ' + resultGradeClass(grade) + '" type="button" data-journal-review="' + Number(cell.attempt_id) + '" title="Открыть разбор">'
+        + '<strong>' + escapeHtml(grade) + '</strong><span>' + percent + '%</span>'
+        + '</button>'
+        + '</div>'
+        + '<div class="journal-mobile-work-meta">'
+        + '<span><b>' + escapeHtml(journalFormatNumber(cell.score, 2)) + '</b> / ' + escapeHtml(journalFormatNumber(cell.max_score, 2)) + ' балл.</span>'
+        + (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>')
+        + adjustedMarker
+        + '</div>'
+        + '<div class="journal-mobile-actions">'
+        + '<button class="result-icon-btn" type="button" data-journal-action-review="' + Number(cell.attempt_id) + '" data-tooltip="Разбор" title="Разбор работы" aria-label="Разбор работы">' + resultActionIcon('review') + '</button>'
+        + '<button class="result-icon-btn" type="button" data-journal-action-edit="' + Number(cell.attempt_id) + '" data-tooltip="Редактировать" title="Редактировать результат" aria-label="Редактировать результат">' + resultActionIcon('edit') + '</button>'
+        + '<button class="result-icon-btn" type="button" data-journal-action-reset="' + Number(cell.attempt_id) + '" data-tooltip="Сбросить" title="Сбросить результат" aria-label="Сбросить результат">' + resultActionIcon('reset') + '</button>'
+        + '</div>'
+        + '</article>';
+    }).join('');
+
+    const avgGradeText = avgGrade === null ? '—' : journalFormatNumber(avgGrade);
+    const avgPercentText = avgPercent === null ? '—' : Math.round(avgPercent) + '%';
+    const avgGradeClass = avgGrade === null ? '' : resultGradeClass(Math.round(avgGrade));
+
+    return '<details class="journal-mobile-student">'
+      + '<summary>'
+      + '<div class="journal-mobile-student-copy"><b>' + escapeHtml(student.student_name || 'Ученик') + '</b><small>' + completedCells.length + ' из ' + assignments.length + ' работ</small></div>'
+      + '<div class="journal-mobile-student-stats">'
+      + '<span class="grade ' + avgGradeClass + '">' + escapeHtml(avgGradeText) + '</span>'
+      + '<strong>' + escapeHtml(avgPercentText) + '</strong>'
+      + (browserClosedCount ? '<span class="journal-mobile-exit-count" title="Выходы из браузера">' + browserClosedCount + '</span>' : '')
+      + '<span class="journal-mobile-chevron" aria-hidden="true"></span>'
+      + '</div>'
+      + '</summary>'
+      + '<div class="journal-mobile-student-body">' + workItems + '</div>'
+      + '</details>';
+  }).join('');
+
+    wrap.innerHTML = `
+    <div class="journal-desktop-view">
+      <table class="journal-table">
+        <thead><tr>
+          <th class="journal-student-head">Ученик</th>
+          ${headerCells}
+          <th class="journal-average-head">Ср. оценка</th>
+          <th class="journal-average-head">Ср. %</th>
+          <th class="journal-browser-head" title="Закрытие или скрытие браузера во время теста">Выход</th>
+          <th class="journal-actions-head">Действия</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="journal-mobile-view">${mobileRows}</div>`;
 
   wrap.querySelectorAll('[data-journal-review]').forEach(button => {
     button.addEventListener('click', () => openAttemptReview(Number(button.dataset.journalReview)));
@@ -2896,6 +2969,15 @@ function renderJournal() {
         await loadResults().catch(() => {});
       }
       await resetStudentResult(attemptId);
+    });
+  });
+  wrap.querySelectorAll('.journal-mobile-student').forEach(details => {
+    details.addEventListener('toggle', () => {
+      if (!details.open) return;
+      wrap.querySelectorAll('.journal-mobile-student[open]').forEach(other => {
+        if (other !== details) other.open = false;
+      });
+      requestAnimationFrame(() => details.scrollIntoView({ block:'nearest', behavior:'smooth' }));
     });
   });
 }
