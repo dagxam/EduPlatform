@@ -84,9 +84,8 @@ $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
         'INSERT INTO assignment_classes (assignment_id, class_id, time_limit_minutes)
-         VALUES (:assignment_id, :class_id, :time_limit_minutes)
-         ON CONFLICT(assignment_id, class_id) DO UPDATE SET
-           time_limit_minutes = excluded.time_limit_minutes'
+         VALUES (:assignment_id, :class_id, :time_limit_minutes)'
+        . db_upsert_clause($pdo, ['assignment_id', 'class_id'], ['time_limit_minutes'])
     );
     $stmt->execute([
         'assignment_id' => $assignmentId,
