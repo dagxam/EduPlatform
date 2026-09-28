@@ -26,15 +26,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Clean stale one-time MySQL key
-        env:
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-        run: |
-          curl --silent --show-error --user "$FTP_USERNAME:$FTP_PASSWORD" \
-            --quote "DELE storage/mysql-migration-private.pem" \
-            "ftp://188.127.241.85/" >/dev/null 2>&1 || true
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
