@@ -480,6 +480,70 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
     ];
 }
 
+function save_attempt_answers_snapshot(PDO $pdo, int $attemptId, array $answersSnapshot): int
+{
+    if (!$answersSnapshot) return 0;
+
+    $stmt = $pdo->prepare(
+        'SELECT q.id
+         FROM questions q
+         JOIN attempts a ON a.assignment_id = q.assignment_id
+         WHERE a.id = :attempt_id'
+    );
+    $stmt->execute(['attempt_id' => $attemptId]);
+    $validIds = array_fill_keys(array_map('intval', array_column($stmt->fetchAll(), 'id')), true);
+    if (!$validIds) return 0;
+
+    // Grade first, before opening the write transaction. Imported-key repair
+    // may itself need a short write, and nested transactions are not allowed.
+    $gradedRows = [];
+    foreach ($answersSnapshot as $answer) {
+        if (!is_array($answer)) continue;
+        $questionId = (int)($answer['question_id'] ?? 0);
+        if ($questionId < 1 || !isset($validIds[$questionId])) continue;
+
+        $payload = is_array($answer['payload'] ?? null) ? $answer['payload'] : [];
+        $gradedRows[$questionId] = grade_question_answer($pdo, $questionId, $payload);
+    }
+    if (!$gradedRows) return 0;
+
+    $upsert = $pdo->prepare(
+        'INSERT INTO answers
+         (attempt_id, question_id, answer_text, score, is_correct, needs_review, updated_at)
+         VALUES
+         (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)
+         ON CONFLICT(attempt_id, question_id) DO UPDATE SET
+           answer_text = excluded.answer_text,
+           score = excluded.score,
+           is_correct = excluded.is_correct,
+           needs_review = excluded.needs_review,
+           updated_at = CURRENT_TIMESTAMP'
+    );
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($gradedRows as $questionId => $graded) {
+            $upsert->execute([
+                'attempt_id' => $attemptId,
+                'question_id' => (int)$questionId,
+                'answer_text' => $graded['answer_text'],
+                'score' => $graded['score'],
+                'is_correct' => $graded['is_correct'],
+                'needs_review' => $graded['needs_review'],
+            ]);
+        }
+
+        $pdo->prepare('UPDATE attempts SET last_seen_at = CURRENT_TIMESTAMP WHERE id = :id')
+            ->execute(['id' => $attemptId]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+
+    return count($gradedRows);
+}
+
 function save_attempt_answer(PDO $pdo, int $attemptId, int $questionId, array $payload): array
 {
     $stmt = $pdo->prepare(
@@ -542,15 +606,8 @@ function regrade_attempt_answers(PDO $pdo, int $attemptId): void
     $rows = $stmt->fetchAll();
     if (!$rows) return;
 
-    $update = $pdo->prepare(
-        'UPDATE answers
-         SET score = :score,
-             is_correct = :is_correct,
-             needs_review = :needs_review,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = :id'
-    );
-
+    // Grade outside the transaction. This keeps the SQLite write lock short.
+    $updates = [];
     foreach ($rows as $row) {
         $interaction = (string)($row['interaction_type'] ?: $row['type']);
         if ($interaction === 'ordering') $interaction = 'order';
@@ -570,13 +627,36 @@ function regrade_attempt_answers(PDO $pdo, int $attemptId): void
             $payload = ['answer_text' => $raw];
         }
 
-        $graded = grade_question_answer($pdo, (int)$row['question_id'], $payload);
-        $update->execute([
-            'score' => (float)$graded['score'],
-            'is_correct' => (int)$graded['is_correct'],
-            'needs_review' => (int)$graded['needs_review'],
+        $updates[] = [
             'id' => (int)$row['id'],
-        ]);
+            'graded' => grade_question_answer($pdo, (int)$row['question_id'], $payload),
+        ];
+    }
+
+    $update = $pdo->prepare(
+        'UPDATE answers
+         SET score = :score,
+             is_correct = :is_correct,
+             needs_review = :needs_review,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id'
+    );
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($updates as $item) {
+            $graded = $item['graded'];
+            $update->execute([
+                'score' => (float)$graded['score'],
+                'is_correct' => (int)$graded['is_correct'],
+                'needs_review' => (int)$graded['needs_review'],
+                'id' => (int)$item['id'],
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
     }
 }
 
