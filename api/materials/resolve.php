@@ -88,8 +88,8 @@ $pdo->beginTransaction();
 try {
     $stmt = $pdo->prepare(
         'INSERT INTO school_subjects (school_id, subject_id, is_active)
-         VALUES (:school_id, :subject_id, 1)
-         ON CONFLICT(school_id, subject_id) DO UPDATE SET is_active = 1'
+         VALUES (:school_id, :subject_id, 1)'
+        . db_upsert_clause($pdo, ['school_id', 'subject_id'], ['is_active'])
     );
     $stmt->execute([
         'school_id' => $schoolId,
