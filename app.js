@@ -2686,6 +2686,9 @@ async function openAttemptReview(attemptId) {
     const adjusted = attempt.adjusted
       ? '<span class="attempt-review-adjusted">Оценка скорректирована учителем</span>'
       : '';
+    const browserClosed = resultClosedByBrowser(attempt)
+      ? resultBrowserCloseBadge()
+      : '';
     const staffActions = currentUser?.role !== 'student' && resultsCache.some(item => Number(item.attempt_id) === id)
       ? `<button class="secondary-btn" type="button" data-review-edit="${id}">Редактировать оценку</button>`
       : '';
@@ -2698,6 +2701,7 @@ async function openAttemptReview(attemptId) {
           <span>${escapeHtml(attempt.subject_name || 'Предмет')}</span>
           ${studentMeta}
           <span>${escapeHtml(resultDateTime(attempt.submitted_at))}</span>
+          ${browserClosed}
           ${adjusted}
         </div>
         <div class="attempt-review-scoreboard">
