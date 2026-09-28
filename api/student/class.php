@@ -42,7 +42,7 @@ $stmt = app_db()->prepare(
      FROM class_students cs
      JOIN users u ON u.id = cs.student_id
      WHERE cs.class_id = :class_id AND u.is_active = 1
-     ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE'
+     ORDER BY u.last_name, u.first_name'
 );
 $stmt->execute(['class_id' => (int)$class['id']]);
 
