@@ -8322,3 +8322,43 @@ input,select,textarea,button{
     height:15px!important;
   }
 }
+
+
+/* Fix mobile assignment action grid v72 */
+@media(max-width:760px){
+  #assignments .assignment-table-row td.assignment-table-actions{
+    display:grid!important;
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+    grid-auto-flow:column!important;
+    grid-auto-columns:minmax(0,1fr)!important;
+    width:100%!important;
+    min-width:0!important;
+    align-items:center!important;
+    justify-items:center!important;
+    gap:5px!important;
+    overflow:visible!important;
+  }
+  #assignments .assignment-table-row td.assignment-table-actions .assignment-action-group,
+  #assignments .assignment-table-row td.assignment-table-actions .assignment-action-tools,
+  #assignments .assignment-table-row td.assignment-table-actions .assignment-action-workflow{
+    display:contents!important;
+  }
+  #assignments .assignment-table-row td.assignment-table-actions .assignment-icon-btn{
+    width:100%!important;
+    max-width:40px!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:0!important;
+    aspect-ratio:1/1;
+    justify-self:center!important;
+  }
+}
+
+@media(max-width:390px){
+  #assignments .assignment-table-row td.assignment-table-actions{
+    gap:4px!important;
+  }
+  #assignments .assignment-table-row td.assignment-table-actions .assignment-icon-btn{
+    max-width:36px!important;
+  }
+}
