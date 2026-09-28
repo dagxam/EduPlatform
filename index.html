@@ -489,9 +489,54 @@
           <article class="panel backup-overview-card">
             <span>Состав копии</span>
             <strong>База + файлы</strong>
-            <small>SQLite, импортированные задания, изображения и другие материалы storage.</small>
+            <small id="backupDatabaseHint">База данных, импортированные задания, изображения и другие материалы storage.</small>
           </article>
         </div>
+
+        <article class="panel database-migration-panel" id="databaseMigrationPanel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">База данных</span>
+              <h3>Хранилище UROVIA</h3>
+            </div>
+            <span class="status blue" id="databaseDriverBadge">Проверка...</span>
+          </div>
+          <div class="database-status-box" id="databaseStatusBox">
+            Проверяем текущее подключение к базе данных...
+          </div>
+          <form id="databaseMigrationForm" class="database-migration-form hidden" autocomplete="off">
+            <div class="database-migration-warning">
+              <b>Безопасный перенос SQLite → MySQL</b>
+              <span>Перед переключением UROVIA создаст полную резервную копию SQLite, перенесёт записи с сохранением ID, сверит количество строк и внешние связи. При любой ошибке платформа останется на SQLite.</span>
+            </div>
+            <div class="form-row">
+              <label>Основной хост MySQL
+                <input name="host" type="text" placeholder="localhost или IP сервера" required>
+              </label>
+              <label>Порт
+                <input name="port" type="number" min="1" max="65535" value="3306" required>
+              </label>
+            </div>
+            <label>Резервные хосты
+              <textarea name="fallback_hosts" rows="2" placeholder="Можно указать дополнительные IP через пробел или с новой строки"></textarea>
+            </label>
+            <div class="form-row">
+              <label>Имя базы
+                <input name="database" type="text" autocomplete="off" required>
+              </label>
+              <label>Пользователь MySQL
+                <input name="user" type="text" autocomplete="off" required>
+              </label>
+            </div>
+            <label>Пароль MySQL
+              <input name="password" type="password" autocomplete="new-password" required>
+              <small>Пароль отправляется только по текущему защищённому запросу и сохраняется в закрытом файле storage на сервере. В GitHub он не попадает.</small>
+            </label>
+            <div class="form-error hidden" id="databaseMigrationError"></div>
+            <div class="import-result hidden" id="databaseMigrationResult"></div>
+            <button class="primary-btn" id="databaseMigrationBtn" type="submit">Перенести данные и включить MySQL</button>
+          </form>
+        </article>
 
         <article class="panel backup-panel">
           <div class="panel-head">
