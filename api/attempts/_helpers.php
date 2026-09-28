@@ -582,14 +582,6 @@ function save_attempt_answer(PDO $pdo, int $attemptId, int $questionId, array $p
     return $graded;
 }
 
-function grade_from_percent(float $percent): string
-{
-    if ($percent >= 90) return '5';
-    if ($percent >= 75) return '4';
-    if ($percent >= 50) return '3';
-    return '2';
-}
-
 function regrade_attempt_answers(PDO $pdo, int $attemptId): void
 {
     $stmt = $pdo->prepare(

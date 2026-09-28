@@ -891,6 +891,15 @@ function normalize_email(string $email): string
     return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
 }
 
+function grade_from_percent(float $percent): string
+{
+    $percent = max(0.0, min(100.0, $percent));
+    if ($percent >= 90.0) return '5';
+    if ($percent >= 75.0) return '4';
+    if ($percent >= 50.0) return '3';
+    return '2';
+}
+
 function find_user_by_identity(PDO $pdo, string $identity): ?array
 {
     $identity = trim($identity);

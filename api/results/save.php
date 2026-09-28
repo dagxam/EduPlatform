@@ -13,7 +13,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
 $scoreRaw = $data['score'] ?? null;
-$gradeRaw = trim((string)($data['grade'] ?? ''));
 $comment = trim((string)($data['comment'] ?? ''));
 
 if ($attemptId < 1 || !is_numeric($scoreRaw)) {
@@ -37,9 +36,7 @@ if ($score < 0 || $score > $maxScore) {
 }
 
 $percent = $maxScore > 0 ? round(($score / $maxScore) * 100, 2) : 0.0;
-$grade = in_array($gradeRaw, ['2', '3', '4', '5'], true)
-    ? $gradeRaw
-    : grade_from_percent($percent);
+$grade = grade_from_percent($percent);
 
 $before = [
     'score' => $attempt['manual_score'],

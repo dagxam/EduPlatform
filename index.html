@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=61">
+  <link rel="stylesheet" href="styles.css?v=62">
   <link rel="stylesheet" href="pwa.css?v=44">
 </head>
 <body>
@@ -768,12 +768,7 @@
             <small id="resultScoreLimit">Максимум: —</small>
           </label>
           <label>Оценка
-            <select name="grade" id="resultEditGrade">
-              <option value="5">5</option>
-              <option value="4">4</option>
-              <option value="3">3</option>
-              <option value="2">2</option>
-            </select>
+            <input id="resultEditGrade" type="text" value="—" readonly aria-readonly="true">
             <small id="resultCalculatedPercent">Процент: —</small>
           </label>
         </div>
@@ -1217,7 +1212,7 @@
   </div>
 
   <script src="attempt-security.js?v=49"></script>
-  <script src="app.js?v=61"></script>
+  <script src="app.js?v=62"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>

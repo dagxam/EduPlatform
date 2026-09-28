@@ -5,6 +5,24 @@ require dirname(__DIR__, 2) . '/api/bootstrap.php';
 require dirname(__DIR__, 2) . '/api/assignments/_import_parser.php';
 require dirname(__DIR__, 2) . '/api/attempts/_helpers.php';
 
+$gradeCases = [
+    [0.0, '2'],
+    [49.99, '2'],
+    [50.0, '3'],
+    [74.99, '3'],
+    [75.0, '4'],
+    [89.99, '4'],
+    [90.0, '5'],
+    [100.0, '5'],
+];
+foreach ($gradeCases as [$percent, $expectedGrade]) {
+    if (grade_from_percent((float)$percent) !== $expectedGrade) {
+        fwrite(STDERR, 'Grade scale mismatch at ' . $percent . '%: expected ' . $expectedGrade . PHP_EOL);
+        exit(1);
+    }
+}
+echo "Unified grade scale boundaries OK" . PHP_EOL;
+
 $pdo = new PDO('sqlite::memory:');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);

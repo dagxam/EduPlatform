@@ -258,7 +258,7 @@ $automaticGrade = grade_from_percent($automaticPercent);
 $published = $attempt['published_score'] !== null;
 $displayScore = (float)($published ? $attempt['published_score'] : $automaticScore);
 $displayPercent = (float)($published ? $attempt['published_percent'] : $automaticPercent);
-$displayGrade = (string)($published ? $attempt['published_grade'] : $automaticGrade);
+$displayGrade = grade_from_percent($displayPercent);
 $displayComment = (string)($published ? ($attempt['published_comment'] ?? '') : '');
 
 json_response([

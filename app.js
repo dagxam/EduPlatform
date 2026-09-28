@@ -2669,6 +2669,14 @@ function resultGradeClass(grade) {
   return ['2','3','4','5'].includes(value) ? 'grade-' + value : '';
 }
 
+function resultGradeFromPercent(percent) {
+  const value = Math.max(0, Math.min(100, Number(percent || 0)));
+  if (value >= 90) return '5';
+  if (value >= 75) return '4';
+  if (value >= 50) return '3';
+  return '2';
+}
+
 function resultPercentClass(percent) {
   const value = Math.max(0, Math.min(100, Math.round(Number(percent || 0))));
   if (value < 50) return 'result-percent-low';
@@ -3118,7 +3126,7 @@ function openResultEditor(attemptId) {
   const score = document.getElementById('resultEditScore');
   score.max = String(Number(auto.max_score || 0));
   score.value = String(Number(edit.score ?? auto.score ?? 0));
-  document.getElementById('resultEditGrade').value = String(edit.grade || auto.grade || '2');
+  document.getElementById('resultEditGrade').value = resultGradeFromPercent(Number(edit.percent ?? auto.percent ?? 0));
   document.getElementById('resultEditComment').value = String(
     item.has_unpublished_draft && draft ? (draft.comment || '') : (published.comment || '')
   );
@@ -3140,8 +3148,12 @@ function updateResultEditorPercent() {
   const max = Number(activeResultEdit.automatic?.max_score || 0);
   const score = Number(document.getElementById('resultEditScore')?.value || 0);
   const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+  const roundedPercent = Math.round(percent * 100) / 100;
+  const grade = resultGradeFromPercent(roundedPercent);
   const node = document.getElementById('resultCalculatedPercent');
-  if (node) node.textContent = 'Процент: ' + Math.round(percent * 100) / 100 + '%';
+  if (node) node.textContent = 'Процент: ' + roundedPercent + '%';
+  const gradeNode = document.getElementById('resultEditGrade');
+  if (gradeNode) gradeNode.value = grade;
 }
 
 async function saveResultDraft(showFeedback = true) {
@@ -3155,7 +3167,6 @@ async function saveResultDraft(showFeedback = true) {
   const payload = {
     attempt_id: Number(activeResultEdit.attempt_id),
     score: Number(document.getElementById('resultEditScore').value),
-    grade: String(document.getElementById('resultEditGrade').value || ''),
     comment: String(document.getElementById('resultEditComment').value || '').trim()
   };
 
@@ -3319,7 +3330,6 @@ document.getElementById('resultEditScore')?.addEventListener('input', updateResu
 document.getElementById('resultResetAutoBtn')?.addEventListener('click', () => {
   if (!activeResultEdit) return;
   document.getElementById('resultEditScore').value = String(Number(activeResultEdit.automatic?.score || 0));
-  document.getElementById('resultEditGrade').value = String(activeResultEdit.automatic?.grade || '2');
   document.getElementById('resultEditComment').value = '';
   updateResultEditorPercent();
 });

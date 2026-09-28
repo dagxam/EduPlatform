@@ -14,7 +14,6 @@ $plusSevenDaysSql = $isMysql
 $minusSevenDaysSql = $isMysql
     ? 'DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 DAY)'
     : "datetime(CURRENT_TIMESTAMP, '-7 days')";
-$numericGradeSql = "COALESCE(at.published_grade, at.grade) IN ('2', '3', '4', '5')";
 
 if ($manager) {
     $stmt = $pdo->prepare(
@@ -115,9 +114,10 @@ $attemptSql =
             SUM(CASE WHEN at.submitted_at >= {$minusSevenDaysSql} THEN 1 ELSE 0 END) AS last_7_days,
             AVG(COALESCE(at.published_percent, at.percent)) AS avg_percent,
             AVG(CASE
-              WHEN {$numericGradeSql}
-              THEN CAST(COALESCE(at.published_grade, at.grade) AS DECIMAL(10,2))
-              ELSE NULL
+              WHEN COALESCE(at.published_percent, at.percent) >= 90 THEN 5
+              WHEN COALESCE(at.published_percent, at.percent) >= 75 THEN 4
+              WHEN COALESCE(at.published_percent, at.percent) >= 50 THEN 3
+              ELSE 2
             END) AS avg_grade
      FROM attempts at
      JOIN assignments a ON a.id = at.assignment_id

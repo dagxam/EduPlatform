@@ -26,6 +26,7 @@ $stmt->execute(['student_id' => (int)$user['id']]);
 $items = [];
 foreach ($stmt->fetchAll() as $row) {
     $adjusted = $row['published_score'] !== null;
+    $displayPercent = (float)($adjusted ? $row['published_percent'] : ($row['percent'] ?? 0));
     $items[] = [
         'attempt_id' => (int)$row['attempt_id'],
         'assignment_id' => (int)$row['assignment_id'],
@@ -37,8 +38,8 @@ foreach ($stmt->fetchAll() as $row) {
         'variant_label' => (string)($row['variant_label'] ?? ''),
         'score' => (float)($adjusted ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
-        'percent' => (float)($adjusted ? $row['published_percent'] : ($row['percent'] ?? 0)),
-        'grade' => (string)($adjusted ? $row['published_grade'] : ($row['grade'] ?? '')),
+        'percent' => $displayPercent,
+        'grade' => grade_from_percent($displayPercent),
         'comment' => (string)($adjusted ? ($row['published_comment'] ?? '') : ''),
         'adjusted' => $adjusted,
         'revision' => (int)($row['result_revision'] ?? 0),

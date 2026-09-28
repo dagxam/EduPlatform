@@ -27,7 +27,7 @@ $revision = (int)($attempt['result_revision'] ?? 0) + 1;
 $score = (float)$attempt['manual_score'];
 $maxScore = (float)($attempt['max_score'] ?? 0);
 $percent = (float)($attempt['manual_percent'] ?? 0);
-$grade = (string)($attempt['manual_grade'] ?? '');
+$grade = grade_from_percent($percent);
 $comment = trim((string)($attempt['manual_comment'] ?? ''));
 
 $pdo->beginTransaction();
@@ -37,6 +37,7 @@ try {
          SET published_score = :score,
              published_percent = :percent,
              published_grade = :grade,
+             manual_grade = :grade,
              published_comment = :comment,
              result_published_at = CURRENT_TIMESTAMP,
              result_published_by = :user_id,

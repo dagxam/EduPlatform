@@ -49,12 +49,13 @@ function result_has_unpublished_draft(array $row): bool
 function result_display_payload(array $row): array
 {
     $published = $row['published_score'] !== null;
+    $percent = (float)($published ? $row['published_percent'] : ($row['percent'] ?? 0));
 
     return [
         'score' => (float)($published ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
-        'percent' => (float)($published ? $row['published_percent'] : ($row['percent'] ?? 0)),
-        'grade' => (string)($published ? $row['published_grade'] : ($row['grade'] ?? '')),
+        'percent' => $percent,
+        'grade' => grade_from_percent($percent),
         'comment' => (string)($published ? ($row['published_comment'] ?? '') : ''),
         'published_override' => $published,
         'revision' => (int)($row['result_revision'] ?? 0),
