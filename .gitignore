@@ -16,3 +16,9 @@ storage/backups/
 storage/assignment-imports/
 storage/question-assets/
 storage/avatars/
+
+storage/db-config.php
+storage/db-config.php.tmp
+storage/maintenance.flag
+storage/.mysql-migration.lock
+storage/mysql-migration.json
