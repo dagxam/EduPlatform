@@ -2822,12 +2822,15 @@ function renderJournal() {
     const grades = visibleCells.filter(Boolean).map(cell => Number(cell.grade || 0));
     const rowAvgPercent = percents.length ? percents.reduce((sum,v) => sum + v, 0) / percents.length : null;
     const rowAvgGrade = grades.length ? grades.reduce((sum,v) => sum + v, 0) / grades.length : null;
+    const browserClosedCount = visibleCells.filter(cell => Boolean(cell?.closed_by_browser)).length;
+    const browserClosedMarker = browserClosedCount
+      ? '<span class="journal-browser-closed-marker" title="Закрытие или скрытие браузера: ' + browserClosedCount + '" aria-label="Закрытие браузера: ' + browserClosedCount + '"></span>'
+      : '<span class="journal-status-empty" title="Закрытий браузера нет">—</span>';
 
     const cells = visibleCells.map(cell => {
       if (!cell) return '<td class="journal-result-cell"><span class="journal-missing" title="Работа не сдана">—</span></td>';
       const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
-      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '')
-        + (cell.closed_by_browser ? '<em title="Тест завершён браузером">З/Б</em>' : '');
+      const flags = cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '';
       return `<td class="journal-result-cell">
         <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
           data-journal-review="${Number(cell.attempt_id)}"
@@ -2844,6 +2847,7 @@ function renderJournal() {
       ${cells}
       <td class="journal-average-cell"><span class="grade ${rowAvgGrade === null ? '' : resultGradeClass(Math.round(rowAvgGrade))}">${rowAvgGrade === null ? '—' : journalFormatNumber(rowAvgGrade)}</span></td>
       <td class="journal-average-percent">${rowAvgPercent === null ? '—' : Math.round(rowAvgPercent) + '%'}</td>
+      <td class="journal-browser-column">${browserClosedMarker}</td>
     </tr>`;
   }).join('');
 
@@ -2854,6 +2858,7 @@ function renderJournal() {
         ${headerCells}
         <th class="journal-average-head">Ср. оценка</th>
         <th class="journal-average-head">Ср. %</th>
+        <th class="journal-browser-head" title="Закрытие или скрытие браузера во время теста">Выход</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -2923,7 +2928,7 @@ function exportJournalCsv() {
   const assignments = (journalDataCache.assignments || []).filter(item =>
     !assignmentFilter || Number(item.id) === assignmentFilter
   );
-  const header = ['Ученик', ...assignments.map(item => item.title), 'Средняя оценка', 'Средний %'];
+  const header = ['Ученик', ...assignments.map(item => item.title), 'Средняя оценка', 'Средний %', 'Закрытие браузера'];
   const lines = [header];
 
   (journalDataCache.students || []).forEach(student => {
@@ -2936,11 +2941,13 @@ function exportJournalCsv() {
     const avgPercent = valid.length
       ? valid.reduce((sum,cell) => sum + Number(cell.percent || 0),0) / valid.length
       : '';
+    const browserClosedCount = cells.filter(cell => Boolean(cell?.closed_by_browser)).length;
     lines.push([
       student.student_name || '',
       ...grades,
       avgGrade === '' ? '' : journalFormatNumber(avgGrade),
-      avgPercent === '' ? '' : Math.round(avgPercent) + '%'
+      avgPercent === '' ? '' : Math.round(avgPercent) + '%',
+      browserClosedCount ? String(browserClosedCount) : ''
     ]);
   });
 

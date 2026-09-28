@@ -7260,3 +7260,49 @@ input,select,textarea,button{
     padding:15px;
   }
 }
+
+
+/* Journal browser-close column v65 */
+.journal-browser-head,
+.journal-browser-column{
+  width:74px;
+  min-width:74px!important;
+  max-width:74px;
+  text-align:center!important;
+  background:#fbfcfd;
+}
+.journal-browser-head{
+  color:#7d8995;
+  white-space:nowrap;
+}
+.journal-browser-closed-marker{
+  width:30px;
+  height:30px;
+  display:inline-block;
+  border:1px solid #d73737;
+  border-radius:7px;
+  background:#e64646;
+  box-shadow:0 4px 10px rgba(196,46,46,.15);
+  vertical-align:middle;
+}
+.journal-status-empty{
+  display:inline-grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  color:#c5cdd5;
+  font-size:15px;
+  font-weight:800;
+}
+@media(max-width:640px){
+  .journal-browser-head,
+  .journal-browser-column{
+    width:64px;
+    min-width:64px!important;
+    max-width:64px;
+  }
+  .journal-browser-closed-marker{
+    width:28px;
+    height:28px;
+  }
+}
