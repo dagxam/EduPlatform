@@ -38,7 +38,7 @@ if ($encryptedRaw === false || $privateRaw === false) {
 $package = json_decode($encryptedRaw, true);
 $ciphertext = is_array($package) ? base64_decode((string)($package['ciphertext'] ?? ''), true) : false;
 if ($ciphertext === false || $ciphertext === '') {
-    json_response(['ok' => false, 'error' => 'Зашифрованный пакет повреждён.'], 422);
+    json_response(['ok' => false, 'error' => 'Зашифрованный пакет повреждён.']);
 }
 
 $privateKey = openssl_pkey_get_private($privateRaw);
@@ -54,12 +54,12 @@ $decrypted = openssl_private_decrypt(
     OPENSSL_PKCS1_OAEP_PADDING
 );
 if (!$decrypted) {
-    json_response(['ok' => false, 'error' => 'Не удалось расшифровать параметры MySQL.'], 422);
+    json_response(['ok' => false, 'error' => 'Не удалось расшифровать параметры MySQL.']);
 }
 
 $credentials = json_decode($plain, true);
 if (!is_array($credentials)) {
-    json_response(['ok' => false, 'error' => 'Параметры MySQL имеют неверный формат.'], 422);
+    json_response(['ok' => false, 'error' => 'Параметры MySQL имеют неверный формат.']);
 }
 
 $hosts = [];
@@ -78,7 +78,7 @@ $base = [
 ];
 
 if ($base['database'] === '' || $base['user'] === '' || $base['password'] === '') {
-    json_response(['ok' => false, 'error' => 'Зашифрованные параметры MySQL неполные.'], 422);
+    json_response(['ok' => false, 'error' => 'Зашифрованные параметры MySQL неполные.']);
 }
 
 $selected = null;
@@ -100,7 +100,7 @@ if ($selected === null) {
         'ok' => false,
         'error' => 'MySQL недоступен по указанным адресам.',
         'details' => $errors,
-    ], 422);
+    ]);
 }
 
 $flag = maintenance_flag_path();
