@@ -118,6 +118,31 @@ if (PHP_SAPI !== 'cli') {
     });
 }
 
+function maintenance_flag_path(): string
+{
+    return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'maintenance.flag';
+}
+
+function enforce_maintenance_mode(): void
+{
+    if (PHP_SAPI === 'cli' || !is_file(maintenance_flag_path())) {
+        return;
+    }
+
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if (str_ends_with($script, '/api/database/migrate.php')) {
+        return;
+    }
+
+    json_response([
+        'ok' => false,
+        'error' => 'UROVIA выполняет техническое обслуживание базы данных. Повторите запрос через несколько минут.',
+        'code' => 'MAINTENANCE_MODE',
+    ], 503);
+}
+
+enforce_maintenance_mode();
+
 function read_json_body(): array
 {
     $raw = file_get_contents('php://input');
