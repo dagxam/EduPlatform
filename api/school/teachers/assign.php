@@ -68,8 +68,9 @@ try {
          VALUES (:school_id, :teacher_id, :class_id, :subject_id)'
     );
     $insertSubject = $pdo->prepare(
-        'INSERT OR IGNORE INTO teacher_subjects (school_id, teacher_id, subject_id)
-         VALUES (:school_id, :teacher_id, :subject_id)'
+        db_insert_ignore_prefix($pdo)
+        . ' INTO teacher_subjects (school_id, teacher_id, subject_id)
+           VALUES (:school_id, :teacher_id, :subject_id)'
     );
 
     foreach ($normalized as [$subjectId, $classId]) {
