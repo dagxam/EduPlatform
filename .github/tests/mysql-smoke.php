@@ -140,6 +140,35 @@ $answer = (string)$pdo->query('SELECT answer_text FROM answers WHERE attempt_id 
 mysql_smoke_assert($count === 1, 'answer upsert created duplicate row');
 mysql_smoke_assert($answer === '[2]', 'answer upsert did not update row');
 
+$pdo->exec(
+    "UPDATE attempts
+     SET status = 'submitted',
+         submitted_at = CURRENT_TIMESTAMP,
+         percent = 100,
+         grade = '5'
+     WHERE id = 1"
+);
+
+$dashboardProbe = $pdo->query(
+    "SELECT
+       DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY) AS plus_week,
+       DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 DAY) AS minus_week,
+       AVG(CASE
+         WHEN COALESCE(published_grade, grade) REGEXP '^[0-9]+([.][0-9]+)?
+mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
+mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
+mysql_smoke_assert((int)($backup['size_bytes'] ?? 0) > 0, 'MySQL backup archive empty');
+
+echo "MySQL schema, upsert and backup OK\n";
+
+         THEN CAST(COALESCE(published_grade, grade) AS DECIMAL(10,2))
+         ELSE NULL
+       END) AS avg_grade
+     FROM attempts"
+)->fetch();
+mysql_smoke_assert(is_array($dashboardProbe), 'MySQL dashboard expressions failed');
+mysql_smoke_assert((float)($dashboardProbe['avg_grade'] ?? 0) === 5.0, 'dashboard grade expression mismatch');
+
 $backup = backup_create_archive($pdo, 'manual');
 mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
 mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
