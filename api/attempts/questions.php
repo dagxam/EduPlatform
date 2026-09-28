@@ -11,8 +11,12 @@ if ($attemptId < 1) {
 
 $pdo = app_db();
 $attempt = attempt_for_student($pdo, $attemptId, (int)$user['id']);
-if (!in_array((string)$attempt['status'], ['in_progress', 'submitted', 'needs_review'], true)) {
-    json_response(['ok' => false, 'error' => 'Попытка недоступна.'], 409);
+if ((string)$attempt['status'] !== 'in_progress') {
+    json_response([
+        'ok' => false,
+        'error' => 'После завершения попытки вопросы теста ученику больше недоступны.',
+        'code' => 'ATTEMPT_ALREADY_FINISHED',
+    ], 409);
 }
 
 $questionOrder = array_map('intval', decoded_json_array($attempt['question_order_json'] ?? null));
