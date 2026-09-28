@@ -26,24 +26,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare one-time MySQL migration key
-        if: ${{ hashFiles('.github/mysql-migration-request') != '' && hashFiles('database/mysql-credentials.enc') == '' }}
+      - name: Clean stale one-time MySQL key
         env:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/mysql-migration-private.pem
-          openssl pkey -in /tmp/mysql-migration-private.pem -pubout -out /tmp/mysql-migration-public.pem
-          curl --fail --silent --show-error --ftp-create-dirs             --user "$FTP_USERNAME:$FTP_PASSWORD"             -T /tmp/mysql-migration-private.pem             "ftp://188.127.241.85/storage/mysql-migration-private.pem"
-
-      - name: Publish one-time migration public key
-        if: ${{ hashFiles('.github/mysql-migration-request') != '' && hashFiles('database/mysql-credentials.enc') == '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: mysql-migration-public-key
-          path: /tmp/mysql-migration-public.pem
-          retention-days: 1
-          if-no-files-found: error
+          curl --silent --show-error --user "$FTP_USERNAME:$FTP_PASSWORD" \
+            --quote "DELE storage/mysql-migration-private.pem" \
+            "ftp://188.127.241.85/" >/dev/null 2>&1 || true
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -115,20 +105,3 @@ jobs:
             storage/mysql-migration.json
             storage/mysql-migration-private.pem
             storage/mysql-machine-migration.done
-
-      - name: Run one-time encrypted MySQL migration
-        if: ${{ hashFiles('database/mysql-credentials.enc') != '' }}
-        run: |
-          response="$(curl --fail-with-body --silent --show-error --max-time 300             -X POST "https://urovia.ru/api/database/migrate-machine.php")"
-          echo "$response" | php -r '
-            $raw = stream_get_contents(STDIN);
-            $data = json_decode($raw, true);
-            if (!is_array($data) || empty($data["ok"])) {
-              fwrite(STDERR, "MySQL migration failed: " . $raw . PHP_EOL);
-              exit(1);
-            }
-            $summary = $data["summary"] ?? [];
-            echo "MySQL migration OK";
-            if (isset($summary["total_rows"])) echo ": " . $summary["total_rows"] . " rows";
-            echo PHP_EOL;
-          '
