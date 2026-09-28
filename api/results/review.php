@@ -5,44 +5,15 @@ require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/_helpers.php';
 
-$user = require_user(['admin', 'teacher', 'student']);
+$user = require_user(['admin', 'teacher']);
 $attemptId = (int)($_GET['attempt_id'] ?? 0);
 if ($attemptId < 1) {
     json_response(['ok' => false, 'error' => 'Не указан результат для разбора.'], 422);
 }
 
 $pdo = app_db();
-$role = (string)($user['role'] ?? '');
-
-if ($role === 'student') {
-    $stmt = $pdo->prepare(
-        'SELECT at.*, a.school_id, a.teacher_id, a.title AS assignment_title, a.subject_id,
-                s.name AS subject_name,
-                u.first_name AS student_first_name, u.last_name AS student_last_name,
-                COALESCE(c.display_name, c.name) AS class_name
-         FROM attempts at
-         JOIN assignments a ON a.id = at.assignment_id
-         JOIN users u ON u.id = at.student_id
-         LEFT JOIN subjects s ON s.id = a.subject_id
-         LEFT JOIN class_students cs ON cs.student_id = at.student_id
-         LEFT JOIN classes c ON c.id = cs.class_id
-         WHERE at.id = :attempt_id
-           AND at.student_id = :student_id
-           AND at.status <> "in_progress"
-         LIMIT 1'
-    );
-    $stmt->execute([
-        'attempt_id' => $attemptId,
-        'student_id' => (int)$user['id'],
-    ]);
-    $attempt = $stmt->fetch();
-    if (!$attempt) {
-        json_response(['ok' => false, 'error' => 'Завершённая работа не найдена.'], 404);
-    }
-} else {
-    $schoolId = require_active_school($user, false);
-    $attempt = result_attempt_for_staff($pdo, $user, $schoolId, $attemptId);
-}
+$schoolId = require_active_school($user, false);
+$attempt = result_attempt_for_staff($pdo, $user, $schoolId, $attemptId);
 
 // Refresh automatic correctness using the current authoritative answer keys.
 regrade_attempt_answers($pdo, $attemptId);
