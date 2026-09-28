@@ -810,12 +810,12 @@ function throttle_failure(string $scope, string $identifier = '', int $maxFailur
 
     $stmt = $pdo->prepare(
         'INSERT INTO auth_throttle (key_hash, failures, window_started, locked_until, updated_at)
-         VALUES (:key, :failures, :window_started, :locked_until, :updated_at)
-         ON CONFLICT(key_hash) DO UPDATE SET
-           failures = excluded.failures,
-           window_started = excluded.window_started,
-           locked_until = excluded.locked_until,
-           updated_at = excluded.updated_at'
+         VALUES (:key, :failures, :window_started, :locked_until, :updated_at)'
+        . db_upsert_clause(
+            $pdo,
+            ['key_hash'],
+            ['failures', 'window_started', 'locked_until', 'updated_at']
+        )
     );
     $stmt->execute([
         'key' => $key,
