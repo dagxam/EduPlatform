@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=63">
+  <link rel="stylesheet" href="styles.css?v=64">
   <link rel="stylesheet" href="pwa.css?v=44">
 </head>
 <body>
@@ -718,6 +718,34 @@
           <article class="result-overview-card"><span>Средняя оценка</span><strong id="resultsOverviewGrade">—</strong><small>по шкале 2–5</small></article>
           <article class="result-overview-card"><span>Требуют внимания</span><strong id="resultsOverviewAttention">—</strong><small>проверка или черновик</small></article>
         </div>
+
+        <div class="results-leaderboard-grid" id="resultsLeaderboardGrid">
+          <article class="panel result-leader-card">
+            <div class="result-leader-head">
+              <div><span class="section-kicker">Лидер</span><h3>Лучшие ученики</h3></div>
+              <span class="result-leader-icon">★</span>
+            </div>
+            <p>Средний результат минимум по 3 выполненным работам.</p>
+            <div class="result-leader-list" id="resultsStudentLeaders"><div class="history-empty">Загрузка рейтинга...</div></div>
+          </article>
+          <article class="panel result-leader-card">
+            <div class="result-leader-head">
+              <div><span class="section-kicker">Классы</span><h3>Класс-лидер</h3></div>
+              <span class="result-leader-icon">▦</span>
+            </div>
+            <p>80% среднего результата + 20% выполнения назначенных работ.</p>
+            <div class="result-leader-list" id="resultsClassLeaders"><div class="history-empty">Загрузка рейтинга...</div></div>
+          </article>
+          <article class="panel result-leader-card hidden" id="resultsSchoolLeaderCard">
+            <div class="result-leader-head">
+              <div><span class="section-kicker">Сеть UROVIA</span><h3>Школа-лидер</h3></div>
+              <span class="result-leader-icon">◎</span>
+            </div>
+            <p>Сравнение школ по результату и доле выполненных работ.</p>
+            <div class="result-leader-list" id="resultsSchoolLeaders"><div class="history-empty">Загрузка рейтинга...</div></div>
+          </article>
+        </div>
+
         <div class="panel results-panel">
           <div class="filters results-filters">
             <input class="search" id="resultsSearch" type="search" placeholder="Поиск ученика или задания">
@@ -1264,7 +1292,7 @@
   </div>
 
   <script src="attempt-security.js?v=49"></script>
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=64"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>

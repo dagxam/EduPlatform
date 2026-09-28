@@ -3329,6 +3329,72 @@ async function readJsonResponse(response, fallbackMessage = 'Сервер вер
   }
 }
 
+function renderResultsLeaderList(targetId, items, type) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  if (!Array.isArray(items) || !items.length) {
+    const message = type === 'student'
+      ? 'Нужно минимум 3 работы на ученика.'
+      : 'Пока недостаточно выполненных работ для рейтинга.';
+    target.innerHTML = '<div class="history-empty"><b>Рейтинг ещё формируется</b><span>' + escapeHtml(message) + '</span></div>';
+    return;
+  }
+
+  target.innerHTML = items.slice(0,3).map((item,index) => {
+    const percent = Math.round(Number(item.average_percent || 0));
+    const grade = String(item.average_grade || resultGradeFromPercent(percent));
+    let meta = '';
+    if (type === 'student') {
+      meta = [item.class_name || '', Number(item.works_count || 0) + ' работ'].filter(Boolean).join(' · ');
+    } else {
+      meta = percent + '% средний · ' + Math.round(Number(item.completion_percent || 0)) + '% выполнено';
+    }
+    return `
+      <div class="result-leader-row ${index === 0 ? 'winner' : ''}">
+        <span class="result-leader-rank">${index + 1}</span>
+        <div class="result-leader-copy">
+          <b>${escapeHtml(item.name || '—')}</b>
+          <small>${escapeHtml(meta)}</small>
+        </div>
+        <div class="result-leader-score">
+          <strong>${percent}%</strong>
+          <span class="grade ${resultGradeClass(grade)}">${escapeHtml(grade)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadResultsAnalytics() {
+  const students = document.getElementById('resultsStudentLeaders');
+  const classes = document.getElementById('resultsClassLeaders');
+  const schools = document.getElementById('resultsSchoolLeaders');
+  const schoolCard = document.getElementById('resultsSchoolLeaderCard');
+
+  if (students) students.innerHTML = '<div class="history-empty">Загрузка рейтинга...</div>';
+  if (classes) classes.innerHTML = '<div class="history-empty">Загрузка рейтинга...</div>';
+
+  try {
+    const response = await fetch('./api/results/analytics.php', {
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить аналитику.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить аналитику.');
+
+    renderResultsLeaderList('resultsStudentLeaders', data.students || [], 'student');
+    renderResultsLeaderList('resultsClassLeaders', data.classes || [], 'class');
+
+    const showSchools = Boolean(data.school_ranking_available) && Array.isArray(data.schools) && data.schools.length > 0;
+    schoolCard?.classList.toggle('hidden', !showSchools);
+    if (showSchools) renderResultsLeaderList('resultsSchoolLeaders', data.schools || [], 'school');
+  } catch (error) {
+    if (students) students.innerHTML = '<div class="history-empty"><span>' + escapeHtml(error.message) + '</span></div>';
+    if (classes) classes.innerHTML = '<div class="history-empty"><span>' + escapeHtml(error.message) + '</span></div>';
+    schoolCard?.classList.add('hidden');
+    if (schools) schools.innerHTML = '';
+  }
+}
+
 async function loadResults() {
   const body = document.getElementById('resultsBody');
   if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных результатов...</td></tr>';
@@ -3357,6 +3423,7 @@ async function loadResults() {
     }
 
     renderResults();
+    loadResultsAnalytics().catch(() => {});
   } catch (error) {
     resultsCache = [];
     if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
