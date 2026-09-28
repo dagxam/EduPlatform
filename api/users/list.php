@@ -11,8 +11,8 @@ $stmt = app_db()->query(
     'SELECT id, first_name, last_name, email, role, class_name, is_active, created_at
      FROM users
      ORDER BY CASE role WHEN "admin" THEN 1 WHEN "teacher" THEN 2 ELSE 3 END,
-              last_name COLLATE NOCASE,
-              first_name COLLATE NOCASE'
+              last_name,
+              first_name'
 );
 
 json_response([
