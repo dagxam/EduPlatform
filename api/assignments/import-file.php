@@ -90,6 +90,24 @@ if (!move_uploaded_file($tmpPath, $destination)) {
     json_response(['ok' => false, 'error' => 'Не удалось сохранить файл задания.'], 500);
 }
 
+$head = @file_get_contents($destination, false, null, 0, 16);
+$head = is_string($head) ? $head : '';
+$signatureValid = match ($extension) {
+    'pdf' => str_starts_with($head, '%PDF-'),
+    'docx', 'pptx' => str_starts_with($head, "PK\x03\x04")
+        || str_starts_with($head, "PK\x05\x06")
+        || str_starts_with($head, "PK\x07\x08"),
+    'ppt' => str_starts_with($head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"),
+    default => false,
+};
+if (!$signatureValid) {
+    @unlink($destination);
+    json_response([
+        'ok' => false,
+        'error' => 'Содержимое файла не соответствует его формату. Проверьте файл и попробуйте снова.',
+    ], 422);
+}
+
 $mimeType = function_exists('mime_content_type')
     ? ((string)(mime_content_type($destination) ?: 'application/octet-stream'))
     : 'application/octet-stream';
