@@ -62,6 +62,37 @@ $stmt = app_db()->prepare(
 $stmt->execute($params);
 $assignments = $stmt->fetchAll();
 
+$classDetailsStmt = app_db()->prepare(
+    'SELECT ac.assignment_id, ac.class_id, ac.time_limit_minutes,
+            COALESCE(c.display_name, c.name) AS class_name
+     FROM assignment_classes ac
+     JOIN assignments a ON a.id = ac.assignment_id
+     JOIN classes c ON c.id = ac.class_id
+     WHERE a.school_id = :school_id
+     ORDER BY ac.assignment_id DESC, COALESCE(c.display_name, c.name), c.id'
+);
+$classDetailsStmt->execute(['school_id' => $schoolId]);
+
+$classDetailsByAssignment = [];
+foreach ($classDetailsStmt->fetchAll() as $classRow) {
+    $assignmentId = (int)$classRow['assignment_id'];
+    if (!isset($classDetailsByAssignment[$assignmentId])) {
+        $classDetailsByAssignment[$assignmentId] = [];
+    }
+    $classDetailsByAssignment[$assignmentId][] = [
+        'class_id' => (int)$classRow['class_id'],
+        'class_name' => (string)$classRow['class_name'],
+        'time_limit_minutes' => $classRow['time_limit_minutes'] !== null
+            ? (int)$classRow['time_limit_minutes']
+            : null,
+    ];
+}
+
+foreach ($assignments as &$assignment) {
+    $assignment['class_assignments'] = $classDetailsByAssignment[(int)$assignment['id']] ?? [];
+}
+unset($assignment);
+
 $settingsStmt = app_db()->prepare(
     'SELECT assignment_review_required
      FROM schools

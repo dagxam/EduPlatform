@@ -4500,6 +4500,36 @@ function assignmentTableWorkflowActions(item) {
   return '';
 }
 
+function assignmentClassTimeLabel(item, detail = {}) {
+  const classMinutes = Number(detail.time_limit_minutes || 0);
+  const defaultMinutes = Number(item.time_limit_minutes || 0);
+  const minutes = classMinutes > 0 ? classMinutes : defaultMinutes;
+  return minutes > 0 ? minutes + ' мин' : 'Без лимита';
+}
+
+function assignmentClassTimesHtml(item) {
+  const details = Array.isArray(item.class_assignments) ? item.class_assignments : [];
+  if (details.length) {
+    return '<div class="assignment-class-time-list">' + details.map(detail =>
+      '<span class="assignment-class-time-chip">'
+        + '<b>' + escapeHtml(detail.class_name || 'Класс') + '</b>'
+        + '<span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'
+        + escapeHtml(assignmentClassTimeLabel(item, detail)) + '</span>'
+        + '</span>'
+    ).join('') + '</div>';
+  }
+
+  if (item.class_names) {
+    const fallbackTime = assignmentClassTimeLabel(item);
+    return '<div class="assignment-class-time-list"><span class="assignment-class-time-chip"><b>'
+      + escapeHtml(item.class_names)
+      + '</b><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'
+      + escapeHtml(fallbackTime) + '</span></span></div>';
+  }
+
+  return '<span class="assignment-class-empty">Ещё не назначено</span>';
+}
+
 function renderAssignments() {
   const body = document.getElementById('assignmentsTableBody');
   if (!body) return;
@@ -4507,7 +4537,10 @@ function renderAssignments() {
   const statusFilter = document.getElementById('assignmentStatusFilter')?.value || '';
 
   const rows = assignmentsCache.filter(item => {
-    const haystack = [item.title, item.subject_name, item.class_names, item.source_school_name].join(' ').toLowerCase();
+    const classSearch = Array.isArray(item.class_assignments)
+      ? item.class_assignments.map(detail => detail.class_name).join(' ')
+      : item.class_names;
+    const haystack = [item.title, item.subject_name, classSearch, item.source_school_name].join(' ').toLowerCase();
     const workflowStatus = normalizedAssignmentWorkflowStatus(item);
     return (!query || haystack.includes(query)) && (!statusFilter || workflowStatus === statusFilter);
   });
@@ -4523,13 +4556,13 @@ function renderAssignments() {
       <tr class="assignment-table-row">
         <td class="assignment-table-main" data-label="Задание">
           <b>${escapeHtml(item.title)}</b>
-          <small>${escapeHtml(item.subject_name || 'Без предмета')}${item.time_limit_minutes ? ' · ' + Number(item.time_limit_minutes) + ' мин.' : ''}${source}</small>
+          <small>${escapeHtml(item.subject_name || 'Без предмета')}${source}</small>
           ${reviewNote}
         </td>
-        <td data-label="Назначено классам">${escapeHtml(item.class_names || 'Ещё не назначено')}</td>
-        <td data-label="Режим"><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
-        <td data-label="Сдано">${Number(item.attempts_count || 0)}</td>
-        <td data-label="Статус"><span class="status ${statusClass}">${statusText}</span></td>
+        <td class="assignment-classes-cell" data-label="Классы и время">${assignmentClassTimesHtml(item)}</td>
+        <td class="assignment-mode-cell" data-label="Режим"><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
+        <td class="assignment-submitted-cell" data-label="Сдано"><span class="assignment-submitted-count">${Number(item.attempts_count || 0)}</span></td>
+        <td class="assignment-status-cell" data-label="Статус"><span class="status ${statusClass}">${statusText}</span></td>
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
