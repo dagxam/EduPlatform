@@ -182,6 +182,8 @@ CREATE TABLE IF NOT EXISTS answers (
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_assignment ON attempts(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_attempts_assignment_student_status_id
+    ON attempts(assignment_id, student_id, status, id);
 
 CREATE TABLE IF NOT EXISTS attempt_result_revisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -345,6 +347,8 @@ CREATE INDEX IF NOT EXISTS idx_school_users_user ON school_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher ON teacher_subjects(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_teacher_classes_teacher ON teacher_classes(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_school ON audit_log(school_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity_event
+    ON audit_log(entity_type, entity_id, event_type, id);
 CREATE INDEX IF NOT EXISTS idx_attempt_security_attempt ON attempt_security_events(attempt_id);
 
 INSERT OR IGNORE INTO subjects (name) VALUES

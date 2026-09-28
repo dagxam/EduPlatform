@@ -39,6 +39,30 @@ security_assert(
     'login throttle must not be bypassable by rotating User-Agent'
 );
 
+security_assert(
+    str_contains($bootstrap, 'REQUEST_TOO_LARGE')
+        && str_contains($bootstrap, 'CONTENT_LENGTH')
+        && str_contains($bootstrap, '8388608'),
+    'JSON request bodies must remain size-limited'
+);
+security_assert(
+    str_contains($bootstrap, 'automatic_backup_allowed_for_request')
+        && str_contains($bootstrap, "'/api/teacher/'")
+        && str_contains($bootstrap, "'/api/assignments/'")
+        && !preg_match(
+            '/automatic_backup_allowed_for_request[\s\S]*?\/api\/attempts\//',
+            $bootstrap
+        ),
+    'automatic backups must only be allowed on staff-side request paths'
+);
+
+$attemptStart = security_read($root . '/api/attempts/start.php');
+security_assert(
+    str_contains($attemptStart, 'FOR UPDATE')
+        && str_contains($attemptStart, 'beginTransaction'),
+    'attempt start must serialize concurrent sessions for the same student'
+);
+
 $health = security_read($root . '/api/health.php');
 security_assert(
     !str_contains($health, 'PHP_VERSION'),

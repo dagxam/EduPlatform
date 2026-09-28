@@ -5964,18 +5964,48 @@ async function saveRealStudentAnswer(questionId, payload) {
   if (AttemptSecurity.isLocked()) {
     throw new Error('Попытка заблокирована системой контроля. Ответ не сохранён.');
   }
-  const response = await fetch('./api/attempts/answer.php', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      attempt_id: activeStudentAttempt.id,
-      question_id: questionId,
-      ...payload
-    })
+
+  const body = JSON.stringify({
+    attempt_id: activeStudentAttempt.id,
+    question_id: questionId,
+    ...payload
   });
-  const data = await response.json();
-  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить ответ.');
+  const delays = [0, 350, 900];
+
+  for (let saveTry = 0; saveTry < delays.length; saveTry++) {
+    if (delays[saveTry]) {
+      await new Promise(resolve => window.setTimeout(resolve, delays[saveTry]));
+    }
+
+    try {
+      const response = await fetch('./api/attempts/answer.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      });
+      const data = await readJsonResponse(
+        response,
+        'Сервер временно не ответил при сохранении.'
+      );
+
+      if (response.ok && data.ok !== false) {
+        return data;
+      }
+
+      if (response.status >= 500 && saveTry < delays.length - 1) {
+        continue;
+      }
+      throw new Error(data.error || 'Не удалось сохранить ответ.');
+    } catch (error) {
+      if (saveTry < delays.length - 1 && !AttemptSecurity.isLocked()) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Не удалось сохранить ответ после повторных попыток.');
 }
 
 function renderRealStudentQuestion(question, index, savedRaw) {
@@ -6227,7 +6257,7 @@ function wireRealStudentQuestionControls() {
         } catch (e) {
           setAnswerSaveState(questionId, e.message, true);
         }
-      }, 500);
+      }, 900);
     });
     input.addEventListener('blur', async () => {
       clearTimeout(timer);

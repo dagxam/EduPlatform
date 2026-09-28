@@ -1,6 +1,8 @@
 const AttemptSecurity = (() => {
   let state = null;
   let heartbeatTimer = null;
+  const HEARTBEAT_MIN_MS = 25000;
+  const HEARTBEAT_JITTER_MS = 10000;
   let hiddenHandled = false;
 
   async function sendEvent(eventType, keepalive = false) {
@@ -21,6 +23,16 @@ const AttemptSecurity = (() => {
     return data;
   }
 
+  function scheduleHeartbeat(delay = null) {
+    if (!state) return;
+    if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
+    const nextDelay = delay ?? (HEARTBEAT_MIN_MS + Math.floor(Math.random() * HEARTBEAT_JITTER_MS));
+    heartbeatTimer = window.setTimeout(async () => {
+      await heartbeat();
+      scheduleHeartbeat();
+    }, nextDelay);
+  }
+
   async function heartbeat() {
     if (!state || document.hidden) return;
     try {
@@ -30,7 +42,7 @@ const AttemptSecurity = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ attempt_id: state.attemptId })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (data?.active === false) {
         const callback = state.onTerminated;
         stop();
@@ -86,14 +98,14 @@ const AttemptSecurity = (() => {
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pagehide', handlePageHide);
-    heartbeatTimer = window.setInterval(heartbeat, 15000);
     heartbeat();
+    scheduleHeartbeat(25000 + Math.floor(Math.random() * 5000));
   }
 
   function stop() {
     document.removeEventListener('visibilitychange', handleVisibility);
     window.removeEventListener('pagehide', handlePageHide);
-    if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+    if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
     heartbeatTimer = null;
     state = null;
     hiddenHandled = false;

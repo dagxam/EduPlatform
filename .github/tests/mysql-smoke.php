@@ -42,6 +42,26 @@ $version = $pdo->query(
 )->fetchColumn();
 mysql_smoke_assert((string)$version === mysql_schema_version(), 'schema version mismatch');
 
+$attemptIndex = $pdo->prepare(
+    'SELECT COUNT(*)
+     FROM information_schema.statistics
+     WHERE table_schema = DATABASE()
+       AND table_name = "attempts"
+       AND index_name = "idx_attempts_assignment_student_status_id"'
+);
+$attemptIndex->execute();
+mysql_smoke_assert((int)$attemptIndex->fetchColumn() > 0, 'attempt concurrency index missing');
+
+$auditIndex = $pdo->prepare(
+    'SELECT COUNT(*)
+     FROM information_schema.statistics
+     WHERE table_schema = DATABASE()
+       AND table_name = "audit_log"
+       AND index_name = "idx_audit_log_entity_event"'
+);
+$auditIndex->execute();
+mysql_smoke_assert((int)$auditIndex->fetchColumn() > 0, 'audit grading index missing');
+
 $sqliteProbe = new PDO('sqlite::memory:', null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

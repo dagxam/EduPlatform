@@ -93,17 +93,24 @@ function valid_choice_answer_key(string $interaction, array $correctIds): bool
 
 function expected_choice_option_ids(PDO $pdo, int $questionId, string $interaction): array
 {
+    static $cache = [];
+    $cacheKey = $questionId . ':' . $interaction;
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
     $current = correct_option_ids($pdo, $questionId);
     sort($current, SORT_NUMERIC);
 
     // Manual constructor edits are authoritative.
     if (question_answer_key_edited($pdo, $questionId)) {
-        return $current;
+        return $cache[$cacheKey] = $current;
     }
 
     // Imported questions must be checked against the original ANSWER field,
     // even when the database already contains a valid-looking correct flag.
-    // This avoids stale/wrong is_correct flags producing 0 points.
+    // Cache the verified key for the rest of this request because submit.php
+    // grades the final snapshot and then recalculates the attempt again.
     try {
         $source = repair_missing_correct_options($pdo, $questionId);
     } catch (Throwable $e) {
@@ -111,10 +118,10 @@ function expected_choice_option_ids(PDO $pdo, int $questionId, string $interacti
     }
     if (valid_choice_answer_key($interaction, $source)) {
         sort($source, SORT_NUMERIC);
-        return $source;
+        return $cache[$cacheKey] = $source;
     }
 
-    return $current;
+    return $cache[$cacheKey] = $current;
 }
 
 function question_answer_key_edited(PDO $pdo, int $questionId): bool
@@ -814,8 +821,9 @@ function variant_permutation(array $values, string $seed, int $variantIndex): ar
 
 function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
 {
-    // UROVIA now uses one canonical test per assignment. Mixed question types
-    // are supported inside the same test; A/B/C/D variants are no longer used.
+    // One canonical test per assignment. Load question and option order with
+    // two queries instead of one option query per question; this matters when
+    // hundreds of students start the same work at nearly the same time.
     $stmt = $pdo->prepare(
         'SELECT id
          FROM questions
@@ -826,17 +834,21 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
     $questionOrder = array_map('intval', array_column($stmt->fetchAll(), 'id'));
 
     $optionOrder = [];
-    $optionStmt = $pdo->prepare(
-        'SELECT id
-         FROM question_options
-         WHERE question_id = :question_id
-         ORDER BY position, id'
-    );
-    foreach ($questionOrder as $questionId) {
-        $optionStmt->execute(['question_id' => $questionId]);
-        $optionIds = array_map('intval', array_column($optionStmt->fetchAll(), 'id'));
-        if ($optionIds) {
-            $optionOrder[(string)$questionId] = $optionIds;
+    if ($questionOrder) {
+        $stmt = $pdo->prepare(
+            'SELECT qo.question_id, qo.id
+             FROM question_options qo
+             JOIN questions q ON q.id = qo.question_id
+             WHERE q.assignment_id = :assignment_id
+             ORDER BY q.position, q.id, qo.position, qo.id'
+        );
+        $stmt->execute(['assignment_id' => $assignmentId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $questionId = (string)(int)$row['question_id'];
+            if (!isset($optionOrder[$questionId])) {
+                $optionOrder[$questionId] = [];
+            }
+            $optionOrder[$questionId][] = (int)$row['id'];
         }
     }
 
@@ -848,7 +860,6 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
         'structured_order_json' => json_encode([], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ];
 }
-
 function decoded_json_array(?string $json): array
 {
     if ($json === null || trim($json) === '') {

@@ -278,6 +278,7 @@ CREATE TABLE IF NOT EXISTS attempts (
   PRIMARY KEY (id),
   KEY idx_attempts_assignment (assignment_id),
   KEY idx_attempts_student (student_id),
+  KEY idx_attempts_assignment_student_status_id (assignment_id, student_id, status, id),
   KEY idx_attempts_student_status_submitted (student_id, status, submitted_at),
   KEY idx_attempts_assignment_status_submitted (assignment_id, status, submitted_at),
   CONSTRAINT fk_attempts_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
@@ -391,6 +392,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   PRIMARY KEY (id),
   KEY idx_audit_log_school (school_id, created_at),
   KEY idx_audit_log_user (user_id, created_at),
+  KEY idx_audit_log_entity_event (entity_type, entity_id, event_type, id),
   CONSTRAINT fk_audit_log_school FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE SET NULL,
   CONSTRAINT fk_audit_log_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

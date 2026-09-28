@@ -63,6 +63,9 @@ jobs:
       - name: Validate MySQL 8 compatibility
         run: php .github/tests/mysql-smoke.php
 
+      - name: Validate 300-student MySQL concurrency
+        run: php .github/tests/mysql-concurrency-smoke.php
+
       - name: Upload site over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:

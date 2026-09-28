@@ -146,11 +146,27 @@ function enforce_maintenance_mode(): void
 
 enforce_maintenance_mode();
 
-function read_json_body(): array
+function read_json_body(int $maxBytes = 8388608): array
 {
+    $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($contentLength > $maxBytes) {
+        json_response([
+            'ok' => false,
+            'error' => 'Запрос слишком большой.',
+            'code' => 'REQUEST_TOO_LARGE',
+        ], 413);
+    }
+
     $raw = file_get_contents('php://input');
     if ($raw === false || trim($raw) === '') {
         return [];
+    }
+    if (strlen($raw) > $maxBytes) {
+        json_response([
+            'ok' => false,
+            'error' => 'Запрос слишком большой.',
+            'code' => 'REQUEST_TOO_LARGE',
+        ], 413);
     }
 
     $data = json_decode($raw, true);
@@ -223,7 +239,91 @@ function db_upsert_clause(PDO $pdo, array $conflictColumns, array $updateColumns
 
 function mysql_schema_version(): string
 {
-    return '1';
+    return '2';
+}
+
+function mysql_index_exists(PDO $pdo, string $table, string $index): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = :table_name
+           AND index_name = :index_name
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'table_name' => $table,
+        'index_name' => $index,
+    ]);
+    return (bool)$stmt->fetchColumn();
+}
+
+function mysql_add_index_if_missing(PDO $pdo, string $table, string $index, string $columns): void
+{
+    $safe = static function (string $name): string {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new InvalidArgumentException('Некорректное имя индекса базы данных.');
+        }
+        return $name;
+    };
+
+    $table = $safe($table);
+    $index = $safe($index);
+    if (!preg_match('/^[a-zA-Z0-9_, ()]+$/', $columns)) {
+        throw new InvalidArgumentException('Некорректный список полей индекса.');
+    }
+
+    if (!mysql_index_exists($pdo, $table, $index)) {
+        $pdo->exec('ALTER TABLE ' . $table . ' ADD INDEX ' . $index . ' (' . $columns . ')');
+    }
+}
+
+function mysql_apply_runtime_migrations(PDO $pdo): void
+{
+    mysql_add_index_if_missing(
+        $pdo,
+        'attempts',
+        'idx_attempts_assignment_student_status_id',
+        'assignment_id, student_id, status, id'
+    );
+    mysql_add_index_if_missing(
+        $pdo,
+        'audit_log',
+        'idx_audit_log_entity_event',
+        'entity_type, entity_id, event_type, id'
+    );
+}
+
+function automatic_backup_allowed_for_request(): bool
+{
+    if (PHP_SAPI === 'cli') {
+        return false;
+    }
+
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    foreach ([
+        '/api/teacher/',
+        '/api/admin/',
+        '/api/school/',
+        '/api/assignments/',
+        '/api/results/',
+        '/api/classes/',
+        '/api/subjects/',
+        '/api/backups/',
+    ] as $prefix) {
+        if (str_contains($script, $prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function maybe_run_automatic_backup(PDO $pdo): void
+{
+    if (automatic_backup_allowed_for_request()) {
+        backup_maybe_run_daily($pdo);
+    }
 }
 
 function mysql_apply_schema(PDO $pdo): void
@@ -257,6 +357,8 @@ function mysql_apply_schema(PDO $pdo): void
         if ($statement === '') continue;
         $pdo->exec($statement);
     }
+
+    mysql_apply_runtime_migrations($pdo);
 
     $stmt = $pdo->prepare(
         "INSERT INTO urovia_meta (meta_key, meta_value, updated_at)
@@ -319,7 +421,7 @@ function app_db(): PDO
         }
 
         mysql_apply_schema($pdo);
-        backup_maybe_run_daily($pdo);
+        maybe_run_automatic_backup($pdo);
         return $pdo;
     }
 
@@ -362,7 +464,7 @@ function app_db(): PDO
 
     $pdo->exec($schema);
     apply_schema_migrations($pdo);
-    backup_maybe_run_daily($pdo);
+    maybe_run_automatic_backup($pdo);
     return $pdo;
 }
 
@@ -442,6 +544,10 @@ function apply_schema_migrations(PDO $pdo): void
         WHERE status = 'closed' AND workflow_status <> 'completed'");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignments_workflow_status
         ON assignments(school_id, workflow_status)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempts_assignment_student_status_id
+        ON attempts(assignment_id, student_id, status, id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_audit_log_entity_event
+        ON audit_log(entity_type, entity_id, event_type, id)");
     $pdo->exec("CREATE TABLE IF NOT EXISTS school_material_transfers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source_school_id INTEGER NOT NULL,
