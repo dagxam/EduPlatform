@@ -2829,13 +2829,34 @@ async function resetStudentResult(attemptId) {
   }
 }
 
+async function readJsonResponse(response, fallbackMessage = 'Сервер вернул некорректный ответ.') {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    throw new Error(
+      response.ok
+        ? 'Сервер вернул пустой ответ.'
+        : `${fallbackMessage} Код HTTP: ${response.status}.`
+    );
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(
+      response.ok
+        ? fallbackMessage
+        : `${fallbackMessage} Код HTTP: ${response.status}.`
+    );
+  }
+}
+
 async function loadResults() {
   const body = document.getElementById('resultsBody');
   if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных результатов...</td></tr>';
 
   try {
     const response = await fetch('./api/results/list.php', { credentials:'same-origin', cache:'no-store' });
-    const data = await response.json();
+    const data = await readJsonResponse(response, 'Не удалось загрузить результаты.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить результаты.');
 
     resultsCache = data.items || [];
@@ -3018,7 +3039,7 @@ async function loadStudentResults() {
 
   try {
     const response = await fetch('./api/student/results.php', { credentials:'same-origin', cache:'no-store' });
-    const data = await response.json();
+    const data = await readJsonResponse(response, 'Не удалось загрузить оценки.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить оценки.');
     const items = data.items || [];
 
@@ -3086,7 +3107,7 @@ async function loadStudentResults() {
     }
 
   } catch (error) {
-    if (body) body.innerHTML = '<tr><td colspan="8">' + escapeHtml(error.message) + '</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
     if (cards) cards.innerHTML = '<article class="student-result-card student-results-empty">' + escapeHtml(error.message) + '</article>';
     if (recent) recent.innerHTML = '<div class="dashboard-empty">' + escapeHtml(error.message) + '</div>';
   }
