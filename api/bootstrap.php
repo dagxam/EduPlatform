@@ -133,10 +133,110 @@ function read_json_body(): array
     return $data;
 }
 
+function database_config_path(): string
+{
+    return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'db-config.php';
+}
+
+function database_runtime_config(): ?array
+{
+    $path = database_config_path();
+    if (!is_file($path)) {
+        return null;
+    }
+
+    $config = require $path;
+    if (!is_array($config) || ($config['driver'] ?? '') !== 'mysql') {
+        return null;
+    }
+
+    return $config;
+}
+
+function db_driver(PDO $pdo): string
+{
+    return strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+}
+
+function db_is_mysql(PDO $pdo): bool
+{
+    return db_driver($pdo) === 'mysql';
+}
+
+function mysql_apply_schema(PDO $pdo): void
+{
+    static $applied = false;
+    if ($applied) return;
+
+    $schemaFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'schema.mysql.sql';
+    $schema = file_get_contents($schemaFile);
+    if ($schema === false) {
+        throw new RuntimeException('Не найден файл MySQL-схемы базы данных.');
+    }
+
+    $schema = preg_replace('/^\s*--.*$/m', '', $schema) ?? $schema;
+    $statements = preg_split('/;\s*(?:\r?\n|$)/', $schema) ?: [];
+    foreach ($statements as $statement) {
+        $statement = trim($statement);
+        if ($statement === '') continue;
+        $pdo->exec($statement);
+    }
+
+    $applied = true;
+}
+
 function app_db(): PDO
 {
     static $pdo = null;
     if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $storageDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage';
+    if (!is_dir($storageDir) && !mkdir($storageDir, 0775, true) && !is_dir($storageDir)) {
+        json_response(['ok' => false, 'error' => 'Не удалось создать папку storage.'], 500);
+    }
+
+    $runtime = database_runtime_config();
+    if ($runtime !== null) {
+        if (!extension_loaded('pdo_mysql')) {
+            json_response([
+                'ok' => false,
+                'error' => 'На сервере не включено расширение PDO_MySQL.',
+                'code' => 'MYSQL_UNAVAILABLE',
+            ], 500);
+        }
+
+        $host = trim((string)($runtime['host'] ?? ''));
+        $database = trim((string)($runtime['database'] ?? ''));
+        $user = (string)($runtime['user'] ?? '');
+        $password = (string)($runtime['password'] ?? '');
+        $port = max(1, (int)($runtime['port'] ?? 3306));
+
+        if ($host === '' || $database === '' || $user === '') {
+            json_response([
+                'ok' => false,
+                'error' => 'Конфигурация MySQL неполная.',
+                'code' => 'MYSQL_CONFIG_INVALID',
+            ], 500);
+        }
+
+        $dsn = 'mysql:host=' . $host . ';port=' . $port . ';dbname=' . $database . ';charset=utf8mb4';
+        $pdo = new PDO($dsn, $user, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 15,
+        ]);
+        $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+        try {
+            $pdo->exec("SET time_zone = '+00:00'");
+        } catch (Throwable $e) {
+            error_log('[UROVIA] Could not force MySQL UTC timezone: ' . $e->getMessage());
+        }
+
+        mysql_apply_schema($pdo);
+        backup_maybe_run_daily($pdo);
         return $pdo;
     }
 
@@ -146,11 +246,6 @@ function app_db(): PDO
             'error' => 'На сервере не включено расширение PDO_SQLite.',
             'code' => 'SQLITE_UNAVAILABLE',
         ], 500);
-    }
-
-    $storageDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage';
-    if (!is_dir($storageDir) && !mkdir($storageDir, 0775, true) && !is_dir($storageDir)) {
-        json_response(['ok' => false, 'error' => 'Не удалось создать папку storage.'], 500);
     }
 
     $databaseFile = $storageDir . DIRECTORY_SEPARATOR . 'eduplatform.sqlite';
@@ -173,8 +268,6 @@ function app_db(): PDO
         }
         $pdo->exec('PRAGMA synchronous = NORMAL');
     } catch (Throwable $e) {
-        // Keep the application usable on hosts/filesystems that do not
-        // support WAL; busy_timeout still provides lock waiting.
         error_log('[UROVIA] SQLite WAL setup skipped: ' . $e->getMessage());
     }
 
