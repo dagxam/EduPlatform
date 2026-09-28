@@ -1,0 +1,119 @@
+<?php
+declare(strict_types=1);
+
+require dirname(__DIR__, 2) . '/api/bootstrap.php';
+
+function mysql_smoke_assert(bool $condition, string $message): void
+{
+    if ($condition) return;
+    fwrite(STDERR, "MySQL smoke failed: {$message}\n");
+    exit(1);
+}
+
+$pdo = new PDO(
+    'mysql:host=127.0.0.1;port=3306;dbname=urovia_ci;charset=utf8mb4',
+    'root',
+    'urovia_ci_root',
+    [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]
+);
+
+mysql_apply_schema($pdo);
+
+$required = [
+    'users','schools','subjects','classes','assignments','questions',
+    'question_options','attempts','answers','audit_log','urovia_meta'
+];
+$tables = array_map(
+    static fn(array $row): string => (string)$row[0],
+    $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM)
+);
+foreach ($required as $table) {
+    mysql_smoke_assert(in_array($table, $tables, true), "missing table {$table}");
+}
+
+$version = $pdo->query(
+    "SELECT meta_value FROM urovia_meta WHERE meta_key = 'schema_version'"
+)->fetchColumn();
+mysql_smoke_assert((string)$version === mysql_schema_version(), 'schema version mismatch');
+
+$pdo->exec(
+    "INSERT INTO users
+     (id, first_name, last_name, email, password_hash, role, is_platform_admin, is_active)
+     VALUES
+     (1, 'Admin', 'UROVIA', 'admin@example.test', 'x', 'admin', 1, 1),
+     (2, 'Student', 'Test', 'student@example.test', 'x', 'student', 0, 1)"
+);
+$pdo->exec(
+    "INSERT INTO schools (id, name, slug, status, created_by)
+     VALUES (1, 'Test School', 'test-school', 'active', 1)"
+);
+$pdo->exec(
+    "INSERT INTO subjects (id, name) VALUES (1, 'Test Subject')"
+);
+$pdo->exec(
+    "INSERT INTO classes (id, name, display_name, school_id)
+     VALUES (1, 'class-1', '7A', 1)"
+);
+$pdo->exec(
+    "INSERT INTO assignments
+     (id, teacher_id, school_id, subject_id, title, status, workflow_status)
+     VALUES (1, 1, 1, 1, 'MySQL Test', 'published', 'assigned')"
+);
+$pdo->exec(
+    "INSERT INTO questions
+     (id, assignment_id, type, interaction_type, text, points, position)
+     VALUES (1, 1, 'single', 'single', '2 + 2?', 1, 1)"
+);
+$pdo->exec(
+    "INSERT INTO question_options (id, question_id, text, is_correct, position)
+     VALUES (1, 1, '4', 1, 1), (2, 1, '5', 0, 2)"
+);
+$pdo->exec(
+    "INSERT INTO attempts
+     (id, assignment_id, student_id, status, question_order_json)
+     VALUES (1, 1, 2, 'in_progress', '[1]')"
+);
+
+$sql =
+    'INSERT INTO answers
+     (attempt_id, question_id, answer_text, score, is_correct, needs_review, updated_at)
+     VALUES
+     (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)'
+    . db_upsert_clause(
+        $pdo,
+        ['attempt_id', 'question_id'],
+        ['answer_text', 'score', 'is_correct', 'needs_review', 'updated_at']
+    );
+$stmt = $pdo->prepare($sql);
+$stmt->execute([
+    'attempt_id' => 1,
+    'question_id' => 1,
+    'answer_text' => '[1]',
+    'score' => 1,
+    'is_correct' => 1,
+    'needs_review' => 0,
+]);
+$stmt->execute([
+    'attempt_id' => 1,
+    'question_id' => 1,
+    'answer_text' => '[2]',
+    'score' => 0,
+    'is_correct' => 0,
+    'needs_review' => 0,
+]);
+
+$count = (int)$pdo->query('SELECT COUNT(*) FROM answers WHERE attempt_id = 1')->fetchColumn();
+$answer = (string)$pdo->query('SELECT answer_text FROM answers WHERE attempt_id = 1')->fetchColumn();
+mysql_smoke_assert($count === 1, 'answer upsert created duplicate row');
+mysql_smoke_assert($answer === '[2]', 'answer upsert did not update row');
+
+$backup = backup_create_archive($pdo, 'manual');
+mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
+mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
+mysql_smoke_assert((int)($backup['size_bytes'] ?? 0) > 0, 'MySQL backup archive empty');
+
+echo "MySQL schema, upsert and backup OK\n";
