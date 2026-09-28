@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS schools (
   slug VARCHAR(191) NULL,
   city VARCHAR(191) NULL,
   theme_color VARCHAR(16) NOT NULL DEFAULT '#1d68f0',
+  favicon_data LONGTEXT NULL,
   assignment_review_required TINYINT NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL DEFAULT 'active',
   created_by BIGINT UNSIGNED NULL,
