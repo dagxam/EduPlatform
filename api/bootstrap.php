@@ -74,6 +74,50 @@ function json_response(array $data, int $status = 200): never
     exit;
 }
 
+if (PHP_SAPI !== 'cli') {
+    set_exception_handler(static function (Throwable $error): void {
+        error_log(
+            '[UROVIA] Unhandled exception: ' . get_class($error) . ': ' .
+            $error->getMessage() . ' in ' . $error->getFile() . ':' . $error->getLine()
+        );
+
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        http_response_code(500);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Внутренняя ошибка сервера. Повторите попытку.',
+            'code' => 'INTERNAL_SERVER_ERROR',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    });
+
+    register_shutdown_function(static function (): void {
+        $error = error_get_last();
+        if (!$error || !in_array((int)$error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+            return;
+        }
+
+        error_log(
+            '[UROVIA] Fatal error: ' . (string)($error['message'] ?? '') .
+            ' in ' . (string)($error['file'] ?? '') . ':' . (string)($error['line'] ?? '')
+        );
+
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        http_response_code(500);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Внутренняя ошибка сервера. Повторите попытку.',
+            'code' => 'FATAL_SERVER_ERROR',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    });
+}
+
 function read_json_body(): array
 {
     $raw = file_get_contents('php://input');
