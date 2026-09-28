@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__, 2) . '/api/bootstrap.php';
+require dirname(__DIR__, 2) . '/api/database/_migration.php';
 
 function mysql_smoke_assert(bool $condition, string $message): void
 {
@@ -39,6 +40,34 @@ $version = $pdo->query(
     "SELECT meta_value FROM urovia_meta WHERE meta_key = 'schema_version'"
 )->fetchColumn();
 mysql_smoke_assert((string)$version === mysql_schema_version(), 'schema version mismatch');
+
+$sqliteProbe = new PDO('sqlite::memory:', null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$sqliteProbe->exec(
+    "CREATE TABLE schools (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        favicon_data TEXT,
+        legacy_branding_note TEXT
+    )"
+);
+
+$addedLegacyColumns = mysql_migration_ensure_target_columns($sqliteProbe, $pdo, 'schools');
+$mysqlSchoolColumns = mysql_migration_target_columns($pdo, 'schools');
+mysql_smoke_assert(
+    in_array('favicon_data', $mysqlSchoolColumns, true),
+    'favicon_data is missing from MySQL schools schema'
+);
+mysql_smoke_assert(
+    in_array('legacy_branding_note', $mysqlSchoolColumns, true),
+    'legacy SQLite column was not added to MySQL'
+);
+mysql_smoke_assert(
+    in_array('legacy_branding_note', $addedLegacyColumns, true),
+    'legacy column reconciliation was not reported'
+);
 
 $pdo->exec(
     "INSERT INTO users
