@@ -8146,3 +8146,109 @@ input,select,textarea,button{
     gap:6px!important;
   }
 }
+
+
+/* Assignment actions single row v70 */
+#assignments .assignment-table-actions{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  flex-wrap:nowrap!important;
+  gap:5px!important;
+}
+#assignments .assignment-action-group{
+  width:auto!important;
+  display:flex!important;
+  flex:0 0 auto!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  flex-wrap:nowrap!important;
+  gap:5px!important;
+}
+#assignments .assignment-action-workflow{
+  width:auto!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+}
+#assignments .assignment-action-workflow:empty{
+  display:none!important;
+}
+#assignments .assignment-icon-btn{
+  flex-shrink:0!important;
+}
+
+@media(max-width:760px){
+  #assignments .assignment-table-actions{
+    width:100%!important;
+    min-width:0!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    flex-wrap:nowrap!important;
+    gap:4px!important;
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+    padding:9px 0 2px!important;
+    border-top:1px solid #edf1f4!important;
+    white-space:nowrap!important;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  #assignments .assignment-table-actions::-webkit-scrollbar{
+    display:none;
+  }
+  #assignments .assignment-table-actions::before{
+    display:none!important;
+  }
+  #assignments .assignment-action-group{
+    width:auto!important;
+    flex:0 0 auto!important;
+    gap:4px!important;
+  }
+  #assignments .assignment-action-tools,
+  #assignments .assignment-action-workflow{
+    width:auto!important;
+    flex:0 0 auto!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+  }
+  #assignments .assignment-table-actions .assignment-icon-btn{
+    width:36px!important;
+    min-width:36px!important;
+    max-width:36px!important;
+    height:36px!important;
+    min-height:36px!important;
+    flex:0 0 36px!important;
+    border-radius:10px!important;
+  }
+  #assignments .assignment-table-actions .assignment-icon-btn svg{
+    width:16px!important;
+    height:16px!important;
+  }
+}
+
+@media(max-width:430px){
+  #assignments .assignment-table-actions{
+    gap:3px!important;
+  }
+  #assignments .assignment-action-group{
+    gap:3px!important;
+  }
+  #assignments .assignment-table-actions .assignment-icon-btn{
+    width:34px!important;
+    min-width:34px!important;
+    max-width:34px!important;
+    height:34px!important;
+    min-height:34px!important;
+    flex-basis:34px!important;
+    border-radius:9px!important;
+  }
+  #assignments .assignment-table-actions .assignment-icon-btn svg{
+    width:15px!important;
+    height:15px!important;
+  }
+}
