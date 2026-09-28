@@ -13,7 +13,7 @@ if ($manager) {
         'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.academic_year
          FROM classes c
          WHERE c.school_id = :school_id
-         ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE'
+         ORDER BY COALESCE(c.display_name, c.name)'
     );
     $stmt->execute(['school_id' => $schoolId]);
 } else {
@@ -22,7 +22,7 @@ if ($manager) {
          FROM teacher_classes tc
          JOIN classes c ON c.id = tc.class_id
          WHERE tc.school_id = :school_id AND tc.teacher_id = :teacher_id
-         ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE'
+         ORDER BY COALESCE(c.display_name, c.name)'
     );
     $stmt->execute([
         'school_id' => $schoolId,
@@ -156,7 +156,7 @@ $classSql =
      LEFT JOIN assignments a ON a.id = at.assignment_id AND a.school_id = ?
      WHERE c.id IN ($placeholders)
      GROUP BY c.id
-     ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE
+     ORDER BY COALESCE(c.display_name, c.name)
      LIMIT 8";
 $stmt = $pdo->prepare($classSql);
 $stmt->execute(array_merge([$schoolId], $classIds));
