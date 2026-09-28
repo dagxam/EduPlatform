@@ -2533,6 +2533,15 @@ function resultGradeClass(grade) {
   return ['2','3','4','5'].includes(value) ? 'grade-' + value : '';
 }
 
+function resultClosedByBrowser(item) {
+  return Boolean(item?.closed_by_browser)
+    || ['page_hidden', 'page_closed', 'browser_closed'].includes(String(item?.termination_reason || ''));
+}
+
+function resultBrowserCloseBadge() {
+  return '<span class="result-close-badge" title="Попытка завершена из-за закрытия или скрытия браузера/вкладки">З/Б</span>';
+}
+
 function attemptReviewStatusMeta(status) {
   const map = {
     correct: { label:'Правильно', icon:'✓', className:'correct' },
@@ -2765,6 +2774,7 @@ function renderResults() {
   body.innerHTML = rows.length ? rows.map(item => {
     const display = item.display || {};
     const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Ученик';
+    const closedByBrowser = resultClosedByBrowser(item);
     let statusHtml = '<span class="status blue">Автоматически</span>';
     if (item.has_unpublished_draft) {
       statusHtml = '<span class="status amber">Есть черновик</span>';
@@ -2772,6 +2782,9 @@ function renderResults() {
       statusHtml = '<span class="status green">Опубликовано · v' + Number(display.revision || 1) + '</span>';
     } else if (item.status === 'needs_review') {
       statusHtml = '<span class="status amber">Нужна проверка</span>';
+    }
+    if (closedByBrowser) {
+      statusHtml = '<span class="result-status-stack">' + resultBrowserCloseBadge() + statusHtml + '</span>';
     }
 
     return `
@@ -2781,7 +2794,7 @@ function renderResults() {
         <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}</small></td>
         <td><b>${Number(display.score || 0).toLocaleString('ru-RU')} / ${Number(display.max_score || 0).toLocaleString('ru-RU')}</b></td>
         <td><b>${Math.round(Number(display.percent || 0))}%</b></td>
-        <td><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
+        <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span>${closedByBrowser ? resultBrowserCloseBadge() : ''}</span></td>
         <td>${statusHtml}</td>
         <td>
           <div class="result-row-actions">
@@ -3066,7 +3079,7 @@ async function loadStudentResults() {
           <td><b>${escapeHtml(item.assignment_title)}</b>${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
           <td>${Number(item.score || 0).toLocaleString('ru-RU')} / ${Number(item.max_score || 0).toLocaleString('ru-RU')}</td>
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
-          <td><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span></td>
+          <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span></td>
           <td>${item.comment ? '<span class="student-result-comment">' + escapeHtml(item.comment) + '</span>' : '—'}</td>
         </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
     }
@@ -3084,7 +3097,7 @@ async function loadStudentResults() {
                 <h3>${escapeHtml(item.assignment_title)}</h3>
                 <small>${escapeHtml(resultDateTime(item.submitted_at))}</small>
               </div>
-              <span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
+              <span class="student-result-grade-wrap"><span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
             </div>
             <div class="student-result-metrics">
               <div><span>Результат</span><strong>${percent}%</strong></div>
@@ -3093,6 +3106,7 @@ async function loadStudentResults() {
             </div>
             <div class="student-result-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
             ${item.comment ? `<div class="student-result-message"><b>Комментарий учителя</b><span>${escapeHtml(item.comment)}</span></div>` : ''}
+            ${resultClosedByBrowser(item) ? '<div class="student-result-browser-close"><b>З/Б</b><span>Тест завершён из-за закрытия или скрытия браузера/вкладки. Засчитаны ответы, сохранённые к этому моменту.</span></div>' : ''}
             ${item.adjusted ? '<div class="student-result-adjusted">Оценка была пересмотрена и опубликована учителем.</div>' : ''}
           </article>`;
       }).join('') : '<article class="student-result-card student-results-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></article>';
@@ -3102,7 +3116,7 @@ async function loadStudentResults() {
       recent.innerHTML = items.length ? items.slice(0, 4).map(item => `
         <div class="grade-row">
           <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)} · ${Math.round(Number(item.percent || 0))}%</span></div>
-          <span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>
+          <span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
     }
 
