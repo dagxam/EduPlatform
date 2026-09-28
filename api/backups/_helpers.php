@@ -83,6 +83,73 @@ function backup_write_metadata(string $archivePath, array $metadata): void
     }
 }
 
+function backup_safe_mysql_identifier(string $name): string
+{
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+        throw new RuntimeException('Некорректное имя объекта MySQL.');
+    }
+    return chr(96) . $name . chr(96);
+}
+
+function backup_mysql_dump(PDO $pdo, string $path): void
+{
+    $handle = fopen($path, 'wb');
+    if ($handle === false) {
+        throw new RuntimeException('Не удалось создать временный MySQL-дамп.');
+    }
+
+    try {
+        fwrite($handle, "-- UROVIA MySQL backup\n");
+        fwrite($handle, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n");
+
+        $rows = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM);
+        foreach ($rows as $tableRow) {
+            $table = (string)($tableRow[0] ?? '');
+            if ($table === '') continue;
+            $quotedTable = backup_safe_mysql_identifier($table);
+
+            $createRow = $pdo->query('SHOW CREATE TABLE ' . $quotedTable)->fetch(PDO::FETCH_NUM);
+            $createSql = (string)($createRow[1] ?? '');
+            if ($createSql === '') {
+                throw new RuntimeException('Не удалось получить структуру MySQL-таблицы ' . $table . '.');
+            }
+
+            fwrite($handle, 'DROP TABLE IF EXISTS ' . $quotedTable . ";\n");
+            fwrite($handle, $createSql . ";\n");
+
+            $data = $pdo->query('SELECT * FROM ' . $quotedTable);
+            while ($row = $data->fetch(PDO::FETCH_ASSOC)) {
+                $columns = array_keys($row);
+                $columnSql = implode(', ', array_map('backup_safe_mysql_identifier', $columns));
+                $values = [];
+                foreach ($row as $value) {
+                    if ($value === null) {
+                        $values[] = 'NULL';
+                    } elseif (is_int($value) || is_float($value)) {
+                        $values[] = (string)$value;
+                    } else {
+                        $values[] = $pdo->quote((string)$value);
+                    }
+                }
+                fwrite(
+                    $handle,
+                    'INSERT INTO ' . $quotedTable . ' (' . $columnSql . ') VALUES (' .
+                    implode(', ', $values) . ");\n"
+                );
+            }
+            fwrite($handle, "\n");
+        }
+
+        fwrite($handle, "SET FOREIGN_KEY_CHECKS=1;\n");
+    } finally {
+        fclose($handle);
+    }
+
+    if (!is_file($path) || filesize($path) === 0) {
+        throw new RuntimeException('MySQL-дамп не создан.');
+    }
+}
+
 function backup_create_archive(PDO $pdo, string $kind = 'manual'): array
 {
     $dir = backup_ensure_dir();
@@ -90,25 +157,33 @@ function backup_create_archive(PDO $pdo, string $kind = 'manual'): array
     $stamp = date('Ymd-His');
     $token = bin2hex(random_bytes(4));
     $base = 'uvoria-' . $kind . '-' . $stamp . '-' . $token;
-    $snapshot = $dir . DIRECTORY_SEPARATOR . '.' . $base . '.sqlite.tmp';
+    $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+    $isMysql = $driver === 'mysql';
+    $snapshot = $dir . DIRECTORY_SEPARATOR . '.' . $base . ($isMysql ? '.sql.tmp' : '.sqlite.tmp');
+    $archiveDatabasePath = $isMysql ? 'database/urovia-mysql.sql' : 'database/eduplatform.sqlite';
 
     if (is_file($snapshot)) {
         @unlink($snapshot);
     }
 
     try {
-        $pdo->exec("VACUUM INTO '" . backup_quote_sqlite_path($snapshot) . "'");
-        if (!is_file($snapshot) || filesize($snapshot) === 0) {
-            throw new RuntimeException('Не удалось создать снимок базы данных.');
+        if ($isMysql) {
+            backup_mysql_dump($pdo, $snapshot);
+        } else {
+            $pdo->exec("VACUUM INTO '" . backup_quote_sqlite_path($snapshot) . "'");
+            if (!is_file($snapshot) || filesize($snapshot) === 0) {
+                throw new RuntimeException('Не удалось создать снимок базы данных.');
+            }
         }
 
         $assets = backup_asset_files();
         $info = [
-            'product' => 'UVORIA',
-            'backup_version' => 1,
+            'product' => 'UROVIA',
+            'backup_version' => 2,
             'kind' => $kind,
             'created_at' => date(DATE_ATOM),
-            'database' => 'database/eduplatform.sqlite',
+            'database_driver' => $isMysql ? 'mysql' : 'sqlite',
+            'database' => $archiveDatabasePath,
             'included_storage' => array_values(array_map(
                 static fn(array $item): string => (string)$item['archive_path'],
                 $assets
@@ -133,7 +208,7 @@ function backup_create_archive(PDO $pdo, string $kind = 'manual'): array
                 throw new RuntimeException('Не удалось создать ZIP-архив.');
             }
 
-            if (!$zip->addFile($snapshot, 'database/eduplatform.sqlite')) {
+            if (!$zip->addFile($snapshot, $archiveDatabasePath)) {
                 $zip->close();
                 throw new RuntimeException('Не удалось добавить базу данных в архив.');
             }
@@ -155,7 +230,7 @@ function backup_create_archive(PDO $pdo, string $kind = 'manual'): array
             if (is_file($archivePath)) @unlink($archivePath);
 
             $phar = new PharData($tarPath);
-            $phar->addFile($snapshot, 'database/eduplatform.sqlite');
+            $phar->addFile($snapshot, $archiveDatabasePath);
             $phar->addFromString('backup-info.json', $infoJson);
             foreach ($assets as $asset) {
                 $phar->addFile((string)$asset['path'], (string)$asset['archive_path']);
@@ -180,6 +255,7 @@ function backup_create_archive(PDO $pdo, string $kind = 'manual'): array
             'file' => basename($archivePath),
             'kind' => $kind,
             'format' => $format,
+            'database_driver' => $isMysql ? 'mysql' : 'sqlite',
             'created_at' => date(DATE_ATOM),
             'size_bytes' => (int)filesize($archivePath),
             'sha256' => hash_file('sha256', $archivePath) ?: null,
