@@ -511,13 +511,12 @@ function save_attempt_answers_snapshot(PDO $pdo, int $attemptId, array $answersS
         'INSERT INTO answers
          (attempt_id, question_id, answer_text, score, is_correct, needs_review, updated_at)
          VALUES
-         (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)
-         ON CONFLICT(attempt_id, question_id) DO UPDATE SET
-           answer_text = excluded.answer_text,
-           score = excluded.score,
-           is_correct = excluded.is_correct,
-           needs_review = excluded.needs_review,
-           updated_at = CURRENT_TIMESTAMP'
+         (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)'
+        . db_upsert_clause(
+            $pdo,
+            ['attempt_id', 'question_id'],
+            ['answer_text', 'score', 'is_correct', 'needs_review', 'updated_at']
+        )
     );
 
     $pdo->beginTransaction();
@@ -561,13 +560,12 @@ function save_attempt_answer(PDO $pdo, int $attemptId, int $questionId, array $p
     $graded = grade_question_answer($pdo, $questionId, $payload);
     $stmt = $pdo->prepare(
         'INSERT INTO answers (attempt_id, question_id, answer_text, score, is_correct, needs_review, updated_at)
-         VALUES (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)
-         ON CONFLICT(attempt_id, question_id) DO UPDATE SET
-           answer_text = excluded.answer_text,
-           score = excluded.score,
-           is_correct = excluded.is_correct,
-           needs_review = excluded.needs_review,
-           updated_at = CURRENT_TIMESTAMP'
+         VALUES (:attempt_id, :question_id, :answer_text, :score, :is_correct, :needs_review, CURRENT_TIMESTAMP)'
+        . db_upsert_clause(
+            $pdo,
+            ['attempt_id', 'question_id'],
+            ['answer_text', 'score', 'is_correct', 'needs_review', 'updated_at']
+        )
     );
     $stmt->execute([
         'attempt_id' => $attemptId,
