@@ -2958,13 +2958,13 @@ function renderResults() {
         <td>${statusHtml}</td>
         <td>
           <div class="result-row-actions">
-            <button class="result-icon-btn" type="button" data-review-attempt="${Number(item.attempt_id)}" title="Разбор работы" aria-label="Разбор работы">
+            <button class="result-icon-btn" type="button" data-review-attempt="${Number(item.attempt_id)}" data-tooltip="Разбор работы" title="Разбор работы" aria-label="Разбор работы">
               ${resultActionIcon('review')}
             </button>
-            <button class="result-icon-btn" type="button" data-edit-result="${Number(item.attempt_id)}" title="Редактировать результат" aria-label="Редактировать результат">
+            <button class="result-icon-btn" type="button" data-edit-result="${Number(item.attempt_id)}" data-tooltip="Редактировать" title="Редактировать результат" aria-label="Редактировать результат">
               ${resultActionIcon('edit')}
             </button>
-            <button class="result-icon-btn" type="button" data-reset-result="${Number(item.attempt_id)}" title="Сбросить результат" aria-label="Сбросить результат">
+            <button class="result-icon-btn" type="button" data-reset-result="${Number(item.attempt_id)}" data-tooltip="Сбросить" title="Сбросить результат" aria-label="Сбросить результат">
               ${resultActionIcon('reset')}
             </button>
           </div>
