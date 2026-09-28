@@ -22,17 +22,14 @@ $pdo = app_db();
 $pdo->prepare('DELETE FROM password_reset_tokens WHERE expires_at < :now OR used_at IS NOT NULL')
     ->execute(['now' => time()]);
 
-$stmt = $pdo->prepare(
-    'SELECT id, first_name, last_name, email, login_name, role, is_active, is_platform_admin
-     FROM users
-     WHERE (email = :identity OR login_name = :identity)
-       AND role IN ("admin", "teacher")
-     LIMIT 1'
-);
-$stmt->execute(['identity' => $identity]);
-$user = $stmt->fetch();
+$user = find_user_by_identity($pdo, $identity);
 
-if ($user && (int)$user['is_active'] === 1 && filter_var((string)$user['email'], FILTER_VALIDATE_EMAIL)) {
+if (
+    $user
+    && in_array((string)$user['role'], ['admin', 'teacher'], true)
+    && (int)$user['is_active'] === 1
+    && filter_var((string)$user['email'], FILTER_VALIDATE_EMAIL)
+) {
     $token = bin2hex(random_bytes(32));
     $tokenHash = hash('sha256', $token);
     $now = time();

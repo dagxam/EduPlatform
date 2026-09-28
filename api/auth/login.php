@@ -17,14 +17,7 @@ if ($identity === '' || $password === '') {
 
 throttle_check('staff_login', $identity);
 
-$stmt = app_db()->prepare(
-    'SELECT id, password_hash, is_active
-     FROM users
-     WHERE email = :identity OR login_name = :identity
-     LIMIT 1'
-);
-$stmt->execute(['identity' => $identity]);
-$user = $stmt->fetch();
+$user = find_user_by_identity(app_db(), $identity);
 
 if (!$user || !(int)$user['is_active'] || !password_verify($password, (string)$user['password_hash'])) {
     throttle_failure('staff_login', $identity);

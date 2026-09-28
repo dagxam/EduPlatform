@@ -26,7 +26,8 @@ mysql_apply_schema($pdo);
 
 $required = [
     'users','schools','subjects','classes','assignments','questions',
-    'question_options','attempts','answers','audit_log','urovia_meta'
+    'question_options','attempts','answers','audit_log','auth_throttle',
+    'password_reset_tokens','urovia_meta'
 ];
 $tables = array_map(
     static fn(array $row): string => (string)$row[0],
@@ -71,10 +72,31 @@ mysql_smoke_assert(
 
 $pdo->exec(
     "INSERT INTO users
-     (id, first_name, last_name, email, password_hash, role, is_platform_admin, is_active)
+     (id, first_name, last_name, email, login_name, password_hash, role, is_platform_admin, is_active)
      VALUES
-     (1, 'Admin', 'UROVIA', 'admin@example.test', 'x', 'admin', 1, 1),
-     (2, 'Student', 'Test', 'student@example.test', 'x', 'student', 0, 1)"
+     (1, 'Admin', 'UROVIA', 'admin@example.test', 'admin-login', 'x', 'admin', 1, 1),
+     (2, 'Student', 'Test', 'student@example.test', NULL, 'x', 'student', 0, 1)"
+);
+
+$emailIdentityUser = find_user_by_identity($pdo, 'admin@example.test');
+$loginIdentityUser = find_user_by_identity($pdo, 'admin-login');
+mysql_smoke_assert((int)($emailIdentityUser['id'] ?? 0) === 1, 'staff identity lookup by email failed');
+mysql_smoke_assert((int)($loginIdentityUser['id'] ?? 0) === 1, 'staff identity lookup by login failed');
+
+$tokenHash = hash('sha256', 'mysql-smoke-reset-token');
+$tokenStmt = $pdo->prepare(
+    'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+     VALUES (:user_id, :token_hash, :expires_at, :created_at)'
+);
+$tokenStmt->execute([
+    'user_id' => 1,
+    'token_hash' => $tokenHash,
+    'expires_at' => time() + 1800,
+    'created_at' => time(),
+]);
+mysql_smoke_assert(
+    (int)$pdo->query('SELECT COUNT(*) FROM password_reset_tokens WHERE user_id = 1')->fetchColumn() === 1,
+    'password reset token storage failed'
 );
 $pdo->exec(
     "INSERT INTO schools (id, name, slug, status, created_by)
@@ -168,4 +190,4 @@ mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
 mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
 mysql_smoke_assert((int)($backup['size_bytes'] ?? 0) > 0, 'MySQL backup archive empty');
 
-echo "MySQL schema, upsert, dashboard and backup OK\n";
+echo "MySQL schema, auth identity lookup, password reset storage, upsert, dashboard and backup OK\n";

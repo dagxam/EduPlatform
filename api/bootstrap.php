@@ -891,6 +891,29 @@ function normalize_email(string $email): string
     return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
 }
 
+function find_user_by_identity(PDO $pdo, string $identity): ?array
+{
+    $identity = trim($identity);
+    if ($identity === '') {
+        return null;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, first_name, last_name, email, login_name, password_hash,
+                role, is_active, is_platform_admin
+         FROM users
+         WHERE email = :identity_email OR login_name = :identity_login
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'identity_email' => $identity,
+        'identity_login' => $identity,
+    ]);
+
+    $row = $stmt->fetch();
+    return is_array($row) ? $row : null;
+}
+
 function generate_staff_login(PDO $pdo): string
 {
     $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
