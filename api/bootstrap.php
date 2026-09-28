@@ -325,8 +325,6 @@ function apply_schema_migrations(PDO $pdo): void
         ON attempts(student_id, status, submitted_at)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempts_assignment_status_submitted
         ON attempts(assignment_id, status, submitted_at)");
-    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answers_attempt_updated
-        ON answers(attempt_id, updated_at)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignments_school_status_updated
         ON assignments(school_id, status, updated_at)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignment_classes_class
@@ -349,6 +347,8 @@ function apply_schema_migrations(PDO $pdo): void
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempt_result_revisions_attempt
         ON attempt_result_revisions(attempt_id, revision)");
     add_column_if_missing($pdo, 'answers', 'updated_at', 'TEXT');
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answers_attempt_updated
+        ON answers(attempt_id, updated_at)");
     add_column_if_missing($pdo, 'questions', 'interaction_type', 'TEXT');
     add_column_if_missing($pdo, 'questions', 'settings_json', 'TEXT');
     add_column_if_missing($pdo, 'assignment_imports', 'parsed_question_count', 'INTEGER NOT NULL DEFAULT 0');
