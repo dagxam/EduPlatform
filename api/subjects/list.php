@@ -12,7 +12,7 @@ if (($user['role'] ?? '') === 'teacher') {
          FROM teacher_subjects ts
          JOIN subjects s ON s.id = ts.subject_id
          WHERE ts.school_id = :school_id AND ts.teacher_id = :teacher_id
-         ORDER BY s.name COLLATE NOCASE'
+         ORDER BY s.name'
     );
     $stmt->execute([
         'school_id' => $schoolId,
@@ -27,7 +27,7 @@ if (($user['role'] ?? '') === 'teacher') {
          FROM school_subjects ss
          JOIN subjects s ON s.id = ss.subject_id
          WHERE ss.school_id = :school_id AND ss.is_active = 1
-         ORDER BY s.name COLLATE NOCASE'
+         ORDER BY s.name'
     );
     $stmt->execute(['school_id' => $schoolId]);
 }
