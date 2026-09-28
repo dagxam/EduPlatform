@@ -135,6 +135,74 @@ function mysql_migration_target_columns(PDO $mysql, string $table): array
     ));
 }
 
+function mysql_migration_source_column_info(PDO $sqlite, string $table): array
+{
+    $quoted = mysql_migration_safe_identifier($table);
+    $rows = $sqlite->query('PRAGMA table_info(' . $quoted . ')')->fetchAll();
+    $info = [];
+    foreach ($rows as $row) {
+        $name = (string)($row['name'] ?? '');
+        if ($name === '') continue;
+        $info[$name] = [
+            'type' => strtoupper(trim((string)($row['type'] ?? ''))),
+            'notnull' => (int)($row['notnull'] ?? 0) === 1,
+            'default' => $row['dflt_value'] ?? null,
+            'pk' => (int)($row['pk'] ?? 0) === 1,
+        ];
+    }
+    return $info;
+}
+
+function mysql_migration_mysql_type_from_sqlite(array $column): string
+{
+    $type = strtoupper((string)($column['type'] ?? ''));
+
+    if (str_contains($type, 'BLOB')) return 'LONGBLOB';
+    if (str_contains($type, 'INT')) return 'BIGINT';
+    if (
+        str_contains($type, 'REAL') ||
+        str_contains($type, 'FLOA') ||
+        str_contains($type, 'DOUB')
+    ) return 'DOUBLE';
+    if (
+        str_contains($type, 'NUM') ||
+        str_contains($type, 'DEC') ||
+        str_contains($type, 'BOOL')
+    ) return 'DECIMAL(30,10)';
+
+    // SQLite TEXT columns can contain long base64/data-URI branding values
+    // (for example legacy favicon_data), so do not constrain them to VARCHAR.
+    return 'LONGTEXT';
+}
+
+function mysql_migration_ensure_target_columns(PDO $sqlite, PDO $mysql, string $table): array
+{
+    $sourceInfo = mysql_migration_source_column_info($sqlite, $table);
+    $target = array_fill_keys(mysql_migration_target_columns($mysql, $table), true);
+    $added = [];
+
+    foreach ($sourceInfo as $column => $info) {
+        if (isset($target[$column])) continue;
+
+        if (!empty($info['pk'])) {
+            throw new RuntimeException(
+                'В MySQL-схеме отсутствует ключевое поле «' . $table . '.' . $column . '».'
+            );
+        }
+
+        $sql =
+            'ALTER TABLE ' . mysql_migration_safe_identifier($table) .
+            ' ADD COLUMN ' . mysql_migration_safe_identifier($column) . ' ' .
+            mysql_migration_mysql_type_from_sqlite($info) . ' NULL';
+
+        $mysql->exec($sql);
+        $target[$column] = true;
+        $added[] = $column;
+    }
+
+    return $added;
+}
+
 function mysql_migration_source_count(PDO $sqlite, string $table): int
 {
     return (int)$sqlite
@@ -291,14 +359,7 @@ function mysql_migration_run(array $config): array
             }
 
             $sourceColumns = mysql_migration_source_columns($sqlite, $table);
-            $targetColumns = array_fill_keys(mysql_migration_target_columns($mysql, $table), true);
-            foreach ($sourceColumns as $column) {
-                if (!isset($targetColumns[$column])) {
-                    throw new RuntimeException(
-                        'В MySQL-схеме отсутствует поле «' . $table . '.' . $column . '». Переключение отменено.'
-                    );
-                }
-            }
+            $addedColumns = mysql_migration_ensure_target_columns($sqlite, $mysql, $table);
 
             $sourceCount = mysql_migration_source_count($sqlite, $table);
             $targetCount = mysql_migration_target_count($mysql, $table);
@@ -312,6 +373,7 @@ function mysql_migration_run(array $config): array
             $tableSummary[$table] = [
                 'source' => $sourceCount,
                 'target' => 0,
+                'added_columns' => $addedColumns,
             ];
         }
 
