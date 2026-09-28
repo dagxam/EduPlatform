@@ -2647,6 +2647,9 @@ function renderAttemptReviewQuestion(question, index) {
 }
 
 async function openAttemptReview(attemptId) {
+  if (currentUser?.role === 'student') {
+    return;
+  }
   const id = Number(attemptId || 0);
   if (!id || !attemptReviewModal) return;
 
@@ -2856,7 +2859,7 @@ async function loadResults() {
     renderResults();
   } catch (error) {
     resultsCache = [];
-    if (body) body.innerHTML = '<tr><td colspan="8">' + escapeHtml(error.message) + '</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
     const summary = document.getElementById('resultsSummary');
     if (summary) summary.textContent = error.message;
   }
@@ -3009,7 +3012,7 @@ async function loadStudentResults() {
   const cards = document.getElementById('studentResultsCards');
   const recent = document.getElementById('studentRecentGrades');
 
-  if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных оценок...</td></tr>';
+  if (body) body.innerHTML = '<tr><td colspan="7">Загрузка реальных оценок...</td></tr>';
   if (cards) cards.innerHTML = '<article class="student-result-card loading-card">Загрузка результатов...</article>';
   if (recent) recent.innerHTML = '<div class="dashboard-empty">Загрузка оценок...</div>';
 
@@ -3044,8 +3047,7 @@ async function loadStudentResults() {
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
           <td><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span></td>
           <td>${item.comment ? '<span class="student-result-comment">' + escapeHtml(item.comment) + '</span>' : '—'}</td>
-          <td><button class="secondary-btn compact-btn student-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Посмотреть ответы</button></td>
-        </tr>`).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
+        </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
     }
 
     if (cards) {
@@ -3071,7 +3073,6 @@ async function loadStudentResults() {
             <div class="student-result-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
             ${item.comment ? `<div class="student-result-message"><b>Комментарий учителя</b><span>${escapeHtml(item.comment)}</span></div>` : ''}
             ${item.adjusted ? '<div class="student-result-adjusted">Оценка была пересмотрена и опубликована учителем.</div>' : ''}
-            <button class="secondary-btn student-result-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Посмотреть разбор ответов</button>
           </article>`;
       }).join('') : '<article class="student-result-card student-results-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></article>';
     }
@@ -3084,11 +3085,6 @@ async function loadStudentResults() {
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
     }
 
-    [body, cards].forEach(container => {
-      container?.querySelectorAll('[data-review-attempt]').forEach(button => {
-        button.addEventListener('click', () => openAttemptReview(Number(button.dataset.reviewAttempt)));
-      });
-    });
   } catch (error) {
     if (body) body.innerHTML = '<tr><td colspan="8">' + escapeHtml(error.message) + '</td></tr>';
     if (cards) cards.innerHTML = '<article class="student-result-card student-results-empty">' + escapeHtml(error.message) + '</article>';
@@ -5517,16 +5513,10 @@ function renderRealAttemptResult(result, note = '') {
         <span>Оценку и историю выполненных работ всегда можно посмотреть в разделе «Мои оценки».</span>
       </div>
       <div class="student-finish-actions">
-        ${Number(result?.attempt_id || 0) ? `<button class="secondary-btn finish-review-btn" id="finishReviewAnswersBtn" type="button">Разобрать ответы</button>` : ''}
         <button class="secondary-btn" id="finishOpenGradesBtn" type="button">Мои оценки</button>
         <button class="primary-btn" id="finishRealResultBtn" type="button">К заданиям</button>
       </div>
     </div>`;
-  document.getElementById('finishReviewAnswersBtn')?.addEventListener('click', () => {
-    const attemptId = Number(result?.attempt_id || 0);
-    closeModal(quizModal);
-    openAttemptReview(attemptId);
-  });
   document.getElementById('finishOpenGradesBtn')?.addEventListener('click', async () => {
     closeModal(quizModal);
     await Promise.all([loadStudentAssignments(), loadStudentResults()]);
