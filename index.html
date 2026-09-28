@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=62">
+  <link rel="stylesheet" href="styles.css?v=63">
   <link rel="stylesheet" href="pwa.css?v=44">
 </head>
 <body>
@@ -45,6 +45,7 @@
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
+        <button class="nav-item" data-view="journal"><span>▦</span> Журнал</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
         <button class="nav-item" data-view="staff-profile"><span>●</span> Профиль</button>
       </nav>
@@ -655,9 +656,60 @@
         </div>
       </section>
 
+      <section class="view" id="journal">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">Успеваемость класса</span>
+            <h2>Журнал</h2>
+            <p>Выберите класс и предмет. В журнале показываются только ученики выбранного класса и их последние оценки по работам.</p>
+          </div>
+          <button class="secondary-btn" id="exportJournalBtn" type="button">⇩ Экспорт</button>
+        </div>
+
+        <div class="results-overview-grid journal-overview-grid">
+          <article class="result-overview-card"><span>Учеников</span><strong id="journalStudentsCount">—</strong><small>в выбранном классе</small></article>
+          <article class="result-overview-card"><span>Работ</span><strong id="journalAssignmentsCount">—</strong><small>в текущем периоде</small></article>
+          <article class="result-overview-card"><span>Средний результат</span><strong id="journalAveragePercent">—</strong><small>по выполненным работам</small></article>
+          <article class="result-overview-card"><span>Выполнено</span><strong id="journalCompletion">—</strong><small>от всех назначенных работ</small></article>
+        </div>
+
+        <div class="panel journal-panel">
+          <div class="journal-filters">
+            <label>Класс
+              <select id="journalClassFilter"><option value="">Выберите класс</option></select>
+            </label>
+            <label>Предмет
+              <select id="journalSubjectFilter"><option value="">Выберите предмет</option></select>
+            </label>
+            <label>Работа
+              <select id="journalAssignmentFilter"><option value="">Все работы</option></select>
+            </label>
+            <label>Период
+              <select id="journalPeriodFilter">
+                <option value="30">30 дней</option>
+                <option value="90" selected>90 дней</option>
+                <option value="180">180 дней</option>
+                <option value="0">Все время</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="journal-summary" id="journalSummary">
+            Выберите класс и предмет для загрузки журнала.
+          </div>
+
+          <div class="journal-table-wrap" id="journalTableWrap">
+            <div class="history-empty">
+              <b>Журнал готов к работе</b>
+              <span>После выбора класса и предмета здесь появятся ученики и оценки.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="results">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Журнал</span><h2>Результаты</h2><p>Реальные результаты учеников. Спорную оценку можно скорректировать и отдельно опубликовать ученику.</p></div>
+          <div><span class="section-kicker">Аналитика</span><h2>Результаты</h2><p>Подробные результаты работ, проверки и корректировки. Сводную успеваемость по классу смотрите в разделе «Журнал».</p></div>
           <button class="secondary-btn" id="exportResultsBtn">⇩ Экспорт</button>
         </div>
         <div class="results-overview-grid">
@@ -1212,7 +1264,7 @@
   </div>
 
   <script src="attempt-security.js?v=49"></script>
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>

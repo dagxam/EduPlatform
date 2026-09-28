@@ -6809,3 +6809,315 @@ input,select,textarea,button{
   }
   #assignments .assignment-table-actions .assignment-library-status{width:auto!important}
 }
+
+
+/* Class journal v63 */
+.journal-panel{
+  overflow:hidden;
+}
+.journal-filters{
+  display:grid;
+  grid-template-columns:minmax(150px,.8fr) minmax(180px,1fr) minmax(220px,1.4fr) minmax(130px,.7fr);
+  gap:10px;
+  padding:18px 20px 16px;
+  border-bottom:1px solid #edf1f4;
+  background:#fff;
+}
+.journal-filters label{
+  display:grid;
+  gap:6px;
+  color:#7d8995;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.journal-filters select{
+  width:100%;
+  min-height:43px;
+  padding:0 36px 0 12px;
+  border:1px solid #dfe5eb;
+  border-radius:10px;
+  background:#fff;
+  color:#273749;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  text-transform:none;
+  letter-spacing:0;
+}
+.journal-summary{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  margin:0 20px;
+  padding:10px 0;
+  border-bottom:1px solid #edf1f4;
+  color:#708092;
+  font-size:11px;
+}
+.journal-summary b{
+  color:#24384e;
+  font-size:12px;
+}
+.journal-summary span{
+  white-space:nowrap;
+}
+.journal-table-wrap{
+  width:100%;
+  overflow:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-gutter:stable;
+  padding-bottom:2px;
+}
+.journal-table{
+  width:max-content;
+  min-width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  background:#fff;
+}
+.journal-table th,
+.journal-table td{
+  min-width:96px;
+  height:70px;
+  padding:9px 8px;
+  border-bottom:1px solid #edf1f4;
+  border-right:1px solid #f1f4f6;
+  text-align:center;
+  vertical-align:middle;
+}
+.journal-table thead th{
+  position:sticky;
+  top:0;
+  z-index:5;
+  height:64px;
+  background:#f8fafc;
+  color:#7d8995;
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.journal-student-head,
+.journal-student-cell{
+  position:sticky!important;
+  left:0;
+  z-index:6!important;
+  min-width:210px!important;
+  max-width:210px!important;
+  text-align:left!important;
+  box-shadow:5px 0 12px rgba(35,53,72,.035);
+}
+.journal-student-head{
+  z-index:8!important;
+  background:#f8fafc!important;
+}
+.journal-student-cell{
+  background:#fff;
+  padding-left:16px!important;
+}
+.journal-student-cell b{
+  display:block;
+  overflow:hidden;
+  color:#24384e;
+  font-size:12px;
+  line-height:1.35;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.journal-student-cell small{
+  display:block;
+  margin-top:4px;
+  color:#93a0ad;
+  font-size:9px;
+  font-weight:600;
+}
+.journal-assignment-head{
+  width:112px;
+  min-width:112px!important;
+  max-width:112px;
+}
+.journal-assignment-head span{
+  display:-webkit-box;
+  overflow:hidden;
+  color:#647487;
+  font-size:9px;
+  line-height:1.25;
+  text-transform:none;
+  letter-spacing:0;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+}
+.journal-assignment-head small{
+  display:block;
+  margin-top:5px;
+  color:#a0aab4;
+  font-size:8px;
+  font-weight:700;
+}
+.journal-result-cell{
+  width:112px;
+  min-width:112px!important;
+  padding:7px!important;
+}
+.journal-grade-cell{
+  position:relative;
+  width:58px;
+  min-height:52px;
+  display:inline-grid;
+  grid-template-rows:auto auto;
+  place-items:center;
+  gap:1px;
+  padding:6px 5px;
+  border:1px solid #dfe5eb;
+  border-radius:11px;
+  background:#f5f7f9;
+  color:#4c5d6e;
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+.journal-grade-cell:hover,
+.journal-grade-cell:focus-visible{
+  transform:translateY(-1px);
+  box-shadow:0 7px 18px rgba(36,56,78,.10);
+  outline:none;
+}
+.journal-grade-cell strong{
+  font-size:18px;
+  font-weight:900;
+  line-height:1;
+}
+.journal-grade-cell small{
+  font-size:9px;
+  font-weight:800;
+  opacity:.72;
+}
+.journal-grade-cell.grade-2{
+  border-color:#f1c7c3;
+  background:#fff0ef;
+  color:#ba342c;
+}
+.journal-grade-cell.grade-3{
+  border-color:#f3d49d;
+  background:#fff7e8;
+  color:#b86b08;
+}
+.journal-grade-cell.grade-4{
+  border-color:#cbdcff;
+  background:#edf4ff;
+  color:#225fc7;
+}
+.journal-grade-cell.grade-5{
+  border-color:#c6e9d2;
+  background:#ebf9f0;
+  color:#168148;
+}
+.journal-cell-flags{
+  position:absolute;
+  top:3px;
+  right:3px;
+  display:flex;
+  align-items:center;
+  gap:2px;
+}
+.journal-cell-flags i{
+  width:6px;
+  height:6px;
+  display:block;
+  border-radius:50%;
+  background:var(--brand);
+  font-size:0;
+}
+.journal-cell-flags em{
+  display:inline-flex;
+  min-height:13px;
+  align-items:center;
+  padding:1px 3px;
+  border-radius:4px;
+  background:#ece9ff;
+  color:#6758d5;
+  font-size:6px;
+  font-style:normal;
+  font-weight:900;
+}
+.journal-missing{
+  display:inline-grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border:1px dashed #dbe2e8;
+  border-radius:10px;
+  color:#b3bec8;
+  font-size:16px;
+  font-weight:700;
+}
+.journal-average-head,
+.journal-average-cell,
+.journal-average-percent{
+  min-width:88px!important;
+  background:#fbfcfd;
+}
+.journal-average-cell .grade{
+  min-width:40px;
+}
+.journal-average-percent{
+  color:#34485d;
+  font-size:12px;
+  font-weight:850;
+}
+.journal-table tbody tr:hover td:not(.journal-student-cell){
+  background:#fbfcfe;
+}
+.journal-table tbody tr:hover .journal-student-cell{
+  background:#fbfcfe;
+}
+.journal-overview-grid{
+  margin-bottom:16px;
+}
+
+@media(max-width:980px){
+  .journal-filters{
+    grid-template-columns:1fr 1fr;
+  }
+  .journal-student-head,
+  .journal-student-cell{
+    min-width:175px!important;
+    max-width:175px!important;
+  }
+}
+@media(max-width:640px){
+  .journal-overview-grid{
+    grid-template-columns:1fr 1fr!important;
+  }
+  .journal-filters{
+    grid-template-columns:1fr;
+    padding:14px;
+  }
+  .journal-summary{
+    margin:0 14px;
+  }
+  .journal-student-head,
+  .journal-student-cell{
+    min-width:150px!important;
+    max-width:150px!important;
+  }
+  .journal-student-cell{
+    padding-left:11px!important;
+  }
+  .journal-table th,
+  .journal-table td{
+    height:64px;
+  }
+  .journal-assignment-head,
+  .journal-result-cell{
+    width:96px;
+    min-width:96px!important;
+  }
+  .journal-grade-cell{
+    width:52px;
+    min-height:48px;
+  }
+}

@@ -142,7 +142,8 @@ const titles = {
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
   classes: ['Ученики и группы', 'Классы'],
   'school-management': ['Администрирование', 'Управление школой'],
-  results: ['Журнал успеваемости', 'Результаты'],
+  journal: ['Успеваемость класса', 'Журнал'],
+  results: ['Аналитика успеваемости', 'Результаты'],
   'student-dashboard': ['Кабинет ученика', 'Мои занятия'],
   'student-tasks': ['Учёба', 'Мои задания'],
   'student-results': ['Успеваемость', 'Мои оценки']
@@ -2685,6 +2686,278 @@ function resultPercentClass(percent) {
   return 'result-percent-high';
 }
 
+function journalFormatNumber(value, digits = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return number.toLocaleString('ru-RU', {
+    minimumFractionDigits: Number.isInteger(number) ? 0 : digits,
+    maximumFractionDigits: digits
+  });
+}
+
+function journalShortDate(value) {
+  if (!value) return '';
+  const date = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
+}
+
+function journalAvailableClasses() {
+  const map = new Map();
+  teacherOptionsCache.forEach(item => {
+    const id = Number(item.class_id || 0);
+    if (id > 0 && !map.has(id)) map.set(id, { id, name:String(item.class_name || '') });
+  });
+  return [...map.values()].sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+function journalAvailableSubjects(classId) {
+  const map = new Map();
+  teacherOptionsCache
+    .filter(item => Number(item.class_id) === Number(classId))
+    .forEach(item => {
+      const id = Number(item.subject_id || 0);
+      if (id > 0 && !map.has(id)) map.set(id, { id, name:String(item.subject_name || '') });
+    });
+  return [...map.values()].sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+function populateJournalClassFilter() {
+  const select = document.getElementById('journalClassFilter');
+  if (!select) return;
+  const previous = Number(select.value || 0);
+  const classes = journalAvailableClasses();
+  select.innerHTML = classes.length
+    ? classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')
+    : '<option value="">Нет доступных классов</option>';
+  select.value = classes.some(item => item.id === previous)
+    ? String(previous)
+    : String(classes[0]?.id || '');
+}
+
+function populateJournalSubjectFilter() {
+  const classId = Number(document.getElementById('journalClassFilter')?.value || 0);
+  const select = document.getElementById('journalSubjectFilter');
+  if (!select) return;
+  const previous = Number(select.value || 0);
+  const subjects = journalAvailableSubjects(classId);
+  select.innerHTML = subjects.length
+    ? subjects.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')
+    : '<option value="">Нет доступных предметов</option>';
+  select.value = subjects.some(item => item.id === previous)
+    ? String(previous)
+    : String(subjects[0]?.id || '');
+}
+
+function renderJournal() {
+  const wrap = document.getElementById('journalTableWrap');
+  const summary = document.getElementById('journalSummary');
+  if (!wrap || !journalDataCache) return;
+
+  const assignmentFilter = Number(document.getElementById('journalAssignmentFilter')?.value || 0);
+  const assignments = (journalDataCache.assignments || []).filter(item =>
+    !assignmentFilter || Number(item.id) === assignmentFilter
+  );
+  const students = journalDataCache.students || [];
+
+  let completed = 0;
+  let expected = students.length * assignments.length;
+  let percentSum = 0;
+  let gradeSum = 0;
+
+  students.forEach(student => {
+    assignments.forEach(assignment => {
+      const cell = student.cells?.[String(assignment.id)] || null;
+      if (!cell) return;
+      completed++;
+      percentSum += Number(cell.percent || 0);
+      gradeSum += Number(cell.grade || 0);
+    });
+  });
+
+  const avgPercent = completed ? percentSum / completed : null;
+  const avgGrade = completed ? gradeSum / completed : null;
+  const completion = expected ? (completed / expected) * 100 : 0;
+
+  const studentsNode = document.getElementById('journalStudentsCount');
+  const assignmentsNode = document.getElementById('journalAssignmentsCount');
+  const averageNode = document.getElementById('journalAveragePercent');
+  const completionNode = document.getElementById('journalCompletion');
+  if (studentsNode) studentsNode.textContent = String(students.length);
+  if (assignmentsNode) assignmentsNode.textContent = String(assignments.length);
+  if (averageNode) averageNode.textContent = avgPercent === null ? '—' : Math.round(avgPercent) + '%';
+  if (completionNode) completionNode.textContent = Math.round(completion) + '%';
+
+  const className = journalDataCache.class?.name || 'Класс';
+  const subjectName = journalDataCache.subject?.name || 'Предмет';
+  const period = Number(journalDataCache.period || 0);
+  if (summary) {
+    summary.innerHTML = '<b>' + escapeHtml(className) + '</b> · ' + escapeHtml(subjectName)
+      + ' · <span>' + assignments.length + ' работ</span>'
+      + ' · <span>' + students.length + ' учеников</span>'
+      + (period ? ' · <span>за ' + period + ' дней</span>' : ' · <span>за всё время</span>')
+      + (avgGrade !== null ? ' · <span>средняя оценка ' + journalFormatNumber(avgGrade) + '</span>' : '');
+  }
+
+  if (!students.length) {
+    wrap.innerHTML = '<div class="history-empty"><b>В классе нет учеников</b><span>Добавьте учеников в класс, чтобы вести журнал.</span></div>';
+    return;
+  }
+  if (!assignments.length) {
+    wrap.innerHTML = '<div class="history-empty"><b>Нет работ за выбранный период</b><span>Измените период или назначьте классу задание по этому предмету.</span></div>';
+    return;
+  }
+
+  const headerCells = assignments.map(item => {
+    const date = journalShortDate(item.due_at || item.created_at);
+    return `<th class="journal-assignment-head" title="${escapeHtml(item.title)}">
+      <span>${escapeHtml(item.title)}</span>
+      <small>${escapeHtml(date)}</small>
+    </th>`;
+  }).join('');
+
+  const rows = students.map(student => {
+    const visibleCells = assignments.map(assignment => student.cells?.[String(assignment.id)] || null);
+    const percents = visibleCells.filter(Boolean).map(cell => Number(cell.percent || 0));
+    const grades = visibleCells.filter(Boolean).map(cell => Number(cell.grade || 0));
+    const rowAvgPercent = percents.length ? percents.reduce((sum,v) => sum + v, 0) / percents.length : null;
+    const rowAvgGrade = grades.length ? grades.reduce((sum,v) => sum + v, 0) / grades.length : null;
+
+    const cells = visibleCells.map(cell => {
+      if (!cell) return '<td class="journal-result-cell"><span class="journal-missing" title="Работа не сдана">—</span></td>';
+      const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
+      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '')
+        + (cell.closed_by_browser ? '<em title="Тест завершён браузером">З/Б</em>' : '');
+      return `<td class="journal-result-cell">
+        <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
+          data-journal-review="${Number(cell.attempt_id)}"
+          title="${escapeHtml(journalFormatNumber(cell.score,2))} / ${escapeHtml(journalFormatNumber(cell.max_score,2))} балл. · ${Math.round(Number(cell.percent || 0))}%">
+          <strong>${escapeHtml(grade)}</strong>
+          <small>${Math.round(Number(cell.percent || 0))}%</small>
+          <span class="journal-cell-flags">${flags}</span>
+        </button>
+      </td>`;
+    }).join('');
+
+    return `<tr>
+      <td class="journal-student-cell"><b>${escapeHtml(student.student_name || 'Ученик')}</b><small>${visibleCells.filter(Boolean).length} из ${assignments.length} работ</small></td>
+      ${cells}
+      <td class="journal-average-cell"><span class="grade ${rowAvgGrade === null ? '' : resultGradeClass(Math.round(rowAvgGrade))}">${rowAvgGrade === null ? '—' : journalFormatNumber(rowAvgGrade)}</span></td>
+      <td class="journal-average-percent">${rowAvgPercent === null ? '—' : Math.round(rowAvgPercent) + '%'}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table class="journal-table">
+      <thead><tr>
+        <th class="journal-student-head">Ученик</th>
+        ${headerCells}
+        <th class="journal-average-head">Ср. оценка</th>
+        <th class="journal-average-head">Ср. %</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  wrap.querySelectorAll('[data-journal-review]').forEach(button => {
+    button.addEventListener('click', () => openAttemptReview(Number(button.dataset.journalReview)));
+  });
+}
+
+async function loadJournal() {
+  const wrap = document.getElementById('journalTableWrap');
+  const summary = document.getElementById('journalSummary');
+  if (!wrap) return;
+
+  try {
+    if (!teacherOptionsCache.length) await loadTeacherOptions();
+    populateJournalClassFilter();
+    populateJournalSubjectFilter();
+
+    const classId = Number(document.getElementById('journalClassFilter')?.value || 0);
+    const subjectId = Number(document.getElementById('journalSubjectFilter')?.value || 0);
+    const period = Number(document.getElementById('journalPeriodFilter')?.value || 90);
+
+    if (!classId || !subjectId) {
+      journalDataCache = null;
+      if (summary) summary.textContent = 'Для журнала нужен назначенный вам класс и предмет.';
+      wrap.innerHTML = '<div class="history-empty"><b>Нет доступных назначений</b><span>Проверьте предметы и классы сотрудника.</span></div>';
+      return;
+    }
+
+    if (summary) summary.textContent = 'Загрузка журнала...';
+    wrap.innerHTML = '<div class="history-empty"><span>Загружаем оценки класса...</span></div>';
+
+    const params = new URLSearchParams({
+      class_id:String(classId),
+      subject_id:String(subjectId),
+      period:String(period)
+    });
+    const response = await fetch('./api/journal/list.php?' + params.toString(), {
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить журнал.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить журнал.');
+
+    journalDataCache = data;
+    const assignmentSelect = document.getElementById('journalAssignmentFilter');
+    if (assignmentSelect) {
+      const previous = Number(assignmentSelect.value || 0);
+      const assignments = data.assignments || [];
+      assignmentSelect.innerHTML = '<option value="">Все работы</option>' + assignments.map(item =>
+        `<option value="${Number(item.id)}">${escapeHtml(item.title)}</option>`
+      ).join('');
+      assignmentSelect.value = assignments.some(item => Number(item.id) === previous) ? String(previous) : '';
+    }
+    renderJournal();
+  } catch (error) {
+    journalDataCache = null;
+    if (summary) summary.textContent = error.message;
+    wrap.innerHTML = '<div class="history-empty"><b>Не удалось загрузить журнал</b><span>' + escapeHtml(error.message) + '</span></div>';
+  }
+}
+
+function exportJournalCsv() {
+  if (!journalDataCache) return;
+  const assignmentFilter = Number(document.getElementById('journalAssignmentFilter')?.value || 0);
+  const assignments = (journalDataCache.assignments || []).filter(item =>
+    !assignmentFilter || Number(item.id) === assignmentFilter
+  );
+  const header = ['Ученик', ...assignments.map(item => item.title), 'Средняя оценка', 'Средний %'];
+  const lines = [header];
+
+  (journalDataCache.students || []).forEach(student => {
+    const cells = assignments.map(assignment => student.cells?.[String(assignment.id)] || null);
+    const grades = cells.map(cell => cell ? String(cell.grade) : '');
+    const valid = cells.filter(Boolean);
+    const avgGrade = valid.length
+      ? valid.reduce((sum,cell) => sum + Number(cell.grade || 0),0) / valid.length
+      : '';
+    const avgPercent = valid.length
+      ? valid.reduce((sum,cell) => sum + Number(cell.percent || 0),0) / valid.length
+      : '';
+    lines.push([
+      student.student_name || '',
+      ...grades,
+      avgGrade === '' ? '' : journalFormatNumber(avgGrade),
+      avgPercent === '' ? '' : Math.round(avgPercent) + '%'
+    ]);
+  });
+
+  const csv = lines.map(row => row.map(value =>
+    '"' + String(value ?? '').replace(/"/g,'""') + '"'
+  ).join(';')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'urovia-journal.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function resultClosedByBrowser(item) {
   return Boolean(item?.closed_by_browser)
     || ['page_hidden', 'page_closed', 'browser_closed'].includes(String(item?.termination_reason || ''));
@@ -3326,6 +3599,24 @@ async function loadStudentResults() {
 document.getElementById('resultsSearch')?.addEventListener('input', renderResults);
 document.getElementById('resultsClassFilter')?.addEventListener('change', renderResults);
 document.getElementById('resultsAssignmentFilter')?.addEventListener('change', renderResults);
+document.getElementById('journalClassFilter')?.addEventListener('change', () => {
+  populateJournalSubjectFilter();
+  const assignmentSelect = document.getElementById('journalAssignmentFilter');
+  if (assignmentSelect) assignmentSelect.value = '';
+  loadJournal().catch(() => {});
+});
+document.getElementById('journalSubjectFilter')?.addEventListener('change', () => {
+  const assignmentSelect = document.getElementById('journalAssignmentFilter');
+  if (assignmentSelect) assignmentSelect.value = '';
+  loadJournal().catch(() => {});
+});
+document.getElementById('journalPeriodFilter')?.addEventListener('change', () => {
+  const assignmentSelect = document.getElementById('journalAssignmentFilter');
+  if (assignmentSelect) assignmentSelect.value = '';
+  loadJournal().catch(() => {});
+});
+document.getElementById('journalAssignmentFilter')?.addEventListener('change', renderJournal);
+document.getElementById('exportJournalBtn')?.addEventListener('click', exportJournalCsv);
 document.getElementById('resultEditScore')?.addEventListener('input', updateResultEditorPercent);
 document.getElementById('resultResetAutoBtn')?.addEventListener('click', () => {
   if (!activeResultEdit) return;
@@ -3366,6 +3657,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'classes') loadClasses();
   if (btn.dataset.view === 'subjects') loadSubjectsWorkspace();
   if (btn.dataset.view === 'assignments') loadAssignments();
+  if (btn.dataset.view === 'journal') loadJournal().catch(() => {});
   if (btn.dataset.view === 'results') loadResults().catch(() => {});
   if (btn.dataset.view === 'student-results') loadStudentResults().catch(() => {});
   if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
@@ -3469,6 +3761,7 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
 let subjectsCache = [];
 let assignmentsCache = [];
 let resultsCache = [];
+let journalDataCache = null;
 let activeResultEdit = null;
 let assignmentWorkflowContext = { review_required: false, can_manage: false };
 let teacherOptionsCache = [];
