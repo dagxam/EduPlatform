@@ -59,7 +59,7 @@ if ($user && (int)$user['is_active'] === 1 && filter_var((string)$user['email'],
             'created_at' => $now,
         ]);
 
-        $resetUrl = uvoria_app_url() . '/login.html?reset=' . rawurlencode($token);
+        $resetUrl = uvoria_app_url() . '/login.html#reset=' . rawurlencode($token);
         $subject = 'Восстановление доступа к UROVIA';
         $name = trim((string)$user['first_name']);
         $body = "Здравствуйте" . ($name !== '' ? ', ' . $name : '') . "!\n\n"
