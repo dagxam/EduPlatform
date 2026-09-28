@@ -45,7 +45,7 @@ $membershipsStmt = $pdo->prepare(
      FROM school_users su
      JOIN schools s ON s.id = su.school_id
      WHERE su.user_id = :user_id AND su.is_active = 1 AND s.status = "active"
-     ORDER BY s.name COLLATE NOCASE'
+     ORDER BY s.name'
 );
 $membershipsStmt->execute(['user_id' => $targetId]);
 $schools = $membershipsStmt->fetchAll();
@@ -58,7 +58,7 @@ if ($schoolId !== null) {
          FROM teacher_subjects ts
          JOIN subjects s ON s.id = ts.subject_id
          WHERE ts.school_id = :school_id AND ts.teacher_id = :teacher_id
-         ORDER BY s.name COLLATE NOCASE'
+         ORDER BY s.name'
     );
     $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $targetId]);
     $subjects = $stmt->fetchAll();
@@ -70,7 +70,7 @@ if ($schoolId !== null) {
          JOIN classes c ON c.id = tc.class_id
          JOIN subjects s ON s.id = tc.subject_id
          WHERE tc.school_id = :school_id AND tc.teacher_id = :teacher_id
-         ORDER BY name COLLATE NOCASE, s.name COLLATE NOCASE'
+         ORDER BY name, s.name'
     );
     $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $targetId]);
     $classes = $stmt->fetchAll();
