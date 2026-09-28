@@ -14,8 +14,8 @@ $plusSevenDaysSql = $isMysql
 $minusSevenDaysSql = $isMysql
     ? 'DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 DAY)'
     : "datetime(CURRENT_TIMESTAMP, '-7 days')";
-$numericGradeSql = $isMysql
-    ? "COALESCE(at.published_grade, at.grade) REGEXP '^[0-9]+([.][0-9]+)?
+$numericGradeSql = "COALESCE(at.published_grade, at.grade) IN ('2', '3', '4', '5')";
+
 if ($manager) {
     $stmt = $pdo->prepare(
         'SELECT c.id, COALESCE(c.display_name, c.name) AS name, c.academic_year
