@@ -24,7 +24,7 @@ if ((function_exists('mb_strlen') ? mb_strlen($name) : strlen($name)) > 100) {
 $pdo = app_db();
 $pdo->beginTransaction();
 try {
-    $stmt = $pdo->prepare('SELECT id FROM subjects WHERE name = :name COLLATE NOCASE LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id FROM subjects WHERE name = :name LIMIT 1');
     $stmt->execute(['name' => $name]);
     $subjectId = (int)($stmt->fetchColumn() ?: 0);
 
@@ -36,15 +36,16 @@ try {
 
     $stmt = $pdo->prepare(
         'INSERT INTO school_subjects (school_id, subject_id, is_active)
-         VALUES (:school_id, :subject_id, 1)
-         ON CONFLICT(school_id, subject_id) DO UPDATE SET is_active = 1'
+         VALUES (:school_id, :subject_id, 1)'
+        . db_upsert_clause($pdo, ['school_id', 'subject_id'], ['is_active'])
     );
     $stmt->execute(['school_id' => $schoolId, 'subject_id' => $subjectId]);
 
     if (can_teach_school($user, $schoolId)) {
         $stmt = $pdo->prepare(
-            'INSERT OR IGNORE INTO teacher_subjects (school_id, teacher_id, subject_id)
-             VALUES (:school_id, :teacher_id, :subject_id)'
+            db_insert_ignore_prefix($pdo)
+            . ' INTO teacher_subjects (school_id, teacher_id, subject_id)
+               VALUES (:school_id, :teacher_id, :subject_id)'
         );
         $stmt->execute([
             'school_id' => $schoolId,
