@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require dirname(__DIR__, 2) . '/api/bootstrap.php';
 require dirname(__DIR__, 2) . '/api/assignments/_import_parser.php';
 require dirname(__DIR__, 2) . '/api/attempts/_helpers.php';
 
