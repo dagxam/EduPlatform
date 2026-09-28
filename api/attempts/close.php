@@ -38,29 +38,13 @@ if ($expiredResult !== null) {
     json_response(['ok' => true, 'result' => $expiredResult, 'reason' => 'time_limit']);
 }
 
-// Before grading the final snapshot, repair legacy imported answer keys.
-$stmt = $pdo->prepare('SELECT school_id FROM assignments WHERE id = :assignment_id LIMIT 1');
-$stmt->execute(['assignment_id' => (int)$attempt['assignment_id']]);
-$assignmentSchoolId = $stmt->fetchColumn();
-repair_imported_answer_keys_and_scores(
-    $pdo,
-    (int)$user['id'],
-    $assignmentSchoolId !== false ? (int)$assignmentSchoolId : null
-);
-
 $answersSnapshot = is_array($data['answers'] ?? null) ? $data['answers'] : [];
-foreach ($answersSnapshot as $answer) {
-    if (!is_array($answer)) continue;
-    $questionId = (int)($answer['question_id'] ?? 0);
-    $payload = is_array($answer['payload'] ?? null) ? $answer['payload'] : [];
-    if ($questionId < 1) continue;
-    save_attempt_answer($pdo, $attemptId, $questionId, $payload);
-}
+$savedSnapshotAnswers = save_attempt_answers_snapshot($pdo, $attemptId, $answersSnapshot);
 
 $result = finalize_attempt($pdo, $attemptId, $finishReason);
 audit_event('attempt_submitted', 'attempt', $attemptId, [
     'reason' => $finishReason,
-    'submitted_answers' => count($answersSnapshot),
+    'submitted_answers' => $savedSnapshotAnswers,
 ], null, (int)$user['id']);
 
 json_response([
