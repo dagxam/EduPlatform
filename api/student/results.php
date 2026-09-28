@@ -9,7 +9,7 @@ $pdo = app_db();
 
 $stmt = $pdo->prepare(
     'SELECT at.id AS attempt_id, at.assignment_id, at.submitted_at, at.variant_label,
-            at.score, at.max_score, at.percent, at.grade,
+            at.termination_reason, at.score, at.max_score, at.percent, at.grade,
             at.published_score, at.published_percent, at.published_grade,
             at.published_comment, at.result_published_at, at.result_revision,
             a.title AS assignment_title,
@@ -32,6 +32,8 @@ foreach ($stmt->fetchAll() as $row) {
         'assignment_title' => (string)$row['assignment_title'],
         'subject_name' => (string)($row['subject_name'] ?? ''),
         'submitted_at' => $row['submitted_at'],
+        'termination_reason' => (string)($row['termination_reason'] ?? ''),
+        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
         'variant_label' => (string)($row['variant_label'] ?? ''),
         'score' => (float)($adjusted ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
