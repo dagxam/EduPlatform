@@ -24,7 +24,7 @@ if (($user['role'] ?? '') === 'teacher') {
          LEFT JOIN class_students cs ON cs.class_id = c.id
          WHERE tc.school_id = :school_id AND tc.teacher_id = :teacher_id
          GROUP BY c.id
-         ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE'
+         ORDER BY COALESCE(c.display_name, c.name)'
     );
     $stmt->execute([
         'school_id' => $schoolId,
@@ -50,7 +50,7 @@ if (($user['role'] ?? '') === 'teacher') {
          LEFT JOIN class_students cs ON cs.class_id = c.id
          WHERE c.school_id = :school_id
          GROUP BY c.id
-         ORDER BY COALESCE(c.display_name, c.name) COLLATE NOCASE'
+         ORDER BY COALESCE(c.display_name, c.name)'
     );
     $stmt->execute(['school_id' => $schoolId]);
 }
