@@ -6662,3 +6662,150 @@ input,select,textarea,button{
     grid-column:1/-1;
   }
 }
+
+
+/* Assignment action icon system v61 */
+.assignment-icon-btn{
+  position:relative;
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  display:inline-grid;
+  place-items:center;
+  padding:0;
+  border:1px solid color-mix(in srgb,var(--brand) 22%,#dfe5eb);
+  border-radius:11px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  cursor:pointer;
+  box-shadow:0 3px 10px rgba(31,45,61,.035);
+  transition:color .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease,opacity .16s ease;
+}
+.assignment-icon-btn svg{
+  width:19px;
+  height:19px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.85;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  pointer-events:none;
+}
+.assignment-icon-btn:hover:not(:disabled),
+.assignment-icon-btn:focus-visible:not(:disabled){
+  color:#fff;
+  background:var(--brand);
+  border-color:var(--brand);
+  box-shadow:0 8px 20px color-mix(in srgb,var(--brand) 24%,transparent);
+  transform:translateY(-1px);
+  outline:none;
+}
+.assignment-icon-btn:active:not(:disabled){transform:translateY(0) scale(.96)}
+.assignment-icon-btn:disabled{opacity:.42;cursor:not-allowed}
+.assignment-icon-btn.is-loading{opacity:.58}
+.assignment-icon-btn.is-loading svg{animation:assignmentIconPulse .7s ease-in-out infinite alternate}
+@keyframes assignmentIconPulse{
+  from{opacity:.38;transform:scale(.9)}
+  to{opacity:1;transform:scale(1)}
+}
+.assignment-icon-btn::after{
+  content:attr(data-tooltip);
+  position:absolute;
+  z-index:80;
+  right:0;
+  bottom:calc(100% + 8px);
+  width:max-content;
+  max-width:220px;
+  padding:6px 8px;
+  border-radius:8px;
+  background:#17243a;
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.2;
+  white-space:normal;
+  text-align:left;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(3px);
+  pointer-events:none;
+  transition:opacity .14s ease,transform .14s ease,visibility .14s ease;
+}
+.assignment-icon-btn:hover::after,
+.assignment-icon-btn:focus-visible::after{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
+.assignment-icon-primary{
+  border-color:color-mix(in srgb,var(--brand) 30%,#dfe5eb);
+  background:color-mix(in srgb,var(--brand-soft) 82%,#fff);
+}
+.assignment-icon-success{border-color:#bfe8cf;background:#eaf9f0;color:#168348}
+.assignment-icon-success:hover:not(:disabled),
+.assignment-icon-success:focus-visible:not(:disabled){
+  border-color:#168348;background:#168348;color:#fff;box-shadow:0 8px 20px rgba(22,131,72,.18)
+}
+.assignment-icon-warning{border-color:#f0d9ab;background:#fff8e8;color:#a36a06}
+.assignment-icon-warning:hover:not(:disabled),
+.assignment-icon-warning:focus-visible:not(:disabled){
+  border-color:#b97a0c;background:#b97a0c;color:#fff;box-shadow:0 8px 20px rgba(185,122,12,.18)
+}
+.assignment-icon-danger{border-color:#efcaca;background:#fff5f5;color:#c13d3d}
+.assignment-icon-danger:hover:not(:disabled),
+.assignment-icon-danger:focus-visible:not(:disabled){
+  border-color:#c13d3d;background:#c13d3d;color:#fff;box-shadow:0 8px 20px rgba(193,61,61,.18)
+}
+.assignment-action-group{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+}
+#assignments .assignment-table-actions{
+  min-width:250px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  justify-content:center;
+  gap:7px;
+}
+#assignments .assignment-action-workflow{
+  padding-top:7px;
+  border-top:1px solid #edf1f4;
+}
+#assignments .assignment-action-workflow:empty{display:none;padding:0;border:0}
+.assignment-library-status{
+  min-height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  #assignments .assignment-table-actions{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:8px!important;
+    min-width:0!important;
+  }
+  #assignments .assignment-action-group{
+    display:flex!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+    width:100%;
+  }
+  #assignments .assignment-table-actions .assignment-icon-btn{
+    grid-column:auto!important;
+    width:44px!important;
+    min-width:44px!important;
+    max-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    padding:0!important;
+    white-space:nowrap!important;
+  }
+  #assignments .assignment-table-actions .assignment-library-status{width:auto!important}
+}

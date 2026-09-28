@@ -4012,6 +4012,75 @@ function wireAssignmentWorkflowButtons(root) {
   });
 }
 
+
+function assignmentTableActionIcon(type) {
+  const icons = {
+    test: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.7l5.3 3.3-5.3 3.3z"/></svg>',
+    builder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v4h4M9 12h3M9 15h2"/><path d="M14.5 12.5l2 2-3.8 3.8-2.4.5.5-2.4z"/></svg>',
+    duplicate: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>',
+    library: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 017.5 3H19v16H7.5A2.5 2.5 0 015 16.5z"/><path d="M5 5.5v11M9 7h6M9 10.5h6"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 4h6l1 3H8zM7 7l.8 13h8.4L17 7M10 11v5.5M14 11v5.5"/></svg>',
+    assign: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19c.5-4 2.2-6 5-6s4.5 2 5 6M18 8v6M15 11h6"/></svg>',
+    complete: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M7.8 12.2l2.8 2.8 5.8-6"/></svg>',
+    prepare: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v4h4M9 14l2 2 4-4"/></svg>',
+    approve: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4.5 11.5 9 16"/><path d="M5 11.5h8.5a5 5 0 010 10H11"/></svg>',
+    reopen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5A8 8 0 1112 20a8 8 0 01-7.2-4.5"/><path d="M4.5 4.5v5h5"/></svg>'
+  };
+  return icons[type] || '';
+}
+
+function assignmentTableIconButton(type, label, attrs = '', tone = '') {
+  return '<button class="assignment-icon-btn' + (tone ? ' assignment-icon-' + tone : '') +
+    '" type="button" ' + attrs + ' data-tooltip="' + escapeHtml(label) +
+    '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
+    assignmentTableActionIcon(type) + '</button>';
+}
+
+function assignmentTableDeleteButton(item) {
+  const attempts = Number(item.all_attempts_count ?? item.attempts_count ?? 0);
+  if (attempts > 0) {
+    return assignmentTableIconButton('delete', 'Удаление недоступно: уже есть попытки учеников', 'disabled', 'danger');
+  }
+  return assignmentTableIconButton('delete', 'Удалить задание', 'data-delete-assignment="' + Number(item.id) + '"', 'danger');
+}
+
+function assignmentTableLibraryAction(item) {
+  const status = String(item.library_status || '');
+  if (!status || ['rejected', 'withdrawn'].includes(status)) {
+    return assignmentTableIconButton('library', 'Отправить в библиотеку UROVIA', 'data-library-submit="' + Number(item.id) + '"');
+  }
+  const [cls, label] = libraryStatusLabel(status);
+  return '<span class="status ' + cls + ' assignment-library-status" title="Библиотека UROVIA">' + escapeHtml(label) + '</span>';
+}
+
+function assignmentTableWorkflowActions(item) {
+  const status = normalizedAssignmentWorkflowStatus(item);
+  const reviewRequired = Boolean(assignmentWorkflowContext.review_required);
+  const manager = Boolean(assignmentWorkflowContext.can_manage);
+  const id = Number(item.id);
+  if (status === 'draft') {
+    const label = reviewRequired && !manager ? 'Отправить на проверку' : 'Готово к назначению';
+    return assignmentTableIconButton('prepare', label, 'data-workflow-action="prepare" data-assignment-id="' + id + '"', 'primary');
+  }
+  if (status === 'review') {
+    if (manager) {
+      return assignmentTableIconButton('approve', 'Одобрить', 'data-workflow-action="approve" data-assignment-id="' + id + '"', 'success') +
+        assignmentTableIconButton('back', 'На доработку', 'data-workflow-action="return" data-assignment-id="' + id + '"', 'warning');
+    }
+    return assignmentTableIconButton('back', 'Отозвать с проверки', 'data-workflow-action="withdraw" data-assignment-id="' + id + '"', 'warning');
+  }
+  if (status === 'ready') {
+    return assignmentTableIconButton('assign', 'Назначить классу', 'data-assign-class="' + id + '"', 'primary') +
+      assignmentTableIconButton('reopen', 'Вернуть в черновик', 'data-workflow-action="reopen" data-assignment-id="' + id + '"');
+  }
+  if (status === 'assigned') {
+    return assignmentTableIconButton('assign', 'Назначить ещё классу', 'data-assign-class="' + id + '"') +
+      assignmentTableIconButton('complete', 'Завершить задание', 'data-workflow-action="complete" data-assignment-id="' + id + '"', 'success');
+  }
+  return '';
+}
+
 function renderAssignments() {
   const body = document.getElementById('assignmentsTableBody');
   if (!body) return;
@@ -4043,12 +4112,16 @@ function renderAssignments() {
         <td data-label="Сдано">${Number(item.attempts_count || 0)}</td>
         <td data-label="Статус"><span class="status ${statusClass}">${statusText}</span></td>
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
-          <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
-          <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
-          <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
-          ${assignmentDeleteButton(item)}
-          ${libraryAssignmentAction(item)}
-          ${assignmentWorkflowActionButtons(item)}
+          <div class="assignment-action-group assignment-action-tools">
+            ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
+            ${assignmentTableIconButton('builder', 'Конструктор задания', 'data-preview-questions="' + Number(item.id) + '"')}
+            ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
+            ${assignmentTableLibraryAction(item)}
+            ${assignmentTableDeleteButton(item)}
+          </div>
+          <div class="assignment-action-group assignment-action-workflow">
+            ${assignmentTableWorkflowActions(item)}
+          </div>
         </td>
       </tr>`;
   }).join('') : '<tr><td colspan="6">Задания не найдены.</td></tr>';
@@ -4084,10 +4157,18 @@ async function deleteAssignment(assignmentId, button) {
     '\n\nЭто действие нельзя отменить.'
   ))) return;
 
+  const iconButton = Boolean(button?.classList.contains('assignment-icon-btn'));
   const oldText = button?.textContent || 'Удалить';
+  const oldTitle = button?.getAttribute('title') || 'Удалить задание';
   if (button) {
     button.disabled = true;
-    button.textContent = 'Удаляем...';
+    if (iconButton) {
+      button.classList.add('is-loading');
+      button.setAttribute('aria-busy', 'true');
+      button.setAttribute('title', 'Удаляем...');
+    } else {
+      button.textContent = 'Удаляем...';
+    }
   }
 
   try {
@@ -4108,7 +4189,13 @@ async function deleteAssignment(assignmentId, button) {
     alert(error.message);
     if (button) {
       button.disabled = false;
-      button.textContent = oldText;
+      if (iconButton) {
+        button.classList.remove('is-loading');
+        button.removeAttribute('aria-busy');
+        button.setAttribute('title', oldTitle);
+      } else {
+        button.textContent = oldText;
+      }
     }
   }
 }
