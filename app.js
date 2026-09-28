@@ -3226,29 +3226,7 @@ async function openAttemptReview(attemptId) {
 }
 
 function renderResults() {
-  const body = document.getElementById('resultsBody');
-  const summary = document.getElementById('resultsSummary');
-  if (!body) return;
-
-  const query = String(document.getElementById('resultsSearch')?.value || '').trim().toLowerCase();
-  const classId = Number(document.getElementById('resultsClassFilter')?.value || 0);
-  const assignmentId = Number(document.getElementById('resultsAssignmentFilter')?.value || 0);
-
-  const rows = resultsCache.filter(item => {
-    const name = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ').toLowerCase();
-    const haystack = [name, item.assignment_title, item.subject_name, item.class_name].join(' ').toLowerCase();
-    return (!query || haystack.includes(query))
-      && (!classId || Number(item.class_id) === classId)
-      && (!assignmentId || Number(item.assignment_id) === assignmentId);
-  });
-
-  if (summary) {
-    const adjusted = rows.filter(item => item.display?.published_override).length;
-    const drafts = rows.filter(item => item.has_unpublished_draft).length;
-    summary.innerHTML = '<b>' + rows.length + '</b> результатов'
-      + (adjusted ? ' · <span>' + adjusted + ' скорректировано и опубликовано</span>' : '')
-      + (drafts ? ' · <span class="results-draft-count">' + drafts + ' неопубликованных изменений</span>' : '');
-  }
+  const rows = resultsCache.slice();
 
   const percents = rows.map(item => Number(item.display?.percent)).filter(Number.isFinite);
   const grades = rows.map(item => Number(item.display?.grade)).filter(value => Number.isFinite(value) && value >= 2 && value <= 5);
@@ -3257,69 +3235,19 @@ function renderResults() {
   const overviewAverage = document.getElementById('resultsOverviewAverage');
   const overviewGrade = document.getElementById('resultsOverviewGrade');
   const overviewAttention = document.getElementById('resultsOverviewAttention');
+
   if (overviewCount) overviewCount.textContent = String(rows.length);
-  if (overviewAverage) overviewAverage.textContent = percents.length ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) + '%' : '—';
-  if (overviewGrade) overviewGrade.textContent = grades.length ? (grades.reduce((a,b) => a + b, 0) / grades.length).toLocaleString('ru-RU', { maximumFractionDigits:1 }) : '—';
+  if (overviewAverage) {
+    overviewAverage.textContent = percents.length
+      ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) + '%'
+      : '—';
+  }
+  if (overviewGrade) {
+    overviewGrade.textContent = grades.length
+      ? (grades.reduce((a,b) => a + b, 0) / grades.length).toLocaleString('ru-RU', { maximumFractionDigits:1 })
+      : '—';
+  }
   if (overviewAttention) overviewAttention.textContent = String(attention);
-
-  body.innerHTML = rows.length ? rows.map(item => {
-    const display = item.display || {};
-    const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Ученик';
-    const closedByBrowser = resultClosedByBrowser(item);
-    const percent = Math.max(0, Math.min(100, Math.round(Number(display.percent || 0))));
-    const correctCount = Math.max(0, Number(item.correct_count || 0));
-    const totalQuestions = Math.max(0, Number(item.total_questions || 0));
-    const attentionText = item.has_unpublished_draft
-      ? 'Есть неопубликованный черновик'
-      : (item.status === 'needs_review' ? 'Нужна ручная проверка' : '');
-    const autoHtml = '<span class="result-status-cell' + (attentionText ? ' has-attention' : '') + '"'
-      + (attentionText ? ' title="' + escapeHtml(attentionText) + '"' : '') + '>'
-      + resultStatusAutoBadge()
-      + (attentionText ? '<span class="result-attention-dot" aria-hidden="true"></span>' : '')
-      + '</span>';
-    const publishedHtml = display.published_override
-      ? resultStatusPublishedBadge(display.revision)
-      : '<span class="result-status-empty" title="Отдельно не опубликовано">—</span>';
-    const browserCloseHtml = closedByBrowser
-      ? resultBrowserCloseBadge()
-      : '<span class="result-status-empty" title="Попытка не завершалась закрытием браузера">—</span>';
-
-    return `
-      <tr>
-        <td><b>${escapeHtml(studentName)}</b><small class="results-cell-sub">${escapeHtml(resultDateTime(item.submitted_at))}</small></td>
-        <td>${escapeHtml(item.class_name || '—')}</td>
-        <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}</small></td>
-        <td class="result-metric-cell"><span class="result-correct-chip" title="Правильных ответов">${correctCount.toLocaleString('ru-RU')} / ${totalQuestions.toLocaleString('ru-RU')}</span></td>
-        <td class="result-metric-cell"><span class="result-percent-chip ${resultPercentClass(percent)}">${percent}%</span></td>
-        <td class="result-metric-cell"><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
-        <td class="result-status-column">${autoHtml}</td>
-        <td class="result-status-column">${publishedHtml}</td>
-        <td class="result-status-column">${browserCloseHtml}</td>
-        <td class="result-actions-column">
-          <div class="result-row-actions">
-            <button class="result-icon-btn" type="button" data-review-attempt="${Number(item.attempt_id)}" data-tooltip="Разбор работы" title="Разбор работы" aria-label="Разбор работы">
-              ${resultActionIcon('review')}
-            </button>
-            <button class="result-icon-btn" type="button" data-edit-result="${Number(item.attempt_id)}" data-tooltip="Редактировать" title="Редактировать результат" aria-label="Редактировать результат">
-              ${resultActionIcon('edit')}
-            </button>
-            <button class="result-icon-btn" type="button" data-reset-result="${Number(item.attempt_id)}" data-tooltip="Сбросить" title="Сбросить результат" aria-label="Сбросить результат">
-              ${resultActionIcon('reset')}
-            </button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('') : '<tr><td colspan="10"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
-
-  body.querySelectorAll('[data-review-attempt]').forEach(button => {
-    button.addEventListener('click', () => openAttemptReview(Number(button.dataset.reviewAttempt)));
-  });
-  body.querySelectorAll('[data-edit-result]').forEach(button => {
-    button.addEventListener('click', () => openResultEditor(Number(button.dataset.editResult)));
-  });
-  body.querySelectorAll('[data-reset-result]').forEach(button => {
-    button.addEventListener('click', () => resetStudentResult(Number(button.dataset.resetResult)));
-  });
 }
 
 async function resetStudentResult(attemptId) {
@@ -3440,9 +3368,6 @@ async function loadResultsAnalytics() {
 }
 
 async function loadResults() {
-  const body = document.getElementById('resultsBody');
-  if (body) body.innerHTML = '<tr><td colspan="8">Загрузка реальных результатов...</td></tr>';
-
   try {
     const response = await fetch('./api/results/list.php', { credentials:'same-origin', cache:'no-store' });
     const data = await readJsonResponse(response, 'Не удалось загрузить результаты.');
@@ -3470,9 +3395,7 @@ async function loadResults() {
     loadResultsAnalytics().catch(() => {});
   } catch (error) {
     resultsCache = [];
-    if (body) body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
-    const summary = document.getElementById('resultsSummary');
-    if (summary) summary.textContent = error.message;
+    renderResults();
   }
 }
 

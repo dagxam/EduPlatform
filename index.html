@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=66">
+  <link rel="stylesheet" href="styles.css?v=67">
   <link rel="stylesheet" href="pwa.css?v=44">
 </head>
 <body>
@@ -709,8 +709,7 @@
 
       <section class="view" id="results">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Аналитика</span><h2>Результаты</h2><p>Подробные результаты работ, проверки и корректировки. Сводную успеваемость по классу смотрите в разделе «Журнал».</p></div>
-          <button class="secondary-btn" id="exportResultsBtn">⇩ Экспорт</button>
+          <div><span class="section-kicker">Аналитика</span><h2>Результаты</h2><p>Сводная аналитика успеваемости, лучшие ученики, классы и школы. Подробные оценки и действия по работам находятся в разделе «Журнал».</p></div>
         </div>
         <div class="results-overview-grid">
           <article class="result-overview-card"><span>Результатов</span><strong id="resultsOverviewCount">—</strong><small>по текущему фильтру</small></article>
@@ -746,20 +745,6 @@
           </article>
         </div>
 
-        <div class="panel results-panel">
-          <div class="filters results-filters">
-            <input class="search" id="resultsSearch" type="search" placeholder="Поиск ученика или задания">
-            <select id="resultsClassFilter"><option value="">Все классы</option></select>
-            <select id="resultsAssignmentFilter"><option value="">Все задания</option></select>
-          </div>
-          <div class="results-summary" id="resultsSummary">Загрузка реальных результатов...</div>
-          <div class="table-wrap">
-            <table class="results-table">
-              <thead><tr><th>Ученик</th><th>Класс</th><th>Задание</th><th class="result-center-head">Верно</th><th class="result-center-head">%</th><th class="result-center-head">Оценка</th><th class="result-center-head" title="Автоматическая проверка">A</th><th class="result-center-head" title="Опубликовано ученику">✓</th><th class="result-center-head" title="Завершено браузером">З/Б</th><th class="result-actions-head">Действия</th></tr></thead>
-              <tbody id="resultsBody"><tr><td colspan="10">Загрузка...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
       </section>
 
       <section class="view" id="student-dashboard">
@@ -1292,7 +1277,7 @@
   </div>
 
   <script src="attempt-security.js?v=49"></script>
-  <script src="app.js?v=66"></script>
+  <script src="app.js?v=67"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>
