@@ -66,7 +66,18 @@ function mysql_migration_connect(array $config): PDO
         throw new RuntimeException('Не заполнены параметры подключения к MySQL.');
     }
 
-    if (!preg_match('/^[A-Za-z0-9._:-]+$/', $host)) {
+    // Hosting panels often show MySQL as "host:port" (for example
+    // 185.9.147.250:3312). Accept that form and let the suffix override
+    // the separate port field.
+    if (preg_match('/^([^:]+):(\\d{1,5})$/', $host, $match)) {
+        $host = trim((string)$match[1]);
+        $port = (int)$match[2];
+        if ($port < 1 || $port > 65535) {
+            throw new RuntimeException('Некорректный порт MySQL-сервера.');
+        }
+    }
+
+    if (!preg_match('/^[A-Za-z0-9._-]+$/', $host)) {
         throw new RuntimeException('Некорректный адрес MySQL-сервера.');
     }
 
