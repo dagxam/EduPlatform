@@ -52,7 +52,13 @@ function backup_asset_files(): array
         if (
             str_starts_with($relative, 'backups/') ||
             preg_match('/^eduplatform\.sqlite(?:-.+)?$/', basename($relative)) ||
-            basename($relative) === '.htaccess'
+            in_array(basename($relative), [
+                '.htaccess',
+                'db-config.php',
+                'db-config.php.tmp',
+                'maintenance.flag',
+                '.mysql-migration.lock',
+            ], true)
         ) {
             continue;
         }
