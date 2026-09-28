@@ -166,11 +166,29 @@ function import_extract_pdf_text(string $path): ?string
     if ($data === false || $data === '') return null;
 
     $chunks = [$data];
+    $inflatedBytes = 0;
+    $decodedStreams = 0;
     if (preg_match_all('/stream\\r?\\n(.*?)\\r?\\nendstream/s', $data, $matches)) {
         foreach ($matches[1] as $stream) {
-            $decoded = @gzuncompress((string)$stream);
-            if ($decoded === false) $decoded = @gzinflate((string)$stream);
-            if ($decoded !== false && is_string($decoded)) $chunks[] = $decoded;
+            if ($decodedStreams >= 100 || $inflatedBytes >= 16 * 1024 * 1024) {
+                break;
+            }
+
+            // Limit decompressed output from hostile/oversized PDF streams.
+            $decoded = @gzuncompress((string)$stream, 8 * 1024 * 1024);
+            if ($decoded === false) {
+                $decoded = @gzinflate((string)$stream, 8 * 1024 * 1024);
+            }
+            if ($decoded === false || !is_string($decoded)) {
+                continue;
+            }
+
+            $decodedStreams++;
+            $inflatedBytes += strlen($decoded);
+            if ($inflatedBytes > 16 * 1024 * 1024) {
+                break;
+            }
+            $chunks[] = $decoded;
         }
     }
 
