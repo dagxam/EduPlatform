@@ -10,7 +10,7 @@ $stmt = app_db()->prepare(
      FROM schools s
      WHERE s.status = "active"
        AND s.id <> :source_school_id
-     ORDER BY s.name COLLATE NOCASE'
+     ORDER BY s.name'
 );
 $stmt->execute(['source_school_id' => $sourceSchoolId]);
 
