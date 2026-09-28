@@ -2822,6 +2822,15 @@ function renderJournal() {
     const grades = visibleCells.filter(Boolean).map(cell => Number(cell.grade || 0));
     const rowAvgPercent = percents.length ? percents.reduce((sum,v) => sum + v, 0) / percents.length : null;
     const rowAvgGrade = grades.length ? grades.reduce((sum,v) => sum + v, 0) / grades.length : null;
+    const actionCell = visibleCells.find(Boolean) || null;
+    const actionScope = assignmentFilter ? 'работы' : 'последней работы';
+    const actionButtons = actionCell
+      ? '<div class="journal-row-actions">'
+        + '<button class="result-icon-btn" type="button" data-journal-action-review="' + Number(actionCell.attempt_id) + '" data-tooltip="Разбор ' + actionScope + '" title="Разбор ' + actionScope + '" aria-label="Разбор ' + actionScope + '">' + resultActionIcon('review') + '</button>'
+        + '<button class="result-icon-btn" type="button" data-journal-action-edit="' + Number(actionCell.attempt_id) + '" data-tooltip="Редактировать ' + actionScope + '" title="Редактировать ' + actionScope + '" aria-label="Редактировать ' + actionScope + '">' + resultActionIcon('edit') + '</button>'
+        + '<button class="result-icon-btn" type="button" data-journal-action-reset="' + Number(actionCell.attempt_id) + '" data-tooltip="Сбросить ' + actionScope + '" title="Сбросить ' + actionScope + '" aria-label="Сбросить ' + actionScope + '">' + resultActionIcon('reset') + '</button>'
+        + '</div>'
+      : '<span class="journal-actions-empty">—</span>';
     const browserClosedCount = visibleCells.filter(cell => Boolean(cell?.closed_by_browser)).length;
     const browserClosedMarker = browserClosedCount
       ? '<span class="journal-browser-closed-marker" title="Закрытие или скрытие браузера: ' + browserClosedCount + '" aria-label="Закрытие браузера: ' + browserClosedCount + '"></span>'
@@ -2848,6 +2857,7 @@ function renderJournal() {
       <td class="journal-average-cell"><span class="grade ${rowAvgGrade === null ? '' : resultGradeClass(Math.round(rowAvgGrade))}">${rowAvgGrade === null ? '—' : journalFormatNumber(rowAvgGrade)}</span></td>
       <td class="journal-average-percent">${rowAvgPercent === null ? '—' : Math.round(rowAvgPercent) + '%'}</td>
       <td class="journal-browser-column">${browserClosedMarker}</td>
+      <td class="journal-actions-column">${actionButtons}</td>
     </tr>`;
   }).join('');
 
@@ -2859,12 +2869,34 @@ function renderJournal() {
         <th class="journal-average-head">Ср. оценка</th>
         <th class="journal-average-head">Ср. %</th>
         <th class="journal-browser-head" title="Закрытие или скрытие браузера во время теста">Выход</th>
+        <th class="journal-actions-head">Действия</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 
   wrap.querySelectorAll('[data-journal-review]').forEach(button => {
     button.addEventListener('click', () => openAttemptReview(Number(button.dataset.journalReview)));
+  });
+  wrap.querySelectorAll('[data-journal-action-review]').forEach(button => {
+    button.addEventListener('click', () => openAttemptReview(Number(button.dataset.journalActionReview)));
+  });
+  wrap.querySelectorAll('[data-journal-action-edit]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const attemptId = Number(button.dataset.journalActionEdit || 0);
+      if (!resultsCache.some(item => Number(item.attempt_id) === attemptId)) {
+        await loadResults().catch(() => {});
+      }
+      openResultEditor(attemptId);
+    });
+  });
+  wrap.querySelectorAll('[data-journal-action-reset]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const attemptId = Number(button.dataset.journalActionReset || 0);
+      if (!resultsCache.some(item => Number(item.attempt_id) === attemptId)) {
+        await loadResults().catch(() => {});
+      }
+      await resetStudentResult(attemptId);
+    });
   });
 }
 
@@ -3308,7 +3340,12 @@ async function resetStudentResult(attemptId) {
     });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сбросить результат.');
-    await Promise.all([loadResults(), loadTeacherDashboard().catch(() => {}), loadActivityHistory().catch(() => {})]);
+    await Promise.all([
+      loadResults(),
+      loadJournal().catch(() => {}),
+      loadTeacherDashboard().catch(() => {}),
+      loadActivityHistory().catch(() => {})
+    ]);
     await appAlert(data.message || 'Результат сброшен.', { title:'Результат сброшен', tone:'success', okText:'Готово' });
   } catch (error) {
     await appAlert(error.message, { title:'Не удалось сбросить результат', tone:'danger' });
