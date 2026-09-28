@@ -12,7 +12,7 @@ $manager = can_manage_school($user, $schoolId);
 
 $sql =
     'SELECT at.id, at.assignment_id, at.student_id, at.submitted_at, at.status, at.variant_label,
-            at.score, at.max_score, at.percent, at.grade,
+            at.termination_reason, at.score, at.max_score, at.percent, at.grade,
             at.manual_score, at.manual_percent, at.manual_grade, at.manual_comment,
             at.manual_updated_at, at.manual_updated_by,
             at.published_score, at.published_percent, at.published_grade, at.published_comment,
@@ -61,6 +61,8 @@ foreach ($rows as $row) {
         'class_name' => (string)($row['class_name'] ?? ''),
         'submitted_at' => $row['submitted_at'],
         'status' => (string)$row['status'],
+        'termination_reason' => (string)($row['termination_reason'] ?? ''),
+        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
         'variant_label' => (string)($row['variant_label'] ?? ''),
         'automatic' => [
             'score' => (float)($row['score'] ?? 0),
