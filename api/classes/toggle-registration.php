@@ -19,14 +19,17 @@ if (!$stmt->fetchColumn()) {
 }
 
 if ($open) {
+    $expiresSql = db_is_mysql($pdo)
+        ? 'DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 20 MINUTE)'
+        : "datetime('now', '+20 minutes')";
     $stmt = $pdo->prepare(
-        "UPDATE class_access
+        'UPDATE class_access
          SET registration_open = 1,
-             registration_expires_at = datetime('now', '+20 minutes')
-         WHERE class_id = :class_id"
+             registration_expires_at = ' . $expiresSql . '
+         WHERE class_id = :class_id'
     );
     $stmt->execute(['class_id' => $classId]);
-    $expiresAt = $pdo->query("SELECT datetime('now', '+20 minutes')")->fetchColumn();
+    $expiresAt = $pdo->query('SELECT ' . $expiresSql)->fetchColumn();
     audit_event('class_registration_opened', 'class', $classId, ['minutes' => 20], $schoolId, (int)$user['id']);
 } else {
     $stmt = $pdo->prepare(
