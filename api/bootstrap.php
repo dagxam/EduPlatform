@@ -159,7 +159,24 @@ function app_db(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
+    // A whole class can autosave and submit at nearly the same moment.
+    // Wait for short-lived write locks instead of failing immediately.
+    $pdo->exec('PRAGMA busy_timeout = 15000');
     $pdo->exec('PRAGMA foreign_keys = ON');
+
+    // WAL allows readers and a writer to coexist and is substantially more
+    // suitable for classroom concurrency than SQLite's rollback journal.
+    try {
+        $journalMode = strtolower((string)$pdo->query('PRAGMA journal_mode')->fetchColumn());
+        if ($journalMode !== 'wal' && $databaseFile !== ':memory:') {
+            $pdo->exec('PRAGMA journal_mode = WAL');
+        }
+        $pdo->exec('PRAGMA synchronous = NORMAL');
+    } catch (Throwable $e) {
+        // Keep the application usable on hosts/filesystems that do not
+        // support WAL; busy_timeout still provides lock waiting.
+        error_log('[UROVIA] SQLite WAL setup skipped: ' . $e->getMessage());
+    }
 
     $schemaFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'schema.sql';
     $schema = file_get_contents($schemaFile);
