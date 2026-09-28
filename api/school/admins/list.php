@@ -13,7 +13,7 @@ $stmt = app_db()->prepare(
      WHERE su.school_id = :school_id
        AND su.role = "school_admin"
        AND su.is_active = 1
-     ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE'
+     ORDER BY u.last_name, u.first_name'
 );
 $stmt->execute(['school_id' => $schoolId]);
 
