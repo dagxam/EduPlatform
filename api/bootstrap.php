@@ -130,7 +130,10 @@ function enforce_maintenance_mode(): void
     }
 
     $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
-    if (str_ends_with($script, '/api/database/migrate.php')) {
+    if (
+        str_ends_with($script, '/api/database/migrate.php') ||
+        str_ends_with($script, '/api/database/migrate-machine.php')
+    ) {
         return;
     }
 
