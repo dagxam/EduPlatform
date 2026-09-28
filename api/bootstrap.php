@@ -218,10 +218,28 @@ function db_upsert_clause(PDO $pdo, array $conflictColumns, array $updateColumns
     ));
 }
 
+function mysql_schema_version(): string
+{
+    return '1';
+}
+
 function mysql_apply_schema(PDO $pdo): void
 {
     static $applied = false;
     if ($applied) return;
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT meta_value FROM urovia_meta WHERE meta_key = 'schema_version' LIMIT 1"
+        );
+        $stmt->execute();
+        if ((string)($stmt->fetchColumn() ?: '') === mysql_schema_version()) {
+            $applied = true;
+            return;
+        }
+    } catch (Throwable) {
+        // First MySQL boot: metadata table does not exist yet.
+    }
 
     $schemaFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'schema.mysql.sql';
     $schema = file_get_contents($schemaFile);
@@ -236,6 +254,13 @@ function mysql_apply_schema(PDO $pdo): void
         if ($statement === '') continue;
         $pdo->exec($statement);
     }
+
+    $stmt = $pdo->prepare(
+        "INSERT INTO urovia_meta (meta_key, meta_value, updated_at)
+         VALUES ('schema_version', :version, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value), updated_at = CURRENT_TIMESTAMP"
+    );
+    $stmt->execute(['version' => mysql_schema_version()]);
 
     $applied = true;
 }
