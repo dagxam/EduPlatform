@@ -40,7 +40,7 @@ $stmt = $pdo->prepare(
      FROM class_students cs
      JOIN users u ON u.id = cs.student_id
      WHERE cs.class_id = :class_id
-     ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE'
+     ORDER BY u.last_name, u.first_name'
 );
 $stmt->execute(['class_id' => $classId]);
 
