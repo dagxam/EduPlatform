@@ -321,6 +321,16 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'result_published_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'result_published_by', 'INTEGER');
     add_column_if_missing($pdo, 'attempts', 'result_revision', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempts_student_status_submitted
+        ON attempts(student_id, status, submitted_at)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_attempts_assignment_status_submitted
+        ON attempts(assignment_id, status, submitted_at)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_answers_attempt_updated
+        ON answers(attempt_id, updated_at)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignments_school_status_updated
+        ON assignments(school_id, status, updated_at)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignment_classes_class
+        ON assignment_classes(class_id, assignment_id)");
     $pdo->exec("CREATE TABLE IF NOT EXISTS attempt_result_revisions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         attempt_id INTEGER NOT NULL,
