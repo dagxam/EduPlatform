@@ -12,6 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
+$entityIdAsTextSql = db_driver($pdo) === 'mysql'
+    ? 'CAST(a.entity_id AS CHAR)'
+    : 'CAST(a.entity_id AS TEXT)';
 
 $limit = max(1, min(200, (int)($_GET['limit'] ?? 100)));
 $offset = max(0, (int)($_GET['offset'] ?? 0));
@@ -59,7 +62,7 @@ if ($query !== '') {
     $where[] = '(
         a.event_type LIKE :query
         OR a.entity_type LIKE :query
-        OR CAST(a.entity_id AS TEXT) LIKE :query
+        OR ' . $entityIdAsTextSql . ' LIKE :query
         OR COALESCE(u.first_name, "") LIKE :query
         OR COALESCE(u.last_name, "") LIKE :query
         OR COALESCE(u.login_name, "") LIKE :query
