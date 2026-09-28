@@ -68,6 +68,15 @@ if ($selected === null) {
     ], 422);
 }
 
+audit_event(
+    'database_migration_started',
+    'database',
+    null,
+    ['target_database' => $base['database']],
+    null,
+    (int)$user['id']
+);
+
 $flag = maintenance_flag_path();
 if (file_put_contents($flag, date(DATE_ATOM) . "\n", LOCK_EX) === false) {
     json_response(['ok' => false, 'error' => 'Не удалось включить режим обслуживания.'], 500);
@@ -78,20 +87,6 @@ try {
     usleep(800000);
 
     $summary = mysql_migration_run($selected);
-
-    audit_event(
-        'database_migrated_to_mysql',
-        'database',
-        null,
-        [
-            'host' => $summary['host'] ?? null,
-            'database' => $summary['database'] ?? null,
-            'total_rows' => $summary['total_rows'] ?? null,
-            'sqlite_backup' => $summary['sqlite_backup']['file'] ?? null,
-        ],
-        null,
-        (int)$user['id']
-    );
 
     @unlink($flag);
 
