@@ -71,17 +71,13 @@ $stmt = $pdo->prepare(
      VALUES
      (:school_id, :assignment_id, :subject_id, :submitted_by, :approved_by,
       :status, :title, :description, :questions_count,
-      CASE WHEN :status2 = "published" THEN CURRENT_TIMESTAMP ELSE NULL END)
-     ON CONFLICT(source_school_id, source_assignment_id) DO UPDATE SET
-       subject_id = excluded.subject_id,
-       submitted_by = excluded.submitted_by,
-       approved_by = excluded.approved_by,
-       status = excluded.status,
-       title_snapshot = excluded.title_snapshot,
-       description_snapshot = excluded.description_snapshot,
-       questions_count_snapshot = excluded.questions_count_snapshot,
-       published_at = CASE WHEN excluded.status = "published" THEN CURRENT_TIMESTAMP ELSE NULL END,
-       updated_at = CURRENT_TIMESTAMP'
+      CASE WHEN :status2 = "published" THEN CURRENT_TIMESTAMP ELSE NULL END)'
+    . db_upsert_clause(
+        $pdo,
+        ['source_school_id', 'source_assignment_id'],
+        ['subject_id', 'submitted_by', 'approved_by', 'status', 'title_snapshot',
+         'description_snapshot', 'questions_count_snapshot', 'published_at', 'updated_at']
+    )
 );
 $stmt->execute([
     'school_id' => $schoolId,
