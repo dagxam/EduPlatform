@@ -2678,6 +2678,26 @@ function resultBrowserCloseBadge() {
   return '<span class="result-close-badge" title="Попытка завершена из-за закрытия или скрытия браузера/вкладки">З/Б</span>';
 }
 
+function resultStatusAutoBadge() {
+  return '<span class="result-status-icon result-status-auto" title="Автоматически проверено" aria-label="Автоматически проверено">A</span>';
+}
+
+function resultStatusPublishedBadge(revision = 1) {
+  const version = Math.max(1, Number(revision || 1));
+  return '<span class="result-status-icon result-status-published" title="Опубликовано · версия ' + version + '" aria-label="Опубликовано">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>' +
+    '</span>';
+}
+
+function resultActionIcon(type) {
+  const icons = {
+    review: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.6 15.6L21 21"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 5H6.8A2.8 2.8 0 004 7.8v9.4A2.8 2.8 0 006.8 20h9.4a2.8 2.8 0 002.8-2.8v-6.7"/><path d="M14.8 4.2l5 5-8.9 8.9-5.8 1.2 1.2-5.8 8.5-9.3z"/><path d="M13.2 5.9l5 5"/></svg>',
+    reset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.7 8.2A8 8 0 1112 20a8 8 0 01-7.4-5"/><path d="M4.5 3.8v5h5"/></svg>'
+  };
+  return icons[type] || '';
+}
+
 function attemptReviewStatusMeta(status) {
   const map = {
     correct: { label:'Правильно', icon:'✓', className:'correct' },
@@ -2915,11 +2935,11 @@ function renderResults() {
     const display = item.display || {};
     const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Ученик';
     const closedByBrowser = resultClosedByBrowser(item);
-    let statusHtml = '<span class="status blue">Автоматически</span>';
+    let statusHtml = resultStatusAutoBadge();
     if (item.has_unpublished_draft) {
       statusHtml = '<span class="status amber">Есть черновик</span>';
     } else if (display.published_override) {
-      statusHtml = '<span class="status green">Опубликовано · v' + Number(display.revision || 1) + '</span>';
+      statusHtml = resultStatusPublishedBadge(display.revision);
     } else if (item.status === 'needs_review') {
       statusHtml = '<span class="status amber">Нужна проверка</span>';
     }
@@ -2938,9 +2958,15 @@ function renderResults() {
         <td>${statusHtml}</td>
         <td>
           <div class="result-row-actions">
-            <button class="secondary-btn compact-btn result-review-btn" type="button" data-review-attempt="${Number(item.attempt_id)}">Разбор работы</button>
-            <button class="secondary-btn compact-btn" type="button" data-edit-result="${Number(item.attempt_id)}">Редактировать</button>
-            <button class="danger-outline-btn compact-btn" type="button" data-reset-result="${Number(item.attempt_id)}">Сбросить результат</button>
+            <button class="result-icon-btn" type="button" data-review-attempt="${Number(item.attempt_id)}" title="Разбор работы" aria-label="Разбор работы">
+              ${resultActionIcon('review')}
+            </button>
+            <button class="result-icon-btn" type="button" data-edit-result="${Number(item.attempt_id)}" title="Редактировать результат" aria-label="Редактировать результат">
+              ${resultActionIcon('edit')}
+            </button>
+            <button class="result-icon-btn" type="button" data-reset-result="${Number(item.attempt_id)}" title="Сбросить результат" aria-label="Сбросить результат">
+              ${resultActionIcon('reset')}
+            </button>
           </div>
         </td>
       </tr>`;
