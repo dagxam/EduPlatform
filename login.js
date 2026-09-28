@@ -121,7 +121,9 @@ async function api(url,options={}){
 }
 
 async function initialize(){
-  const resetToken=new URLSearchParams(window.location.search).get('reset')||'';
+  const hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/,''));
+  const queryParams=new URLSearchParams(window.location.search);
+  const resetToken=hashParams.get('reset')||queryParams.get('reset')||'';
   if(/^[a-f0-9]{64}$/i.test(resetToken)){
     passwordResetToken=resetToken;
     window.history.replaceState(null,'','./login.html');
