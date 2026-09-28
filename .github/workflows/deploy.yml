@@ -72,3 +72,8 @@ jobs:
             storage/question-assets/**
             storage/avatars/**
             storage/backups/**
+            storage/db-config.php
+            storage/db-config.php.tmp
+            storage/maintenance.flag
+            storage/.mysql-migration.lock
+            storage/mysql-migration.json
