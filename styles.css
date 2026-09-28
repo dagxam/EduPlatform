@@ -6463,3 +6463,202 @@ input,select,textarea,button{
     display:none;
   }
 }
+
+
+/* Results journal metric/status hierarchy v60 */
+#results .results-table{
+  min-width:1180px;
+}
+#results .results-table th:nth-child(4),
+#results .results-table th:nth-child(5),
+#results .results-table th:nth-child(6),
+#results .results-table th:nth-child(7),
+#results .results-table th:nth-child(8),
+#results .results-table th:nth-child(9),
+#results .results-table td:nth-child(4),
+#results .results-table td:nth-child(5),
+#results .results-table td:nth-child(6),
+#results .results-table td:nth-child(7),
+#results .results-table td:nth-child(8),
+#results .results-table td:nth-child(9){
+  text-align:center;
+}
+#results .results-table th:nth-child(4){min-width:92px}
+#results .results-table th:nth-child(5){min-width:70px}
+#results .results-table th:nth-child(6){min-width:78px}
+#results .results-table th:nth-child(7),
+#results .results-table th:nth-child(8){min-width:52px}
+#results .results-table th:nth-child(9){min-width:66px}
+#results .result-center-head{
+  white-space:nowrap;
+}
+#results .result-actions-head{
+  min-width:150px;
+  text-align:right;
+}
+.result-metric-cell,
+.result-status-column{
+  white-space:nowrap;
+}
+.result-correct-chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:68px;
+  min-height:34px;
+  padding:6px 10px;
+  border:1px solid #e1e7ed;
+  border-radius:10px;
+  background:#f3f6f8;
+  color:#2f3d4c;
+  font-size:12px;
+  font-weight:850;
+  line-height:1;
+  letter-spacing:.01em;
+}
+.result-percent-chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:58px;
+  min-height:34px;
+  padding:6px 10px;
+  border:1px solid transparent;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+}
+.result-percent-low{
+  border-color:#f4c8c5;
+  background:#fff0ee;
+  color:#c1382c;
+}
+.result-percent-warn{
+  border-color:#ffd7b2;
+  background:#fff2e7;
+  color:#d85b10;
+}
+.result-percent-mid{
+  border-color:#cfe0ff;
+  background:#edf4ff;
+  color:#1f63d8;
+}
+.result-percent-high{
+  border-color:#c7ebd3;
+  background:#eaf9ef;
+  color:#18884a;
+}
+.result-status-column{
+  width:1%;
+}
+.result-status-cell{
+  position:relative;
+  display:inline-grid;
+  place-items:center;
+}
+.result-status-cell.has-attention .result-status-auto{
+  box-shadow:0 0 0 2px #fff,0 0 0 3px #f1b84b;
+}
+.result-attention-dot{
+  position:absolute;
+  top:-3px;
+  right:-4px;
+  width:9px;
+  height:9px;
+  border:2px solid #fff;
+  border-radius:50%;
+  background:#e59a16;
+  box-shadow:0 1px 4px rgba(108,68,0,.18);
+}
+.result-status-empty{
+  display:inline-grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  color:#c2cbd3;
+  font-size:15px;
+  font-weight:800;
+  line-height:1;
+}
+.result-close-badge{
+  min-width:48px;
+  min-height:32px;
+  padding:5px 7px;
+  gap:4px;
+  border:1px solid #d9d5ff;
+  border-radius:10px;
+  background:#f1efff;
+  color:#6758d5;
+  font-size:10px;
+  box-shadow:inset 0 0 0 1px rgba(103,88,213,.02);
+}
+.result-close-badge svg{
+  width:14px;
+  height:14px;
+  flex:0 0 14px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.result-actions-column{
+  white-space:nowrap;
+}
+#results .result-row-actions{
+  justify-content:flex-end;
+}
+
+@media(max-width:980px){
+  #results .results-table{
+    min-width:0!important;
+  }
+  #results .results-table tr{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  #results .results-table td:nth-child(1),
+  #results .results-table td:nth-child(3),
+  #results .results-table td:nth-child(10){
+    grid-column:1/-1;
+  }
+  #results .results-table td:nth-child(7),
+  #results .results-table td:nth-child(8){
+    grid-column:auto;
+  }
+  #results .results-table td:nth-child(1)::before{content:"Ученик"}
+  #results .results-table td:nth-child(2)::before{content:"Класс"}
+  #results .results-table td:nth-child(3)::before{content:"Задание"}
+  #results .results-table td:nth-child(4)::before{content:"Верно"}
+  #results .results-table td:nth-child(5)::before{content:"%"}
+  #results .results-table td:nth-child(6)::before{content:"Оценка"}
+  #results .results-table td:nth-child(7)::before{content:"Авто"}
+  #results .results-table td:nth-child(8)::before{content:"Опубликовано"}
+  #results .results-table td:nth-child(9)::before{content:"З/Б"}
+  #results .results-table td:nth-child(10)::before{content:"Действия"}
+  #results .results-table td:nth-child(4),
+  #results .results-table td:nth-child(5),
+  #results .results-table td:nth-child(6),
+  #results .results-table td:nth-child(7),
+  #results .results-table td:nth-child(8),
+  #results .results-table td:nth-child(9){
+    text-align:left;
+  }
+  #results .result-row-actions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:540px){
+  #results .results-table tr{
+    grid-template-columns:1fr 1fr;
+  }
+  #results .results-table td:nth-child(7),
+  #results .results-table td:nth-child(8),
+  #results .results-table td:nth-child(9){
+    grid-column:auto;
+  }
+  #results .results-table td:nth-child(9){
+    grid-column:1/-1;
+  }
+}

@@ -17,6 +17,12 @@ $sql =
             at.manual_updated_at, at.manual_updated_by,
             at.published_score, at.published_percent, at.published_grade, at.published_comment,
             at.result_published_at, at.result_published_by, at.result_revision,
+            (SELECT COUNT(*) FROM answers ans
+             WHERE ans.attempt_id = at.id
+               AND ans.is_correct = 1
+               AND COALESCE(ans.needs_review, 0) = 0) AS correct_count,
+            (SELECT COUNT(*) FROM questions q
+             WHERE q.assignment_id = at.assignment_id) AS total_questions,
             a.title AS assignment_title, a.teacher_id, a.subject_id,
             s.name AS subject_name,
             u.first_name AS student_first_name, u.last_name AS student_last_name,
@@ -64,6 +70,8 @@ foreach ($rows as $row) {
         'termination_reason' => (string)($row['termination_reason'] ?? ''),
         'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
         'variant_label' => (string)($row['variant_label'] ?? ''),
+        'correct_count' => (int)($row['correct_count'] ?? 0),
+        'total_questions' => (int)($row['total_questions'] ?? 0),
         'automatic' => [
             'score' => (float)($row['score'] ?? 0),
             'max_score' => (float)($row['max_score'] ?? 0),

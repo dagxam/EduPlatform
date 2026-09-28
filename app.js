@@ -2669,13 +2669,24 @@ function resultGradeClass(grade) {
   return ['2','3','4','5'].includes(value) ? 'grade-' + value : '';
 }
 
+function resultPercentClass(percent) {
+  const value = Math.max(0, Math.min(100, Math.round(Number(percent || 0))));
+  if (value < 50) return 'result-percent-low';
+  if (value < 60) return 'result-percent-warn';
+  if (value < 75) return 'result-percent-mid';
+  return 'result-percent-high';
+}
+
 function resultClosedByBrowser(item) {
   return Boolean(item?.closed_by_browser)
     || ['page_hidden', 'page_closed', 'browser_closed'].includes(String(item?.termination_reason || ''));
 }
 
 function resultBrowserCloseBadge() {
-  return '<span class="result-close-badge" title="Попытка завершена из-за закрытия или скрытия браузера/вкладки">З/Б</span>';
+  return '<span class="result-close-badge" title="З/Б · попытка завершена из-за закрытия или скрытия браузера/вкладки" aria-label="Завершено браузером">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M9 12.2l6 5.6M15 12.2l-6 5.6"/></svg>' +
+    '<span>З/Б</span>' +
+    '</span>';
 }
 
 function resultStatusAutoBadge() {
@@ -2935,28 +2946,36 @@ function renderResults() {
     const display = item.display || {};
     const studentName = [item.student_last_name, item.student_first_name].filter(Boolean).join(' ') || 'Ученик';
     const closedByBrowser = resultClosedByBrowser(item);
-    let statusHtml = resultStatusAutoBadge();
-    if (item.has_unpublished_draft) {
-      statusHtml = '<span class="status amber">Есть черновик</span>';
-    } else if (display.published_override) {
-      statusHtml = resultStatusPublishedBadge(display.revision);
-    } else if (item.status === 'needs_review') {
-      statusHtml = '<span class="status amber">Нужна проверка</span>';
-    }
-    if (closedByBrowser) {
-      statusHtml = '<span class="result-status-stack">' + resultBrowserCloseBadge() + statusHtml + '</span>';
-    }
+    const percent = Math.max(0, Math.min(100, Math.round(Number(display.percent || 0))));
+    const correctCount = Math.max(0, Number(item.correct_count || 0));
+    const totalQuestions = Math.max(0, Number(item.total_questions || 0));
+    const attentionText = item.has_unpublished_draft
+      ? 'Есть неопубликованный черновик'
+      : (item.status === 'needs_review' ? 'Нужна ручная проверка' : '');
+    const autoHtml = '<span class="result-status-cell' + (attentionText ? ' has-attention' : '') + '"'
+      + (attentionText ? ' title="' + escapeHtml(attentionText) + '"' : '') + '>'
+      + resultStatusAutoBadge()
+      + (attentionText ? '<span class="result-attention-dot" aria-hidden="true"></span>' : '')
+      + '</span>';
+    const publishedHtml = display.published_override
+      ? resultStatusPublishedBadge(display.revision)
+      : '<span class="result-status-empty" title="Отдельно не опубликовано">—</span>';
+    const browserCloseHtml = closedByBrowser
+      ? resultBrowserCloseBadge()
+      : '<span class="result-status-empty" title="Попытка не завершалась закрытием браузера">—</span>';
 
     return `
       <tr>
         <td><b>${escapeHtml(studentName)}</b><small class="results-cell-sub">${escapeHtml(resultDateTime(item.submitted_at))}</small></td>
         <td>${escapeHtml(item.class_name || '—')}</td>
         <td><b>${escapeHtml(item.assignment_title)}</b><small class="results-cell-sub">${escapeHtml(item.subject_name || '')}</small></td>
-        <td><b>${Number(display.score || 0).toLocaleString('ru-RU')} / ${Number(display.max_score || 0).toLocaleString('ru-RU')}</b></td>
-        <td><b>${Math.round(Number(display.percent || 0))}%</b></td>
-        <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span>${closedByBrowser ? resultBrowserCloseBadge() : ''}</span></td>
-        <td>${statusHtml}</td>
-        <td>
+        <td class="result-metric-cell"><span class="result-correct-chip" title="Правильных ответов">${correctCount.toLocaleString('ru-RU')} / ${totalQuestions.toLocaleString('ru-RU')}</span></td>
+        <td class="result-metric-cell"><span class="result-percent-chip ${resultPercentClass(percent)}">${percent}%</span></td>
+        <td class="result-metric-cell"><span class="grade ${resultGradeClass(display.grade)}">${escapeHtml(display.grade || '—')}</span></td>
+        <td class="result-status-column">${autoHtml}</td>
+        <td class="result-status-column">${publishedHtml}</td>
+        <td class="result-status-column">${browserCloseHtml}</td>
+        <td class="result-actions-column">
           <div class="result-row-actions">
             <button class="result-icon-btn" type="button" data-review-attempt="${Number(item.attempt_id)}" data-tooltip="Разбор работы" title="Разбор работы" aria-label="Разбор работы">
               ${resultActionIcon('review')}
@@ -2970,7 +2989,7 @@ function renderResults() {
           </div>
         </td>
       </tr>`;
-  }).join('') : '<tr><td colspan="8"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
+  }).join('') : '<tr><td colspan="10"><div class="history-empty"><b>Результатов пока нет</b><span>После сдачи учениками работы появятся в этом журнале.</span></div></td></tr>';
 
   body.querySelectorAll('[data-review-attempt]').forEach(button => {
     button.addEventListener('click', () => openAttemptReview(Number(button.dataset.reviewAttempt)));
