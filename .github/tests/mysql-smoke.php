@@ -154,13 +154,7 @@ $dashboardProbe = $pdo->query(
        DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY) AS plus_week,
        DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 DAY) AS minus_week,
        AVG(CASE
-         WHEN COALESCE(published_grade, grade) REGEXP '^[0-9]+([.][0-9]+)?
-mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
-mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
-mysql_smoke_assert((int)($backup['size_bytes'] ?? 0) > 0, 'MySQL backup archive empty');
-
-echo "MySQL schema, upsert and backup OK\n";
-
+         WHEN COALESCE(published_grade, grade) IN ('2', '3', '4', '5')
          THEN CAST(COALESCE(published_grade, grade) AS DECIMAL(10,2))
          ELSE NULL
        END) AS avg_grade
@@ -174,4 +168,4 @@ mysql_smoke_assert(!empty($backup['file']), 'MySQL backup file missing');
 mysql_smoke_assert(($backup['database_driver'] ?? '') === 'mysql', 'backup driver is not mysql');
 mysql_smoke_assert((int)($backup['size_bytes'] ?? 0) > 0, 'MySQL backup archive empty');
 
-echo "MySQL schema, upsert and backup OK\n";
+echo "MySQL schema, upsert, dashboard and backup OK\n";
