@@ -1525,6 +1525,142 @@ function renderBackups(data) {
   });
 }
 
+async function loadDatabaseStatus() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const badge = document.getElementById('databaseDriverBadge');
+  const box = document.getElementById('databaseStatusBox');
+  const form = document.getElementById('databaseMigrationForm');
+  const hint = document.getElementById('backupDatabaseHint');
+
+  try {
+    const response = await fetch('./api/database/status.php', {
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось проверить базу данных.');
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось проверить базу данных.');
+    }
+
+    if (data.mysql_enabled) {
+      if (badge) {
+        badge.className = 'status green';
+        badge.textContent = 'MySQL';
+      }
+      if (box) {
+        const migrated = data.migration?.completed_at
+          ? ' · миграция: ' + escapeHtml(backupCreatedAt(data.migration.completed_at))
+          : '';
+        const rows = Number(data.migration?.total_rows || 0);
+        box.innerHTML = '<b>MySQL активен</b><span>Рабочие данные UROVIA хранятся в MySQL' +
+          migrated +
+          (rows ? ' · перенесено записей: ' + rows.toLocaleString('ru-RU') : '') +
+          '.</span>';
+      }
+      form?.classList.add('hidden');
+      if (hint) hint.textContent = 'MySQL, импортированные задания, изображения и другие материалы storage.';
+    } else {
+      if (badge) {
+        badge.className = 'status amber';
+        badge.textContent = 'SQLite';
+      }
+      if (box) {
+        box.innerHTML = '<b>Сейчас используется SQLite</b><span>' +
+          (data.sqlite_source_exists
+            ? 'Исходная база найдена и готова к безопасному переносу.'
+            : 'Файл SQLite не найден.') +
+          '</span>';
+      }
+      form?.classList.toggle('hidden', !data.sqlite_source_exists);
+      if (hint) hint.textContent = 'SQLite, импортированные задания, изображения и другие материалы storage.';
+    }
+  } catch (error) {
+    if (badge) {
+      badge.className = 'status amber';
+      badge.textContent = 'Ошибка';
+    }
+    if (box) box.textContent = error.message;
+    form?.classList.add('hidden');
+  }
+}
+
+async function migrateDatabaseToMysql(event) {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = document.getElementById('databaseMigrationBtn');
+  const errorNode = document.getElementById('databaseMigrationError');
+  const resultNode = document.getElementById('databaseMigrationResult');
+
+  errorNode?.classList.add('hidden');
+  resultNode?.classList.add('hidden');
+
+  const confirmed = await appConfirm(
+    'Перенести текущую SQLite-базу в MySQL? На время проверки и копирования UROVIA кратковременно включит режим обслуживания. Исходная SQLite-база и отдельная резервная копия будут сохранены.',
+    {
+      title:'Перенос базы данных',
+      okText:'Начать безопасный перенос'
+    }
+  );
+  if (!confirmed) return;
+
+  const payload = Object.fromEntries(new FormData(form).entries());
+  payload.port = Number(payload.port || 3306);
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Переносим и проверяем данные...';
+  }
+
+  try {
+    const response = await fetch('./api/database/migrate.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось выполнить миграцию базы.');
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Миграция остановлена.');
+    }
+
+    const passwordInput = form.querySelector('input[name="password"]');
+    if (passwordInput) passwordInput.value = '';
+
+    if (resultNode) {
+      const total = Number(data.summary?.total_rows || 0).toLocaleString('ru-RU');
+      const backup = data.summary?.sqlite_backup?.file || 'создана';
+      resultNode.innerHTML = '<b>MySQL включён успешно.</b><br>Перенесено записей: ' +
+        escapeHtml(total) + '. Резервная копия SQLite: ' + escapeHtml(backup) + '.';
+      resultNode.classList.remove('hidden');
+    }
+
+    await appAlert(
+      'Все проверки пройдены. UROVIA переключена на MySQL, исходная SQLite-база сохранена для аварийного отката.',
+      {
+        title:'Миграция завершена',
+        tone:'success',
+        okText:'Перезагрузить UROVIA'
+      }
+    );
+    window.location.reload();
+  } catch (error) {
+    if (errorNode) {
+      errorNode.textContent = error.message;
+      errorNode.classList.remove('hidden');
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Перенести данные и включить MySQL';
+    }
+  }
+}
+
+document.getElementById('databaseMigrationForm')?.addEventListener('submit', migrateDatabaseToMysql);
+
 async function loadBackups() {
   if (Number(currentUser?.is_platform_admin) !== 1) return;
   const body = document.getElementById('backupsBody');
@@ -3180,7 +3316,10 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
   if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
-  if (btn.dataset.view === 'system-backups') loadBackups().catch(() => {});
+  if (btn.dataset.view === 'system-backups') {
+    loadBackups().catch(() => {});
+    loadDatabaseStatus().catch(() => {});
+  }
   if (btn.dataset.view === 'incoming-materials') loadIncomingMaterials().catch(() => {});
   if (btn.dataset.view === 'school-management') loadSchoolManagement();
 }));
