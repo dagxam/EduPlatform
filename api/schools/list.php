@@ -13,7 +13,7 @@ if (is_platform_admin($user)) {
          LEFT JOIN school_users su ON su.school_id = s.id
          WHERE s.status = "active"
          GROUP BY s.id
-         ORDER BY s.name COLLATE NOCASE'
+         ORDER BY s.name'
     );
 } else {
     $stmt = $pdo->prepare(
@@ -27,7 +27,7 @@ if (is_platform_admin($user)) {
            AND me.is_active = 1
            AND s.status = "active"
          GROUP BY s.id, me.role
-         ORDER BY s.name COLLATE NOCASE'
+         ORDER BY s.name'
     );
     $stmt->execute(['user_id' => (int)$user['id']]);
 }
