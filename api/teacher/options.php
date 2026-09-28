@@ -16,7 +16,7 @@ if (can_manage_school($user, $schoolId)) {
          WHERE ss.school_id = :school_id
            AND ss.is_active = 1
            AND c.school_id = :school_id_classes
-         ORDER BY s.name COLLATE NOCASE, class_name COLLATE NOCASE'
+         ORDER BY s.name, class_name'
     );
     $stmt->execute([
         'school_id' => $schoolId,
@@ -36,7 +36,7 @@ if (can_manage_school($user, $schoolId)) {
          JOIN school_subjects ss
            ON ss.school_id = tc.school_id AND ss.subject_id = tc.subject_id AND ss.is_active = 1
          WHERE tc.school_id = :school_id AND tc.teacher_id = :teacher_id
-         ORDER BY s.name COLLATE NOCASE, class_name COLLATE NOCASE'
+         ORDER BY s.name, class_name'
     );
     $stmt->execute([
         'school_id' => $schoolId,
