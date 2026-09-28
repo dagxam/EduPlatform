@@ -561,8 +561,9 @@ function require_user(?array $roles = null): array
 function throttle_key(string $scope, string $identifier = ''): string
 {
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-    $agent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-    return hash('sha256', $scope . '|' . $identifier . '|' . $ip . '|' . $agent);
+    // Do not include User-Agent: an attacker can rotate it on every request
+    // and otherwise bypass the brute-force counter.
+    return hash('sha256', $scope . '|' . $identifier . '|' . $ip);
 }
 
 function throttle_check(string $scope, string $identifier = '', int $maxFailures = 6, int $windowSeconds = 900): void
