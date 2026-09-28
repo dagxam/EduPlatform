@@ -64,8 +64,8 @@ try {
     if (!empty($row['subject_id'])) {
         $stmt = $pdo->prepare(
             'INSERT INTO school_subjects (school_id, subject_id, is_active)
-             VALUES (:school_id, :subject_id, 1)
-             ON CONFLICT(school_id, subject_id) DO UPDATE SET is_active = 1'
+             VALUES (:school_id, :subject_id, 1)'
+            . db_upsert_clause($pdo, ['school_id', 'subject_id'], ['is_active'])
         );
         $stmt->execute([
             'school_id' => $targetSchoolId,
@@ -88,10 +88,12 @@ try {
     $stmt = $pdo->prepare(
         'INSERT INTO library_imports
          (library_item_id, target_school_id, target_assignment_id, imported_by)
-         VALUES (:item_id, :school_id, :assignment_id, :user_id)
-         ON CONFLICT(library_item_id, target_school_id) DO UPDATE SET
-           target_assignment_id = excluded.target_assignment_id,
-           imported_by = excluded.imported_by'
+         VALUES (:item_id, :school_id, :assignment_id, :user_id)'
+        . db_upsert_clause(
+            $pdo,
+            ['library_item_id', 'target_school_id'],
+            ['target_assignment_id', 'imported_by']
+        )
     );
     $stmt->execute([
         'item_id' => $itemId,
