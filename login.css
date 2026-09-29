@@ -196,3 +196,13 @@
     padding:18px 13px;
   }
 }
+
+
+/* Login brand contrast v45 */
+.auth-info .brand-mark{
+  color:#fff!important;
+}
+.auth-info .brand strong,
+.auth-info .brand span{
+  color:#fff!important;
+}
