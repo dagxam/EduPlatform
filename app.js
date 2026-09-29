@@ -401,6 +401,11 @@ function applyUser(user) {
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
   document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.toggle('hidden', !platformAdmin));
   document.querySelectorAll('.school-staff-only').forEach(el => el.classList.toggle('hidden', student || platformAdmin));
+  document.querySelectorAll('.assignment-author-only').forEach(el => el.classList.toggle('hidden', student));
+
+  if (student && taskModal) {
+    taskModal.classList.add('hidden');
+  }
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   sidebarName.textContent = fullName || 'Пользователь';
@@ -4227,6 +4232,7 @@ async function prepareTaskForm(subjectId = null) {
   const clone = button.cloneNode(true);
   button.replaceWith(clone);
   clone.addEventListener('click', async () => {
+    if (currentUser?.role === 'student') return;
     await prepareTaskForm();
     openModal(taskModal);
   });
@@ -4235,7 +4241,7 @@ async function prepareTaskForm(subjectId = null) {
 document.getElementById('addSubjectPageBtn')?.addEventListener('click', () => openModal(subjectModal));
 
 document.getElementById('subjectCreateTaskBtn')?.addEventListener('click', async () => {
-  if (!selectedSubjectId) return;
+  if (currentUser?.role === 'student' || !selectedSubjectId) return;
   await prepareTaskForm(selectedSubjectId);
   openModal(taskModal);
 });

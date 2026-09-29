@@ -88,7 +88,7 @@
             <strong id="fixedSchoolName">—</strong>
           </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
-          <button class="primary-btn" id="createTaskBtn">＋ Создать задание</button>
+          <button class="primary-btn assignment-author-only hidden" id="createTaskBtn">＋ Создать задание</button>
         </div>
       </header>
 
@@ -99,7 +99,7 @@
             <h2>Всё необходимое для заданий и контроля знаний</h2>
             <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
           </div>
-          <button class="hero-action" id="heroCreateBtn">Создать новое задание →</button>
+          <button class="hero-action assignment-author-only hidden" id="heroCreateBtn">Создать новое задание →</button>
         </div>
 
         <div class="stats-grid">
@@ -167,7 +167,7 @@
                 </div>
                 <div class="subject-detail-actions">
                   <button class="secondary-btn admin-only hidden" id="shareSubjectBtn" type="button">↗ Отправить в другую школу</button>
-                  <button class="primary-btn" id="subjectCreateTaskBtn" type="button">＋ Создать задание</button>
+                  <button class="primary-btn assignment-author-only hidden" id="subjectCreateTaskBtn" type="button">＋ Создать задание</button>
                 </div>
               </div>
 
@@ -229,7 +229,7 @@
       <section class="view" id="assignments">
         <div class="section-toolbar">
           <div><span class="section-kicker">Библиотека</span><h2>Задания</h2><p>Сначала создайте задание по предмету, затем отдельным действием назначьте его нужному классу.</p></div>
-          <button class="primary-btn" id="createTaskBtn2">＋ Новое задание</button>
+          <button class="primary-btn assignment-author-only hidden" id="createTaskBtn2">＋ Новое задание</button>
         </div>
         <div class="panel">
           <div class="filters">
@@ -1278,7 +1278,7 @@
   </div>
 
   <script src="attempt-security.js?v=50"></script>
-  <script src="app.js?v=74"></script>
+  <script src="app.js?v=75"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>

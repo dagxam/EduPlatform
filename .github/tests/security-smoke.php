@@ -97,3 +97,16 @@ security_assert(
 );
 
 echo "UROVIA security smoke OK\n";
+
+
+$assignmentCreate = security_read($root . '/api/assignments/create.php');
+security_assert(
+    str_contains($assignmentCreate, "require_user(['admin', 'teacher'])"),
+    'student assignment creation must stay blocked on the server'
+);
+
+$assignmentImport = security_read($root . '/api/assignments/import-file.php');
+security_assert(
+    str_contains($assignmentImport, "require_user(['admin', 'teacher'])"),
+    'student assignment file import must stay blocked on the server'
+);
