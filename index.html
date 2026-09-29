@@ -951,11 +951,12 @@
         <button class="secondary-btn" id="toggleRegistrationBtn" type="button">—</button>
       </div>
       <div class="import-box">
-        <h3>Загрузить учеников из Word</h3>
+        <h3>Загрузить учеников из файла</h3>
         <p>Сначала UROVIA распознает список. Перед добавлением можно исправить фамилию или имя, удалить лишнюю строку и добавить пропущенного ученика вручную.</p>
         <form id="importStudentsForm">
-          <input type="file" name="file" accept=".docx" required>
-          <button class="primary-btn" type="submit">Проверить DOCX</button>
+          <input type="file" name="file" accept=".doc,.docx,.pdf,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+          <small class="field-help">Word DOC/DOCX, PDF, Excel XLS/XLSX · до 10 МБ.</small>
+          <button class="primary-btn" type="submit">Проверить файл</button>
         </form>
         <div class="form-error hidden" id="importStudentsError"></div>
         <div class="import-result hidden" id="importStudentsResult"></div>
@@ -1277,7 +1278,7 @@
   </div>
 
   <script src="attempt-security.js?v=50"></script>
-  <script src="app.js?v=73"></script>
+  <script src="app.js?v=74"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=44"></script>
 </body>

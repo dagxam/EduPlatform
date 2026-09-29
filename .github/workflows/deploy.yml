@@ -50,6 +50,9 @@ jobs:
       - name: Validate mixed assignment parser
         run: php .github/tests/import-template-smoke.php
 
+      - name: Validate student roster file formats
+        run: php .github/tests/student-roster-import-smoke.php
+
       - name: Validate import-to-grading pipeline
         run: php .github/tests/grading-smoke.php
 

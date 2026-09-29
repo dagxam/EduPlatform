@@ -1086,7 +1086,7 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
       credentials: 'same-origin',
       body: data
     });
-    const payload = await response.json();
+    const payload = await readJsonResponse(response, 'Сервер не вернул корректный ответ при распознавании списка.');
     if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось распознать список.');
 
     studentImportPreviewRows = (payload.students || []).map(row => ({
@@ -1095,14 +1095,15 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
       duplicate: Boolean(row.duplicate)
     }));
     renderStudentImportPreview();
-    result.textContent = 'Список распознан. Проверьте каждую строку и исправьте ошибки перед добавлением.';
+    const sourceFormat = payload.source_format ? ' · ' + payload.source_format : '';
+    result.textContent = 'Список распознан' + sourceFormat + '. Проверьте каждую строку и исправьте ошибки перед добавлением.';
     result.classList.remove('hidden');
   } catch (e) {
     error.textContent = e.message;
     error.classList.remove('hidden');
   } finally {
     button.disabled = false;
-    button.textContent = 'Проверить DOCX';
+    button.textContent = 'Проверить файл';
   }
 });
 
