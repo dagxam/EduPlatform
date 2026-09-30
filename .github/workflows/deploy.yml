@@ -43,6 +43,9 @@ jobs:
           node --check attempt-security.js
           node --check pwa.js
 
+      - name: Validate tablet layout and PWA installation
+        run: node .github/tests/pwa-tablet-smoke.mjs
+
       - name: Validate SQLite schema
         run: |
           php -r '$pdo = new PDO("sqlite::memory:"); $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); $pdo->exec(file_get_contents("database/schema.sql")); echo "SQLite schema OK\n";'

@@ -14,3 +14,8 @@
   Require all denied
   Deny from all
 </FilesMatch>
+
+# Consistent PWA manifest MIME in Chrome / YaBrowser.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>

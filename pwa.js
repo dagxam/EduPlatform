@@ -8,6 +8,8 @@
 
   const isStandalone = () =>
     window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
     window.navigator.standalone === true;
 
   const isIOS = () =>
@@ -15,7 +17,32 @@
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   const isSafari = () =>
-    /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+    /^((?!chrome|android|crios|fxios|edgios|yabrowser).)*safari/i.test(navigator.userAgent);
+
+  const isYandex = () => /yabrowser/i.test(navigator.userAgent);
+  const isAndroid = () => /android/i.test(navigator.userAgent);
+  const isChromium = () =>
+    /chrome|crios|chromium/i.test(navigator.userAgent) &&
+    !/edg|edgios|opr|opera|firefox|fxios/i.test(navigator.userAgent);
+
+  function showInstallGuide(kind) {
+    const guide = document.getElementById('pwaIosModal');
+    if (!guide) return;
+    const title = document.getElementById('pwaIosTitle');
+    const details = guide.querySelector('.pwa-ios-card > p');
+    const steps = guide.querySelector('.pwa-ios-card > ol');
+    if (kind === 'ios') {
+      title.textContent = 'Установить UROVIA на iPhone или iPad';
+      details.textContent = 'Откройте UROVIA в Safari, затем добавьте сайт на экран «Домой».';
+      steps.innerHTML = '<li><span>1</span>Нажмите «Поделиться» в Safari.</li><li><span>2</span>Выберите «На экран Домой».</li><li><span>3</span>Подтвердите «Добавить».</li>';
+    } else {
+      title.textContent = 'Установить UROVIA';
+      details.textContent = 'Браузер не предоставил системное окно установки. Приложение можно добавить через его меню.';
+      steps.innerHTML = '<li><span>1</span>Откройте меню браузера (⋮ или ≡).</li><li><span>2</span>Выберите «Установить приложение» либо «Добавить на главный экран».</li><li><span>3</span>Подтвердите установку. Если пункта нет, откройте UROVIA в актуальном Chrome.</li>';
+    }
+    guide.classList.remove('hidden');
+    document.getElementById('pwaIosClose')?.focus();
+  }
 
   function ensureUi() {
     if (document.getElementById('pwaInstallButton')) return;
@@ -57,19 +84,21 @@
     document.body.append(install, update, ios);
 
     install.addEventListener('click', async () => {
-      if (isIOS()) {
-        ios.classList.remove('hidden');
+      if (isStandalone()) return;
+      if (deferredInstallPrompt) {
+        const prompt = deferredInstallPrompt;
+        deferredInstallPrompt = null;
+        try {
+          await prompt.prompt();
+          await prompt.userChoice;
+        } catch {
+          showInstallGuide(isIOS() ? 'ios' : 'browser');
+        } finally {
+          refreshInstallButton();
+        }
         return;
       }
-
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      try {
-        await deferredInstallPrompt.userChoice;
-      } finally {
-        deferredInstallPrompt = null;
-        refreshInstallButton();
-      }
+      showInstallGuide(isIOS() ? 'ios' : 'browser');
     });
 
     const closeIos = () => ios.classList.add('hidden');
@@ -97,11 +126,10 @@
 
     document.documentElement.classList.remove('pwa-standalone');
 
-    if (deferredInstallPrompt || (isIOS() && isSafari())) {
-      button.classList.remove('hidden');
-    } else {
-      button.classList.add('hidden');
-    }
+    // YaBrowser and some Chromium versions never dispatch beforeinstallprompt:
+    // show a truthful manual installation guide instead of a dead button.
+    const canGuide = isIOS() || isYandex() || isAndroid() || isChromium();
+    button.classList.toggle('hidden', !deferredInstallPrompt && !canGuide);
   }
 
   function showUpdateReady() {

@@ -206,3 +206,60 @@
 .auth-info .brand span{
   color:#fff!important;
 }
+
+
+/* Tablet auth layout and touch ergonomics v46 */
+html,body{width:100%;max-width:100%;min-height:100%;overflow-x:clip}
+body{min-height:100vh;min-height:100dvh;-webkit-text-size-adjust:100%}
+.auth-shell{width:100%;max-width:100%;min-height:100vh;min-height:100dvh}
+.auth-info,.auth-panel{min-width:0}
+.auth-info .brand,.auth-info .info-copy,.auth-info .info-points{isolation:isolate}
+@media (min-width:901px) and (max-width:1280px){
+  .auth-shell{
+    display:grid;
+    grid-template-columns:minmax(0,46fr) minmax(0,54fr);
+    align-items:stretch;
+  }
+  .auth-info,.auth-panel{min-height:100vh;min-height:100dvh}
+  .auth-info{padding:clamp(28px,3.5vw,48px)}
+  .auth-panel{padding:28px clamp(18px,3vw,40px)}
+  .auth-card{width:min(490px,100%);padding:clamp(24px,2.7vw,36px)}
+  .info-copy{margin:auto 0;max-width:100%}
+  .info-copy h1{font-size:clamp(33px,3.9vw,53px);overflow-wrap:normal}
+  .info-copy p{font-size:clamp(14px,1.4vw,17px)}
+  .info-points{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+  .info-points>div{min-width:0;gap:6px}
+  .info-points b{font-size:11px}
+  .info-points small{font-size:10px}
+}
+@media (min-width:601px) and (max-width:900px){
+  .auth-shell{display:flex;flex-direction:column;min-height:100dvh}
+  .auth-info{width:100%;flex:0 0 auto;min-height:0;padding:clamp(24px,4vw,38px) clamp(22px,5vw,46px);border-radius:0}
+  .info-copy{margin:24px 0 0;max-width:740px}
+  .info-copy h1{font-size:clamp(30px,5.2vw,43px);line-height:1.08;margin:8px 0 12px}
+  .info-copy p{display:block;font-size:14px;line-height:1.5}
+  .info-points{display:none}
+  .auth-panel{width:100%;flex:1 0 auto;min-height:0;padding:clamp(20px,4vw,36px) 18px max(30px,env(safe-area-inset-bottom));justify-content:flex-start}
+  .auth-card{width:min(570px,100%);padding:clamp(22px,4vw,34px)}
+}
+@media (max-width:600px){
+  .auth-shell{display:flex;flex-direction:column;min-height:100dvh}
+  .auth-info,.auth-panel{width:100%;min-height:0}
+  .auth-panel{flex:1 0 auto}
+}
+@media (max-height:720px) and (min-width:901px){
+  .auth-info{padding-block:22px}
+  .info-copy h1{font-size:clamp(30px,3.4vw,44px);margin:10px 0 12px}
+  .auth-panel{padding-block:18px}
+  .auth-card{padding:24px}
+}
+@media (pointer:coarse){
+  .auth-shell button,.auth-shell input,.student-option{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .auth-shell button:not(.hidden){min-height:44px}
+  .mode-btn,.primary-btn,.secondary-btn{min-height:48px!important}
+  .auth-text-btn{min-height:44px!important;padding:10px 12px}
+  .show-password{min-width:76px;min-height:40px!important;display:grid;place-items:center;right:5px;padding:7px}
+  .password-field input{padding-right:92px}
+  .state-block input,.student-search{min-height:48px;font-size:16px}
+  .student-option{min-height:58px}
+}

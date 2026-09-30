@@ -102,3 +102,17 @@
   .pwa-update-toast{bottom:12px}
   .pwa-ios-card{padding:22px 19px}
 }
+
+
+/* Touch-friendly cross-browser install UI v45 */
+.pwa-install-button{min-height:50px;touch-action:manipulation;bottom:max(16px,env(safe-area-inset-bottom))}
+.pwa-ios-modal{padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+.pwa-ios-card{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}
+.pwa-ios-close{width:44px;height:44px}
+.pwa-ios-ok{min-height:48px}
+@media(max-width:1180px) and (pointer:coarse){
+  .pwa-install-button{min-height:52px;border-radius:15px}
+  .pwa-install-icon{width:28px;height:28px}
+  .pwa-update-toast button{min-height:44px}
+}
+@media(max-width:640px){.pwa-install-button{bottom:max(12px,env(safe-area-inset-bottom))}}
