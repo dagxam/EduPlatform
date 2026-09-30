@@ -116,3 +116,13 @@
   .pwa-update-toast button{min-height:44px}
 }
 @media(max-width:640px){.pwa-install-button{bottom:max(12px,env(safe-area-inset-bottom))}}
+
+
+/* Clear post-install confirmation and icon v46 */
+.pwa-guide-icon{display:block;width:64px;height:64px;object-fit:contain;border-radius:16px;background:#1d68f0;box-shadow:0 8px 20px rgba(29,104,240,.18)}
+.pwa-ios-card .pwa-guide-note{margin:13px 0 0;color:#748292;font-size:12px;line-height:1.5}
+.pwa-guide-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
+.pwa-guide-confirm{min-height:48px;display:grid;place-items:center;padding:10px;border:1px solid #acd9bf;border-radius:11px;background:#e9f8ef;color:#176a3c;font-weight:800;cursor:pointer;touch-action:manipulation}
+.pwa-guide-actions .pwa-ios-ok{min-height:48px}
+.pwa-ios-close{z-index:2}
+@media(max-width:380px){.pwa-guide-actions{grid-template-columns:1fr}.pwa-ios-card{padding:18px 15px}}
