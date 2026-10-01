@@ -49,7 +49,14 @@ $stmt->execute([
 session_regenerate_id(true);
 $_SESSION['user_id'] = (int) $pdo->lastInsertId();
 
-audit_event('privacy_consent_granted', 'user', (int)$_SESSION['user_id'], privacy_audit_metadata('consent'));
+audit_event(
+    'privacy_consent_granted',
+    'user',
+    (int)$_SESSION['user_id'],
+    privacy_audit_metadata('consent'),
+    null,
+    (int)$_SESSION['user_id']
+);
 
 json_response([
     'ok' => true,

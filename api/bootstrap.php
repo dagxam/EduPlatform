@@ -100,10 +100,24 @@ function require_privacy_confirmation(
 
 function privacy_audit_metadata(string $basis): array
 {
+    static $hashes = null;
+    if ($hashes === null) {
+        $root = dirname(__DIR__);
+        $policyPath = $root . DIRECTORY_SEPARATOR . 'privacy-policy.html';
+        $consentPath = $root . DIRECTORY_SEPARATOR . 'personal-data-consent.html';
+        $hashes = [
+            'privacy_policy_sha256' => is_file($policyPath) ? (string)hash_file('sha256', $policyPath) : null,
+            'privacy_consent_sha256' => is_file($consentPath) ? (string)hash_file('sha256', $consentPath) : null,
+        ];
+    }
+
     return [
         'privacy_basis' => $basis,
         'privacy_policy_version' => privacy_policy_version(),
         'privacy_consent_version' => privacy_consent_version(),
+        'privacy_policy_sha256' => $hashes['privacy_policy_sha256'],
+        'privacy_consent_sha256' => $hashes['privacy_consent_sha256'],
+        'privacy_source_path' => (string)($_SERVER['SCRIPT_NAME'] ?? ''),
     ];
 }
 

@@ -41,6 +41,12 @@ assert(app.includes("data.append('privacy_basis_confirmed', '1')"));
 assert(app.includes('privacy_basis_confirmed: true'));
 assert(bootstrap.includes('function require_privacy_confirmation'));
 assert(bootstrap.includes("return '2026-10-01'"));
+assert(bootstrap.includes('privacy_policy_sha256'));
+assert(bootstrap.includes('privacy_consent_sha256'));
+assert(bootstrap.includes("hash_file('sha256'"));
+const setupSource = read('api/setup/create-admin.php');
+assert(setupSource.includes("privacy_consent_granted"));
+assert(setupSource.includes("(int)$_SESSION['user_id']"));
 
 const protectedEndpoints = [
   'api/setup/create-admin.php',
