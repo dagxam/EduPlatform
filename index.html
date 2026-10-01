@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=76">
+  <link rel="stylesheet" href="styles.css?v=77">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -58,6 +58,10 @@
       </nav>
 
       <div class="sidebar-footer">
+        <div class="sidebar-legal-links">
+          <a href="privacy-policy.html" target="_blank" rel="noopener">Политика ПД</a>
+          <a href="personal-data-consent.html" target="_blank" rel="noopener">Согласие</a>
+        </div>
         <div class="profile-mini">
           <div class="avatar" id="sidebarAvatar">У</div>
           <div class="profile-copy">
@@ -286,6 +290,10 @@
                   <label>Email<input id="profileEmail" name="email" type="email" required></label>
                   <label>Телефон<input id="profilePhone" name="phone" type="tel" placeholder="+7 ..."></label>
                 </div>
+                <label class="privacy-checkbox">
+                  <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+                  <span>Подтверждаю законное основание обработки указанных данных. При редактировании собственных данных — даю <a href="personal-data-consent.html" target="_blank" rel="noopener">согласие</a>; при редактировании чужого профиля — подтверждаю наличие законного основания. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+                </label>
                 <div class="form-error hidden" id="profileBasicError"></div>
                 <div class="import-result hidden" id="profileBasicResult"></div>
                 <button class="primary-btn" id="profileBasicSaveBtn" type="submit">Сохранить профиль</button>
@@ -300,6 +308,10 @@
               <form id="profileAvatarForm" class="profile-form" enctype="multipart/form-data">
                 <input type="hidden" id="profileAvatarUserId" name="user_id">
                 <label>Выберите фото<input id="profileAvatarFile" name="avatar" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required></label>
+                <label class="privacy-checkbox">
+                  <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+                  <span>Подтверждаю законное основание обработки изображения. Фото используется только как изображение профиля и не предназначено для биометрической идентификации. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+                </label>
                 <div class="form-error hidden" id="profileAvatarError"></div>
                 <button class="primary-btn" id="profileAvatarSaveBtn" type="submit">Загрузить фото</button>
               </form>
@@ -915,6 +927,10 @@
         </div>
         <label>Email администратора<input name="admin_email" type="email" required></label>
         <label>Пароль администратора<input name="admin_password" type="password" minlength="8" required><small>Минимум 8 символов.</small></label>
+        <label class="privacy-checkbox">
+          <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+          <span>Подтверждаю наличие законного основания для передачи и обработки персональных данных администратора школы. Если согласие требуется законом, оно получено. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+        </label>
         <div class="form-error hidden" id="schoolFormError"></div>
         <button class="primary-btn full" type="submit">Создать школу и администратора</button>
       </form>
@@ -957,6 +973,10 @@
         <form id="importStudentsForm">
           <input type="file" name="file" accept=".doc,.docx,.pdf,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
           <small class="field-help">Word DOC/DOCX, PDF, Excel XLS/XLSX · до 10 МБ.</small>
+          <label class="privacy-checkbox">
+            <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+            <span>Подтверждаю, что имею законное основание передавать данные учащихся в UROVIA, включая согласие законного представителя, если оно требуется законом. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+          </label>
           <button class="primary-btn" type="submit">Проверить файл</button>
         </form>
         <div class="form-error hidden" id="importStudentsError"></div>
@@ -1035,6 +1055,10 @@
           <b>Что останется без изменений</b>
           <span>PIN ученика, выполненные задания, попытки, оценки и принадлежность к текущему классу.</span>
         </div>
+        <label class="privacy-checkbox">
+          <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+          <span>Подтверждаю наличие законного основания для уточнения персональных данных учащегося. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+        </label>
         <div class="form-error hidden" id="studentEditError"></div>
         <div class="import-result hidden" id="studentEditResult"></div>
         <button class="primary-btn full" type="submit" id="studentEditSaveBtn">Сохранить изменения</button>
@@ -1067,6 +1091,10 @@
         </div>
         <label>Email<input name="email" type="email" required></label>
         <p class="form-hint">Пароль вручную задавать не нужно. После создания нажмите «Отправить доступ» — UROVIA сгенерирует логин и временный пароль и отправит их на email учителя.</p>
+        <label class="privacy-checkbox">
+          <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+          <span>Подтверждаю наличие законного основания для передачи и обработки персональных данных учителя. Если согласие требуется законом, оно получено. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+        </label>
         <div class="form-error hidden" id="teacherFormError"></div>
         <button class="primary-btn full" type="submit">Создать учителя</button>
       </form>
@@ -1112,6 +1140,10 @@
         </div>
         <label>Email<input name="email" id="schoolAdminEmail" type="email" required></label>
         <label>Пароль<input name="password" id="schoolAdminPassword" type="password" minlength="8"><small id="schoolAdminPasswordHint">Для нового администратора — минимум 8 символов.</small></label>
+        <label class="privacy-checkbox">
+          <input type="checkbox" name="privacy_basis_confirmed" value="1" required>
+          <span>Подтверждаю наличие законного основания для обработки данных администратора школы. Если согласие требуется законом, оно получено. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span>
+        </label>
         <div class="form-error hidden" id="schoolAdminFormError"></div>
         <button class="primary-btn full" id="saveSchoolAdminBtn" type="submit">Назначить администратора</button>
       </form>
@@ -1279,7 +1311,7 @@
   </div>
 
   <script src="attempt-security.js?v=50"></script>
-  <script src="app.js?v=75"></script>
+  <script src="app.js?v=76"></script>
   <script src="question-builder.js?v=44"></script>
   <script src="pwa.js?v=46"></script>
 </body>

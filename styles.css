@@ -8565,3 +8565,52 @@ input,select,textarea,button{
   .view{padding-bottom:max(36px,env(safe-area-inset-bottom))}
   .modal-backdrop{padding:max(12px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
 }
+
+
+/* Personal data controls v77 */
+.privacy-checkbox{
+  display:grid!important;
+  grid-template-columns:20px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:9px!important;
+  margin:12px 0!important;
+  padding:11px 12px!important;
+  border:1px solid #dfe6ed!important;
+  border-radius:11px!important;
+  background:#f8fafc!important;
+  color:#4c5d6e!important;
+  font-size:10px!important;
+  font-weight:650!important;
+  line-height:1.48!important;
+  cursor:pointer;
+}
+.privacy-checkbox input{
+  width:18px!important;
+  height:18px!important;
+  min-height:18px!important;
+  margin:1px 0 0!important;
+  accent-color:var(--brand);
+}
+.privacy-checkbox a,
+.sidebar-legal-links a{
+  color:var(--brand);
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.sidebar-legal-links{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  padding:0 2px 8px;
+  font-size:8px;
+  line-height:1.2;
+}
+.sidebar-legal-links a{
+  color:#8592a0;
+  white-space:nowrap;
+}
+.sidebar-legal-links a:hover{color:var(--brand)}
+@media(max-width:1050px){
+  .sidebar-legal-links{padding:8px 0 5px;font-size:9px}
+}

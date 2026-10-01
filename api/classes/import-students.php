@@ -10,6 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $classId = (int)($_POST['class_id'] ?? 0);
+require_privacy_confirmation(
+    $_POST,
+    'privacy_basis_confirmed',
+    'Подтвердите законное основание передачи персональных данных учащихся.'
+);
 if ($classId < 1 || empty($_FILES['file'])) {
     json_response(['ok' => false, 'error' => 'Выберите класс и файл со списком учеников.'], 422);
 }

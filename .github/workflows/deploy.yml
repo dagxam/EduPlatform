@@ -49,6 +49,9 @@ jobs:
       - name: Validate PWA installed-state behavior
         run: node .github/tests/pwa-install-behavior.mjs
 
+      - name: Validate personal data compliance wiring
+        run: node .github/tests/privacy-compliance-smoke.mjs
+
       - name: Validate SQLite schema
         run: |
           php -r '$pdo = new PDO("sqlite::memory:"); $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); $pdo->exec(file_get_contents("database/schema.sql")); echo "SQLite schema OK\n";'

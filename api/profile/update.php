@@ -8,6 +8,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+require_privacy_confirmation(
+    $data,
+    'privacy_basis_confirmed',
+    'Подтвердите законное основание обработки данных профиля.'
+);
 $targetId = max(1, (int)($data['user_id'] ?? $user['id']));
 $self = $targetId === (int)$user['id'];
 $pdo = app_db();
@@ -73,6 +78,6 @@ try {
 
 audit_event('staff_profile_updated', 'user', $targetId, [
     'self_edit' => $self,
-], $schoolId, (int)$user['id']);
+] + privacy_audit_metadata($self ? 'consent' : 'lawful_basis_confirmed'), $schoolId, (int)$user['id']);
 
 json_response(['ok' => true]);

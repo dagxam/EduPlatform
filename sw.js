@@ -1,9 +1,12 @@
-const CACHE = 'uvoria-v80';
+const CACHE = 'uvoria-v81';
 const APP_SHELL = [
   './',
   './index.html',
   './login.html',
   './offline.html',
+  './privacy-policy.html',
+  './personal-data-consent.html',
+  './legal.css',
   './styles.css',
   './login.css',
   './pwa.css',

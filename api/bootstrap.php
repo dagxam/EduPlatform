@@ -67,6 +67,46 @@ enforce_same_origin();
 
 require_once __DIR__ . '/backups/_helpers.php';
 
+function privacy_policy_version(): string
+{
+    return '2026-10-01';
+}
+
+function privacy_consent_version(): string
+{
+    return '2026-10-01';
+}
+
+function privacy_truthy(mixed $value): bool
+{
+    if (is_bool($value)) return $value;
+    if (is_int($value) || is_float($value)) return (int)$value === 1;
+    return in_array(strtolower(trim((string)$value)), ['1', 'true', 'yes', 'on'], true);
+}
+
+function require_privacy_confirmation(
+    array $data,
+    string $field,
+    string $message = 'Необходимо подтвердить законное основание обработки персональных данных.'
+): void {
+    if (!privacy_truthy($data[$field] ?? null)) {
+        json_response([
+            'ok' => false,
+            'error' => $message,
+            'code' => 'PRIVACY_CONFIRMATION_REQUIRED',
+        ], 422);
+    }
+}
+
+function privacy_audit_metadata(string $basis): array
+{
+    return [
+        'privacy_basis' => $basis,
+        'privacy_policy_version' => privacy_policy_version(),
+        'privacy_consent_version' => privacy_consent_version(),
+    ];
+}
+
 function json_response(array $data, int $status = 200): never
 {
     http_response_code($status);

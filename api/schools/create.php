@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+require_privacy_confirmation($data, 'privacy_basis_confirmed');
 $name = trim((string)($data['name'] ?? ''));
 $city = trim((string)($data['city'] ?? ''));
 $adminFirstName = trim((string)($data['admin_first_name'] ?? ''));
@@ -87,7 +88,7 @@ $_SESSION['active_school_id'] = $schoolId;
 audit_event('school_created', 'school', $schoolId, [
     'name' => $name,
     'school_admin_id' => $schoolAdminId,
-], $schoolId, (int)$user['id']);
+] + privacy_audit_metadata('lawful_basis_confirmed'), $schoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,

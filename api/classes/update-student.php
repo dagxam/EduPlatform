@@ -10,6 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+require_privacy_confirmation(
+    $data,
+    'privacy_basis_confirmed',
+    'Подтвердите законное основание изменения персональных данных учащегося.'
+);
 $classId = (int)($data['class_id'] ?? 0);
 $studentId = (int)($data['student_id'] ?? 0);
 $firstName = trim(preg_replace('/\s+/u', ' ', (string)($data['first_name'] ?? '')) ?? '');
@@ -108,7 +113,7 @@ audit_event('student_profile_updated', 'user', $studentId, [
         'last_name' => $lastName,
         'middle_name' => $middleName,
     ],
-], $schoolId, (int)$user['id']);
+] + privacy_audit_metadata('lawful_basis_confirmed'), $schoolId, (int)$user['id']);
 
 json_response([
     'ok' => true,

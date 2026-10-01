@@ -13,6 +13,11 @@ if ($count > 0) {
 }
 
 $data = read_json_body();
+require_privacy_confirmation(
+    $data,
+    'privacy_consent',
+    'Для создания администратора необходимо отдельно согласиться на обработку персональных данных.'
+);
 $firstName = trim((string) ($data['first_name'] ?? ''));
 $lastName = trim((string) ($data['last_name'] ?? ''));
 $email = normalize_email((string) ($data['email'] ?? ''));
@@ -43,6 +48,8 @@ $stmt->execute([
 
 session_regenerate_id(true);
 $_SESSION['user_id'] = (int) $pdo->lastInsertId();
+
+audit_event('privacy_consent_granted', 'user', (int)$_SESSION['user_id'], privacy_audit_metadata('consent'));
 
 json_response([
     'ok' => true,

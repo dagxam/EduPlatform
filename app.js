@@ -870,6 +870,8 @@ function openStudentEditor(studentId) {
   document.getElementById('studentEditLastName').value = student.last_name || '';
   document.getElementById('studentEditFirstName').value = student.first_name || '';
   document.getElementById('studentEditMiddleName').value = student.middle_name || '';
+  const studentPrivacy = document.querySelector('#studentEditForm [name="privacy_basis_confirmed"]');
+  if (studentPrivacy) studentPrivacy.checked = false;
 
   const hint = document.getElementById('studentEditHint');
   if (hint) hint.textContent = 'Класс: ' + (currentClass.name || '—') + '. Изменения сохранятся у этого же ученика.';
@@ -1079,9 +1081,16 @@ document.getElementById('importStudentsForm')?.addEventListener('submit', async 
   result.classList.add('hidden');
 
   if (!fileInput.files?.[0]) return;
+  const privacyBasis = form.querySelector('[name="privacy_basis_confirmed"]');
+  if (!privacyBasis?.checked) {
+    error.textContent = 'Подтвердите законное основание обработки персональных данных учащихся.';
+    error.classList.remove('hidden');
+    return;
+  }
   const data = new FormData();
   data.append('class_id', currentClass.id);
   data.append('file', fileInput.files[0]);
+  data.append('privacy_basis_confirmed', '1');
 
   button.disabled = true;
   button.textContent = 'Распознаём...';
@@ -1140,7 +1149,7 @@ document.getElementById('confirmStudentsImportBtn')?.addEventListener('click', a
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ class_id: currentClass.id, students })
+      body: JSON.stringify({ class_id: currentClass.id, students, privacy_basis_confirmed: true })
     });
     const payload = await response.json();
     if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Не удалось добавить учеников.');
@@ -1871,6 +1880,9 @@ async function loadStaffProfile(userId = null, openView = false) {
       : '<span class="profile-empty-value">Нет активных школ</span>';
   }
 
+  document.querySelectorAll('#profileBasicForm [name="privacy_basis_confirmed"], #profileAvatarForm [name="privacy_basis_confirmed"]').forEach(input => {
+    input.checked = false;
+  });
   selectProfileTab('main');
   if (openView) showView('staff-profile');
 }

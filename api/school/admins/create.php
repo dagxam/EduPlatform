@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $schoolId = require_active_school($user, false);
 
 $data = read_json_body();
+require_privacy_confirmation($data, 'privacy_basis_confirmed');
 $firstName = trim((string)($data['first_name'] ?? ''));
 $lastName = trim((string)($data['last_name'] ?? ''));
 $email = normalize_email((string)($data['email'] ?? ''));
@@ -93,5 +94,5 @@ try {
     throw $e;
 }
 
-audit_event('school_admin_appointed', 'user', $adminId, [], $schoolId, (int)$user['id']);
+audit_event('school_admin_appointed', 'user', $adminId, privacy_audit_metadata('lawful_basis_confirmed'), $schoolId, (int)$user['id']);
 json_response(['ok' => true, 'admin_id' => $adminId], 201);

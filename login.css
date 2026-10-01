@@ -263,3 +263,48 @@ body{min-height:100vh;min-height:100dvh;-webkit-text-size-adjust:100%}
   .state-block input,.student-search{min-height:48px;font-size:16px}
   .student-option{min-height:58px}
 }
+
+
+/* Privacy notices v47 */
+.legal-note{
+  margin-top:10px;
+  color:#7b8795;
+  font-size:11px;
+  line-height:1.45;
+}
+.legal-note a,
+.privacy-checkbox a,
+.auth-card footer a{
+  color:#1d68f0;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.privacy-checkbox{
+  display:grid!important;
+  grid-template-columns:20px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:9px!important;
+  margin:12px 0!important;
+  padding:11px 12px!important;
+  border:1px solid #dfe6ed!important;
+  border-radius:11px!important;
+  background:#f8fafc!important;
+  color:#4c5d6e!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  line-height:1.45!important;
+  cursor:pointer;
+}
+.privacy-checkbox input{
+  width:18px!important;
+  height:18px!important;
+  min-height:18px!important;
+  margin:1px 0 0!important;
+  accent-color:#1d68f0;
+}
+.auth-panel>footer{
+  line-height:1.6;
+}
+.auth-panel>footer a{
+  color:inherit;
+}

@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="login.css?v=46">
+  <link rel="stylesheet" href="login.css?v=47">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -66,6 +66,7 @@
             <div class="form-error hidden" id="loginError"></div>
             <button class="primary-btn" type="submit">Войти</button>
             <button class="auth-text-btn" id="forgotPasswordBtn" type="button">Забыли пароль?</button>
+            <div class="legal-note">Продолжая вход, вы подтверждаете, что ознакомились с <a href="privacy-policy.html" target="_blank" rel="noopener">Политикой обработки персональных данных</a>.</div>
           </form>
         </div>
 
@@ -80,6 +81,7 @@
             <div class="form-error hidden" id="forgotPasswordError"></div>
             <div class="auth-success hidden" id="forgotPasswordResult"></div>
             <button class="primary-btn" type="submit">Отправить ссылку</button>
+            <div class="legal-note">Указанный идентификатор используется только для восстановления доступа в соответствии с <a href="privacy-policy.html" target="_blank" rel="noopener">Политикой</a>.</div>
             <button class="secondary-btn" id="backToLoginFromRecovery" type="button">← Вернуться ко входу</button>
           </form>
         </div>
@@ -119,6 +121,7 @@
             </label>
             <div class="form-error hidden" id="studentCodeError"></div>
             <button class="primary-btn" type="submit">Продолжить</button>
+            <div class="legal-note">Данные учащегося обрабатываются для работы учебной платформы. Подробнее — в <a href="privacy-policy.html" target="_blank" rel="noopener">Политике</a>.</div>
             <button class="secondary-btn" type="button" id="backToStaffLogin">Вход учителя / администратора</button>
           </form>
         </div>
@@ -166,6 +169,10 @@
               </div>
               <small>Минимум 8 символов.</small>
             </label>
+            <label class="privacy-checkbox">
+              <input type="checkbox" name="privacy_consent" value="1" required>
+              <span>Я даю отдельное <a href="personal-data-consent.html" target="_blank" rel="noopener">согласие на обработку персональных данных</a> и ознакомлен(а) с <a href="privacy-policy.html" target="_blank" rel="noopener">Политикой</a>.</span>
+            </label>
             <div class="form-error hidden" id="setupError"></div>
             <button class="primary-btn" type="submit">Создать администратора</button>
           </form>
@@ -178,10 +185,10 @@
           <button class="secondary-btn" id="retryBtn">Проверить ещё раз</button>
         </div>
       </div>
-      <footer>UROVIA · MVP</footer>
+      <footer>UROVIA · <a href="privacy-policy.html">Политика персональных данных</a> · <a href="personal-data-consent.html">Согласие</a></footer>
     </section>
   </main>
-  <script src="login.js?v=54"></script>
+  <script src="login.js?v=55"></script>
   <script src="pwa.js?v=46"></script>
 </body>
 </html>

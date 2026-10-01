@@ -9,6 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+require_privacy_confirmation(
+    $data,
+    'privacy_basis_confirmed',
+    'Подтвердите законное основание передачи персональных данных учащихся.'
+);
 $classId = (int)($data['class_id'] ?? 0);
 $rows = is_array($data['students'] ?? null) ? $data['students'] : [];
 
@@ -86,7 +91,7 @@ try {
 audit_event('students_imported', 'class', $classId, [
     'imported_count' => count($inserted),
     'skipped_count' => count($skipped),
-], (int)$class['school_id'], (int)$user['id']);
+] + privacy_audit_metadata('lawful_basis_confirmed'), (int)$class['school_id'], (int)$user['id']);
 
 json_response([
     'ok' => true,

@@ -7,6 +7,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
 
+require_privacy_confirmation(
+    $_POST,
+    'privacy_basis_confirmed',
+    'Подтвердите законное основание обработки изображения профиля.'
+);
 $targetId = max(1, (int)($_POST['user_id'] ?? $user['id']));
 $self = $targetId === (int)$user['id'];
 $pdo = app_db();
@@ -103,7 +108,14 @@ if ($oldName !== '') {
     if (is_file($oldPath)) @unlink($oldPath);
 }
 
-audit_event('staff_avatar_updated', 'user', $targetId, [], $schoolId, (int)$user['id']);
+audit_event(
+    'staff_avatar_updated',
+    'user',
+    $targetId,
+    privacy_audit_metadata($self ? 'consent' : 'lawful_basis_confirmed'),
+    $schoolId,
+    (int)$user['id']
+);
 
 json_response([
     'ok' => true,

@@ -22,9 +22,9 @@ for (const html of [login, index]) {
   assert(html.includes('pwa.js?v=46'), 'PWA handler must be updated on all entry points');
   assert(html.includes('pwa.css?v=46'), 'PWA styles must be updated on all entry points');
 }
-assert(login.includes('login.css?v=46'));
-assert(index.includes('styles.css?v=76'));
-assert(sw.includes("const CACHE = 'uvoria-v80'"));
+assert(login.includes('login.css?v=47'));
+assert(index.includes('styles.css?v=77'));
+assert(sw.includes("const CACHE = 'uvoria-v81'"));
 assert(loginCss.includes('Tablet auth layout and touch ergonomics v46'));
 assert(appCss.includes('Tablet touch and scroll access v76'));
 assert(pwa.includes('showInstallGuide'));
