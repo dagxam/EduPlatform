@@ -11,7 +11,7 @@ const bootstrap = read('api/bootstrap.php');
 
 assert(policy.includes('Политика обработки персональных данных'));
 assert(policy.includes('265-ФЗ'));
-assert(policy.includes('Трансгранич'));
+assert(/трансгранич/i.test(policy));
 assert(policy.includes('info@urovia.ru'));
 assert(consent.includes('Согласие на обработку персональных данных'));
 assert(consent.includes('отдельную отметку'));
