@@ -21,13 +21,18 @@ $stmt = $pdo->prepare(
     'SELECT ass.id,
             ass.max_attempts,
             ass.focus_policy,
-            COALESCE(ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes
+            COALESCE(ast.time_limit_minutes, ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes
      FROM assignments ass
-     JOIN assignment_classes ac ON ac.assignment_id = ass.id
-     JOIN class_students cs ON cs.class_id = ac.class_id
+     LEFT JOIN class_students cs ON cs.student_id = :student_id
+     LEFT JOIN assignment_classes ac
+       ON ac.assignment_id = ass.id
+      AND ac.class_id = cs.class_id
+     LEFT JOIN assignment_students ast
+       ON ast.assignment_id = ass.id
+      AND ast.student_id = :student_id
      WHERE ass.id = :assignment_id
        AND ass.status = "published"
-       AND cs.student_id = :student_id
+       AND (ac.assignment_id IS NOT NULL OR ast.assignment_id IS NOT NULL)
      LIMIT 1'
 );
 $stmt->execute(['assignment_id' => $assignmentId, 'student_id' => $studentId]);
