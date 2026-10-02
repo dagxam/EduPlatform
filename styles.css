@@ -7227,18 +7227,44 @@ input,select,textarea,button{
 .result-leader-score{
   display:flex;
   align-items:center;
-  gap:6px;
+  justify-content:flex-end;
   white-space:nowrap;
 }
-.result-leader-score>strong{
-  color:#31465a;
-  font-size:11px;
-  font-weight:900;
+.leader-average-badge{
+  min-width:58px;
+  min-height:38px;
+  padding:5px 9px 4px;
+  border:1px solid currentColor;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:1px;
+  line-height:1;
+  box-sizing:border-box;
 }
-.result-leader-score .grade{
-  min-width:30px;
-  min-height:30px;
-  padding:5px 8px;
+.leader-average-badge>strong{
+  font-size:13px;
+  font-weight:900;
+  line-height:1;
+}
+.leader-average-badge>small{
+  font-size:7px;
+  font-weight:800;
+  line-height:1.1;
+  letter-spacing:.01em;
+  text-transform:lowercase;
+  opacity:.72;
+}
+.leader-average-badge.grade-5{border-color:#bfe8cf}
+.leader-average-badge.grade-4{border-color:#bfd5f6}
+.leader-average-badge.grade-3{border-color:#efd59b}
+.leader-average-badge.grade-2{border-color:#efc3c3}
+@media(max-width:520px){
+  .leader-average-badge{
+    min-width:54px;
+    padding-inline:7px;
+  }
 }
 
 @media(max-width:1180px){
