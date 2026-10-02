@@ -25,7 +25,7 @@ $pdo = new PDO(
 mysql_apply_schema($pdo);
 
 $required = [
-    'users','schools','subjects','classes','assignments','questions',
+    'users','schools','subjects','classes','assignments','assignment_students','questions',
     'question_options','attempts','answers','audit_log','auth_throttle',
     'password_reset_tokens','urovia_meta'
 ];
@@ -36,6 +36,16 @@ $tables = array_map(
 foreach ($required as $table) {
     mysql_smoke_assert(in_array($table, $tables, true), "missing table {$table}");
 }
+
+$pdo->exec('DROP TABLE assignment_students');
+mysql_apply_runtime_migrations($pdo);
+$assignmentStudentsRestored = (int)$pdo->query(
+    "SELECT COUNT(*)
+     FROM information_schema.tables
+     WHERE table_schema = DATABASE()
+       AND table_name = 'assignment_students'"
+)->fetchColumn();
+mysql_smoke_assert($assignmentStudentsRestored === 1, 'runtime migration did not restore assignment_students');
 
 $version = $pdo->query(
     "SELECT meta_value FROM urovia_meta WHERE meta_key = 'schema_version'"
