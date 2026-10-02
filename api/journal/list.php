@@ -94,12 +94,39 @@ $students = $studentStmt->fetchAll();
 $assignmentSql =
     'SELECT a.id, a.title, a.created_at, a.due_at, a.status, a.workflow_status
      FROM assignments a
-     JOIN assignment_classes ac ON ac.assignment_id = a.id
      WHERE a.school_id = ?
-       AND ac.class_id = ?
        AND a.subject_id = ?
-       AND a.status IN ("published", "closed")';
-$assignmentParams = [$schoolId, $classId, $subjectId];
+       AND (
+           (
+               a.status IN ("published", "closed")
+               AND (
+                   EXISTS (
+                       SELECT 1
+                       FROM assignment_classes current_ac
+                       WHERE current_ac.assignment_id = a.id
+                         AND current_ac.class_id = ?
+                   )
+                   OR EXISTS (
+                       SELECT 1
+                       FROM assignment_students current_ast
+                       JOIN class_students current_cs
+                         ON current_cs.student_id = current_ast.student_id
+                       WHERE current_ast.assignment_id = a.id
+                         AND current_cs.class_id = ?
+                   )
+               )
+           )
+           OR EXISTS (
+               SELECT 1
+               FROM attempts history_at
+               JOIN class_students history_cs
+                 ON history_cs.student_id = history_at.student_id
+               WHERE history_at.assignment_id = a.id
+                 AND history_cs.class_id = ?
+                 AND history_at.status <> "in_progress"
+           )
+       )';
+$assignmentParams = [$schoolId, $subjectId, $classId, $classId, $classId];
 
 if ($period > 0) {
     $cutoff = date('Y-m-d H:i:s', time() - ($period * 86400));
@@ -121,7 +148,7 @@ if ($period > 0) {
     $assignmentParams[] = $cutoff;
 }
 
-$assignmentSql .= ' ORDER BY COALESCE(a.due_at, a.created_at) DESC, a.id DESC LIMIT 12';
+$assignmentSql .= ' ORDER BY COALESCE(a.due_at, a.created_at) DESC, a.id DESC';
 $assignmentStmt = $pdo->prepare($assignmentSql);
 $assignmentStmt->execute($assignmentParams);
 $assignments = $assignmentStmt->fetchAll();
