@@ -7,7 +7,7 @@ $pdo = app_db();
 
 $stmt = $pdo->prepare(
     'SELECT a.id, a.title, a.description, a.type, a.status, a.max_attempts,
-            COALESCE(ac.time_limit_minutes, a.time_limit_minutes) AS time_limit_minutes,
+            COALESCE(ast.time_limit_minutes, ac.time_limit_minutes, a.time_limit_minutes) AS time_limit_minutes,
             a.focus_policy, a.starts_at, a.due_at,
             a.variant_count, a.shuffle_questions, a.shuffle_options, a.shuffle_structured,
             s.name AS subject_name,
@@ -17,17 +17,23 @@ $stmt = $pdo->prepare(
             MAX(CASE WHEN at.status = "in_progress" THEN at.variant_label END) AS active_variant_label,
             COUNT(DISTINCT CASE WHEN at.status <> "in_progress" THEN at.id END) AS completed_attempts,
             MAX(CASE WHEN at.status <> "in_progress" THEN COALESCE(at.published_percent, at.percent) END) AS last_percent,
-            MAX(CASE WHEN at.status <> "in_progress" THEN COALESCE(at.published_grade, at.grade) END) AS last_grade
-     FROM class_students cs
-     JOIN classes c ON c.id = cs.class_id
-     JOIN assignment_classes ac ON ac.class_id = c.id
-     JOIN assignments a ON a.id = ac.assignment_id
+            MAX(CASE WHEN at.status <> "in_progress" THEN COALESCE(at.published_grade, at.grade) END) AS last_grade,
+            CASE WHEN ast.student_id IS NOT NULL THEN 1 ELSE 0 END AS assigned_personally
+     FROM assignments a
      LEFT JOIN subjects s ON s.id = a.subject_id
+     LEFT JOIN class_students cs ON cs.student_id = :student_id
+     LEFT JOIN classes c ON c.id = cs.class_id
+     LEFT JOIN assignment_classes ac
+       ON ac.assignment_id = a.id
+      AND ac.class_id = cs.class_id
+     LEFT JOIN assignment_students ast
+       ON ast.assignment_id = a.id
+      AND ast.student_id = :student_id
      LEFT JOIN questions q ON q.assignment_id = a.id
-     LEFT JOIN attempts at ON at.assignment_id = a.id AND at.student_id = cs.student_id
-     WHERE cs.student_id = :student_id
-       AND a.status = "published"
+     LEFT JOIN attempts at ON at.assignment_id = a.id AND at.student_id = :student_id
+     WHERE a.status = "published"
        AND (a.starts_at IS NULL OR a.starts_at <= CURRENT_TIMESTAMP)
+       AND (ac.assignment_id IS NOT NULL OR ast.assignment_id IS NOT NULL)
      GROUP BY a.id
      ORDER BY
        CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END,
@@ -49,6 +55,7 @@ foreach ($assignments as &$assignment) {
         ? (int)$assignment['active_attempt_id']
         : null;
     $assignment['completed_attempts'] = (int)($assignment['completed_attempts'] ?? 0);
+    $assignment['assigned_personally'] = (int)($assignment['assigned_personally'] ?? 0);
     $assignment['last_percent'] = $assignment['last_percent'] !== null
         ? (float)$assignment['last_percent']
         : null;
