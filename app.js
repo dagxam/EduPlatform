@@ -3997,7 +3997,7 @@ function renderSubjectAssignments() {
           <div class="subject-assignment-meta">
             <span class="assignment-meta-chip">
               <span class="assignment-meta-icon">⌂</span>
-              ${escapeHtml(item.class_names || 'Без класса')}
+              ${(item.class_assignments || []).length} класс(ов) · ${(item.student_assignments || []).length} лично
             </span>
             <span class="assignment-meta-chip">
               <span class="assignment-meta-icon">▤</span>
@@ -4009,6 +4009,7 @@ function renderSubjectAssignments() {
             </span>
           </div>
 
+          <div class="subject-assignment-targets">${assignmentTargetsHtml(item)}</div>
           <div class="subject-assignment-info">
             <span class="subject-assignment-parse-state">${escapeHtml(parseLabel)}</span>
             ${item.parser_message ? `<span>${escapeHtml(item.parser_message)}</span>` : ''}
@@ -4379,12 +4380,12 @@ function assignmentWorkflowActionButtons(item) {
   }
   if (status === 'ready') {
     return `
-      <button class="primary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить классу</button>
+      <button class="primary-btn compact-btn" type="button" data-assign-class="${item.id}">Назначить</button>
       <button class="secondary-btn compact-btn" type="button" data-workflow-action="reopen" data-assignment-id="${item.id}">В черновик</button>`;
   }
   if (status === 'assigned') {
     return `
-      <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">＋ Ещё классу</button>
+      <button class="secondary-btn compact-btn" type="button" data-assign-class="${item.id}">＋ Ещё назначение</button>
       <button class="secondary-btn compact-btn" type="button" data-workflow-action="complete" data-assignment-id="${item.id}">Завершить</button>`;
   }
   return '';
@@ -4448,6 +4449,20 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-test-assignment]').forEach(button => {
     button.addEventListener('click', () => openAssignmentTestPreview(Number(button.dataset.testAssignment)));
   });
+  root.querySelectorAll('[data-unassign-class]').forEach(button => {
+    button.addEventListener('click', () => unassignAssignmentTarget(
+      Number(button.dataset.assignmentId),
+      'class',
+      Number(button.dataset.unassignClass)
+    ));
+  });
+  root.querySelectorAll('[data-unassign-student]').forEach(button => {
+    button.addEventListener('click', () => unassignAssignmentTarget(
+      Number(button.dataset.assignmentId),
+      'student',
+      Number(button.dataset.unassignStudent)
+    ));
+  });
 }
 
 
@@ -4509,44 +4524,60 @@ function assignmentTableWorkflowActions(item) {
     return assignmentTableIconButton('back', 'Отозвать с проверки', 'data-workflow-action="withdraw" data-assignment-id="' + id + '"', 'warning');
   }
   if (status === 'ready') {
-    return assignmentTableIconButton('assign', 'Назначить классу', 'data-assign-class="' + id + '"', 'primary') +
+    return assignmentTableIconButton('assign', 'Назначить', 'data-assign-class="' + id + '"', 'primary') +
       assignmentTableIconButton('reopen', 'Вернуть в черновик', 'data-workflow-action="reopen" data-assignment-id="' + id + '"');
   }
   if (status === 'assigned') {
-    return assignmentTableIconButton('assign', 'Назначить ещё классу', 'data-assign-class="' + id + '"') +
+    return assignmentTableIconButton('assign', 'Добавить назначение', 'data-assign-class="' + id + '"') +
       assignmentTableIconButton('complete', 'Завершить задание', 'data-workflow-action="complete" data-assignment-id="' + id + '"', 'success');
   }
   return '';
 }
 
-function assignmentClassTimeLabel(item, detail = {}) {
-  const classMinutes = Number(detail.time_limit_minutes || 0);
+function assignmentTargetTimeLabel(item, detail = {}) {
+  const targetMinutes = Number(detail.time_limit_minutes || 0);
   const defaultMinutes = Number(item.time_limit_minutes || 0);
-  const minutes = classMinutes > 0 ? classMinutes : defaultMinutes;
+  const minutes = targetMinutes > 0 ? targetMinutes : defaultMinutes;
   return minutes > 0 ? minutes + ' мин' : 'Без лимита';
 }
 
-function assignmentClassTimesHtml(item) {
-  const details = Array.isArray(item.class_assignments) ? item.class_assignments : [];
-  if (details.length) {
-    return '<div class="assignment-class-time-list">' + details.map(detail =>
-      '<span class="assignment-class-time-chip">'
-        + '<b>' + escapeHtml(detail.class_name || 'Класс') + '</b>'
-        + '<span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'
-        + escapeHtml(assignmentClassTimeLabel(item, detail)) + '</span>'
-        + '</span>'
-    ).join('') + '</div>';
-  }
+function assignmentTargetsHtml(item) {
+  const classes = Array.isArray(item.class_assignments) ? item.class_assignments : [];
+  const students = Array.isArray(item.student_assignments) ? item.student_assignments : [];
+  const chips = [];
 
-  if (item.class_names) {
-    const fallbackTime = assignmentClassTimeLabel(item);
-    return '<div class="assignment-class-time-list"><span class="assignment-class-time-chip"><b>'
-      + escapeHtml(item.class_names)
-      + '</b><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'
-      + escapeHtml(fallbackTime) + '</span></span></div>';
-  }
+  classes.forEach(detail => {
+    chips.push(
+      '<span class="assignment-target-chip assignment-target-class">'
+      + '<span class="assignment-target-copy"><b>' + escapeHtml(detail.class_name || 'Класс') + '</b>'
+      + '<small>' + escapeHtml(assignmentTargetTimeLabel(item, detail)) + '</small></span>'
+      + '<button type="button" class="assignment-target-remove" '
+      + 'data-unassign-class="' + Number(detail.class_id) + '" '
+      + 'data-assignment-id="' + Number(item.id) + '" '
+      + 'title="Отменить назначение этому классу" aria-label="Отменить назначение классу">×</button>'
+      + '</span>'
+    );
+  });
 
-  return '<span class="assignment-class-empty">Ещё не назначено</span>';
+  students.forEach(detail => {
+    const fullName = [detail.student_last_name, detail.student_first_name, detail.student_middle_name]
+      .filter(Boolean).join(' ');
+    const className = detail.class_name ? ' · ' + detail.class_name : '';
+    chips.push(
+      '<span class="assignment-target-chip assignment-target-student">'
+      + '<span class="assignment-target-copy"><b>' + escapeHtml(fullName || 'Ученик') + '</b>'
+      + '<small>Лично' + escapeHtml(className) + ' · ' + escapeHtml(assignmentTargetTimeLabel(item, detail)) + '</small></span>'
+      + '<button type="button" class="assignment-target-remove" '
+      + 'data-unassign-student="' + Number(detail.student_id) + '" '
+      + 'data-assignment-id="' + Number(item.id) + '" '
+      + 'title="Отменить персональное назначение" aria-label="Отменить назначение ученику">×</button>'
+      + '</span>'
+    );
+  });
+
+  return chips.length
+    ? '<div class="assignment-target-list">' + chips.join('') + '</div>'
+    : '<span class="assignment-class-empty">Ещё не назначено</span>';
 }
 
 function renderAssignments() {
@@ -4559,7 +4590,13 @@ function renderAssignments() {
     const classSearch = Array.isArray(item.class_assignments)
       ? item.class_assignments.map(detail => detail.class_name).join(' ')
       : item.class_names;
-    const haystack = [item.title, item.subject_name, classSearch, item.source_school_name].join(' ').toLowerCase();
+    const studentSearch = Array.isArray(item.student_assignments)
+      ? item.student_assignments.map(detail =>
+          [detail.student_last_name, detail.student_first_name, detail.student_middle_name, detail.class_name]
+            .filter(Boolean).join(' ')
+        ).join(' ')
+      : '';
+    const haystack = [item.title, item.subject_name, classSearch, studentSearch, item.source_school_name].join(' ').toLowerCase();
     const workflowStatus = normalizedAssignmentWorkflowStatus(item);
     return (!query || haystack.includes(query)) && (!statusFilter || workflowStatus === statusFilter);
   });
@@ -4578,7 +4615,7 @@ function renderAssignments() {
           <small>${escapeHtml(item.subject_name || 'Без предмета')}${source}</small>
           ${reviewNote}
         </td>
-        <td class="assignment-classes-cell" data-label="Классы и время">${assignmentClassTimesHtml(item)}</td>
+        <td class="assignment-classes-cell" data-label="Назначено">${assignmentTargetsHtml(item)}</td>
         <td class="assignment-mode-cell" data-label="Режим"><span class="status ${strict ? 'amber' : 'blue'}">${strict ? 'Строгий' : 'Обычный'}</span></td>
         <td class="assignment-submitted-cell" data-label="Сдано"><span class="assignment-submitted-count">${Number(item.attempts_count || 0)}</span></td>
         <td class="assignment-status-cell" data-label="Статус"><span class="status ${statusClass}">${statusText}</span></td>
@@ -4779,19 +4816,83 @@ document.getElementById('duplicateAssignmentForm')?.addEventListener('submit', a
   }
 });
 
+async function loadAssignStudentsForClass(classId, assignment = null) {
+  const studentField = document.getElementById('assignStudentField');
+  const studentSelect = document.getElementById('assignToStudentSelect');
+  if (!studentField || !studentSelect) return;
+
+  if (classId < 1) {
+    studentSelect.innerHTML = '<option value="">Сначала выберите класс</option>';
+    return;
+  }
+
+  studentSelect.innerHTML = '<option value="">Загрузка учеников...</option>';
+  try {
+    const response = await fetch('./api/classes/students.php?class_id=' + encodeURIComponent(classId), {
+      credentials:'same-origin',
+      cache:'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить учеников.');
+
+    const assigned = new Set(
+      (assignment?.student_assignments || []).map(item => Number(item.student_id))
+    );
+    const students = (data.students || []).filter(item => !assigned.has(Number(item.id)));
+    studentSelect.innerHTML = '<option value="">Выберите ученика</option>' + students.map(item => {
+      const name = [item.last_name, item.first_name, item.middle_name].filter(Boolean).join(' ');
+      return '<option value="' + Number(item.id) + '">' + escapeHtml(name) + '</option>';
+    }).join('');
+
+    if (!students.length) {
+      studentSelect.innerHTML = '<option value="">Все ученики этого класса уже назначены лично</option>';
+    }
+  } catch (error) {
+    studentSelect.innerHTML = '<option value="">Не удалось загрузить учеников</option>';
+    throw error;
+  }
+}
+
+function currentAssignmentTargetType() {
+  return document.querySelector('input[name="assign_target_type"]:checked')?.value === 'student'
+    ? 'student'
+    : 'class';
+}
+
+function updateAssignmentTargetMode(assignment = null) {
+  const type = currentAssignmentTargetType();
+  const classSelect = document.getElementById('assignToClassSelect');
+  const studentField = document.getElementById('assignStudentField');
+  const studentSelect = document.getElementById('assignToStudentSelect');
+  const button = document.querySelector('#assignToClassForm .assign-class-submit');
+
+  studentField?.classList.toggle('hidden', type !== 'student');
+  if (studentSelect) studentSelect.required = type === 'student';
+  if (button) button.textContent = type === 'student' ? 'Назначить ученику' : 'Назначить классу';
+
+  if (type === 'student' && classSelect?.value) {
+    loadAssignStudentsForClass(Number(classSelect.value), assignment).catch(() => {});
+  }
+}
+
 async function openAssignToClass(assignmentId) {
   const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
   if (!assignment || !assignToClassModal) return;
 
   const error = document.getElementById('assignToClassError');
   const select = document.getElementById('assignToClassSelect');
+  const studentSelect = document.getElementById('assignToStudentSelect');
   const title = document.getElementById('assignToClassTitle');
   const hidden = document.getElementById('assignToClassAssignmentId');
   const timeInputs = [...document.querySelectorAll('input[name="assign_time_limit"]')];
+  const targetInputs = [...document.querySelectorAll('input[name="assign_target_type"]')];
 
   error?.classList.add('hidden');
   if (hidden) hidden.value = String(assignment.id);
-  if (title) title.textContent = `Назначить: ${assignment.title}`;
+  if (title) title.textContent = 'Назначить: ' + assignment.title;
+  if (studentSelect) studentSelect.innerHTML = '<option value="">Сначала выберите класс</option>';
+
+  targetInputs.forEach(input => { input.checked = input.value === 'class'; });
 
   const legacyLimit = Number(assignment.time_limit_minutes || 0);
   const allowedPreset = [10,15,20,25,30,35,40,45,50,55,60].includes(legacyLimit)
@@ -4804,24 +4905,13 @@ async function openAssignToClass(assignmentId) {
   try {
     await loadTeacherOptions();
     const available = subjectAvailableClasses(Number(assignment.subject_id));
-    const alreadyAssigned = new Set(
-      String(assignment.class_ids || '')
-        .split(',')
-        .map(value => Number(value))
-        .filter(Boolean)
-    );
-    const choices = available.filter(item => !alreadyAssigned.has(Number(item.id)));
-
     if (select) {
-      select.innerHTML = '<option value="">Выберите класс</option>' + choices.map(item =>
-        `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+      select.innerHTML = '<option value="">Выберите класс</option>' + available.map(item =>
+        '<option value="' + Number(item.id) + '">' + escapeHtml(item.name) + '</option>'
       ).join('');
     }
-
-    if (!choices.length && error) {
-      error.textContent = available.length
-        ? 'Это задание уже назначено всем доступным вам классам.'
-        : 'Для этого предмета вам пока не назначен ни один класс.';
+    if (!available.length && error) {
+      error.textContent = 'Для этого предмета вам пока не назначен ни один класс.';
       error.classList.remove('hidden');
     }
   } catch (e) {
@@ -4831,23 +4921,47 @@ async function openAssignToClass(assignmentId) {
     }
   }
 
+  updateAssignmentTargetMode(assignment);
   openModal(assignToClassModal);
 }
+
+document.querySelectorAll('input[name="assign_target_type"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const assignmentId = Number(document.getElementById('assignToClassAssignmentId')?.value || 0);
+    const assignment = assignmentsCache.find(item => Number(item.id) === assignmentId) || null;
+    updateAssignmentTargetMode(assignment);
+  });
+});
+
+document.getElementById('assignToClassSelect')?.addEventListener('change', event => {
+  if (currentAssignmentTargetType() !== 'student') return;
+  const assignmentId = Number(document.getElementById('assignToClassAssignmentId')?.value || 0);
+  const assignment = assignmentsCache.find(item => Number(item.id) === assignmentId) || null;
+  loadAssignStudentsForClass(Number(event.target.value || 0), assignment).catch(error => {
+    const node = document.getElementById('assignToClassError');
+    if (node) {
+      node.textContent = error.message;
+      node.classList.remove('hidden');
+    }
+  });
+});
 
 document.getElementById('assignToClassForm')?.addEventListener('submit', async event => {
   event.preventDefault();
 
   const assignmentId = Number(document.getElementById('assignToClassAssignmentId')?.value || 0);
   const classId = Number(document.getElementById('assignToClassSelect')?.value || 0);
+  const studentId = Number(document.getElementById('assignToStudentSelect')?.value || 0);
+  const targetType = currentAssignmentTargetType();
   const timeLimitRaw = document.querySelector('input[name="assign_time_limit"]:checked')?.value ?? '';
   const timeLimit = timeLimitRaw === '' ? null : Number(timeLimitRaw);
   const error = document.getElementById('assignToClassError');
   const button = event.currentTarget.querySelector('button[type="submit"]');
 
   error?.classList.add('hidden');
-  if (assignmentId < 1 || classId < 1) {
+  if (assignmentId < 1 || classId < 1 || (targetType === 'student' && studentId < 1)) {
     if (error) {
-      error.textContent = 'Выберите класс.';
+      error.textContent = targetType === 'student' ? 'Выберите класс и ученика.' : 'Выберите класс.';
       error.classList.remove('hidden');
     }
     return;
@@ -4857,21 +4971,25 @@ document.getElementById('assignToClassForm')?.addEventListener('submit', async e
   button.textContent = 'Назначаем...';
 
   try {
-    const response = await fetch('./api/assignments/assign.php', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assignment_id: assignmentId,
-        class_id: classId,
-        time_limit_minutes: timeLimit
-      })
+    const endpoint = targetType === 'student'
+      ? './api/assignments/assign-student.php'
+      : './api/assignments/assign.php';
+    const payload = targetType === 'student'
+      ? { assignment_id: assignmentId, student_id: studentId, time_limit_minutes: timeLimit }
+      : { assignment_id: assignmentId, class_id: classId, time_limit_minutes: timeLimit };
+
+    const response = await fetch(endpoint, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
     });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось назначить задание.');
 
     closeModal(assignToClassModal);
     await loadAssignments();
+    if (selectedSubjectId) renderSubjectAssignments();
   } catch (e) {
     if (error) {
       error.textContent = e.message;
@@ -4879,9 +4997,54 @@ document.getElementById('assignToClassForm')?.addEventListener('submit', async e
     }
   } finally {
     button.disabled = false;
-    button.textContent = 'Назначить классу';
+    button.textContent = currentAssignmentTargetType() === 'student' ? 'Назначить ученику' : 'Назначить классу';
   }
 });
+
+async function unassignAssignmentTarget(assignmentId, targetType, targetId) {
+  const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
+  if (!assignment) return;
+
+  let label = 'назначение';
+  if (targetType === 'class') {
+    const detail = (assignment.class_assignments || []).find(item => Number(item.class_id) === Number(targetId));
+    label = detail?.class_name ? 'класс «' + detail.class_name + '»' : 'этот класс';
+  } else {
+    const detail = (assignment.student_assignments || []).find(item => Number(item.student_id) === Number(targetId));
+    const name = detail
+      ? [detail.student_last_name, detail.student_first_name, detail.student_middle_name].filter(Boolean).join(' ')
+      : '';
+    label = name ? 'ученика «' + name + '»' : 'этого ученика';
+  }
+
+  const confirmed = await appConfirm(
+    'Отменить назначение задания «' + assignment.title + '» для ' + label + '? Уже сохранённые результаты не удалятся.',
+    { title:'Отменить назначение', okText:'Отменить назначение' }
+  );
+  if (!confirmed) return;
+
+  const endpoint = targetType === 'class'
+    ? './api/assignments/unassign-class.php'
+    : './api/assignments/unassign-student.php';
+  const payload = targetType === 'class'
+    ? { assignment_id:assignmentId, class_id:targetId }
+    : { assignment_id:assignmentId, student_id:targetId };
+
+  try {
+    const response = await fetch(endpoint, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось отменить назначение.');
+    await loadAssignments();
+    if (selectedSubjectId) renderSubjectAssignments();
+  } catch (error) {
+    await appAlert(error.message, { title:'Не удалось отменить назначение', tone:'danger' });
+  }
+}
 
 async function openShareSubject() {
   if (currentUser?.role !== 'admin' || !selectedSubjectId || !shareSubjectModal) return;
