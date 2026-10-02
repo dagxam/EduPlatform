@@ -88,8 +88,44 @@ foreach ($classDetailsStmt->fetchAll() as $classRow) {
     ];
 }
 
+$studentDetailsStmt = app_db()->prepare(
+    'SELECT ast.assignment_id, ast.student_id, ast.time_limit_minutes,
+            u.first_name, u.last_name, u.middle_name,
+            cs.class_id,
+            COALESCE(c.display_name, c.name) AS class_name
+     FROM assignment_students ast
+     JOIN assignments a ON a.id = ast.assignment_id
+     JOIN users u ON u.id = ast.student_id
+     LEFT JOIN class_students cs ON cs.student_id = ast.student_id
+     LEFT JOIN classes c ON c.id = cs.class_id
+     WHERE a.school_id = :school_id
+     ORDER BY ast.assignment_id DESC, COALESCE(c.display_name, c.name), u.last_name, u.first_name'
+);
+$studentDetailsStmt->execute(['school_id' => $schoolId]);
+
+$studentDetailsByAssignment = [];
+foreach ($studentDetailsStmt->fetchAll() as $studentRow) {
+    $assignmentId = (int)$studentRow['assignment_id'];
+    if (!isset($studentDetailsByAssignment[$assignmentId])) {
+        $studentDetailsByAssignment[$assignmentId] = [];
+    }
+    $studentDetailsByAssignment[$assignmentId][] = [
+        'student_id' => (int)$studentRow['student_id'],
+        'student_first_name' => (string)($studentRow['first_name'] ?? ''),
+        'student_last_name' => (string)($studentRow['last_name'] ?? ''),
+        'student_middle_name' => (string)($studentRow['middle_name'] ?? ''),
+        'class_id' => $studentRow['class_id'] !== null ? (int)$studentRow['class_id'] : null,
+        'class_name' => (string)($studentRow['class_name'] ?? ''),
+        'time_limit_minutes' => $studentRow['time_limit_minutes'] !== null
+            ? (int)$studentRow['time_limit_minutes']
+            : null,
+    ];
+}
+
 foreach ($assignments as &$assignment) {
-    $assignment['class_assignments'] = $classDetailsByAssignment[(int)$assignment['id']] ?? [];
+    $id = (int)$assignment['id'];
+    $assignment['class_assignments'] = $classDetailsByAssignment[$id] ?? [];
+    $assignment['student_assignments'] = $studentDetailsByAssignment[$id] ?? [];
 }
 unset($assignment);
 
