@@ -18,13 +18,23 @@ $latestAttemptSql =
           AND at2.status <> 'in_progress'
     )";
 
+$effectivePercentSql = 'COALESCE(at.published_percent, at.percent)';
+$effectiveGradeSql =
+    "(CASE
+        WHEN {$effectivePercentSql} >= 90 THEN 5
+        WHEN {$effectivePercentSql} >= 75 THEN 4
+        WHEN {$effectivePercentSql} >= 50 THEN 3
+        ELSE 2
+      END)";
+
 $studentSql =
     "SELECT u.id,
             u.first_name,
             u.last_name,
             COALESCE(c.display_name, c.name) AS class_name,
             COUNT(*) AS works_count,
-            AVG(COALESCE(at.published_percent, at.percent)) AS average_percent
+            AVG({$effectivePercentSql}) AS average_percent,
+            AVG({$effectiveGradeSql}) AS average_grade
      FROM attempts at
      JOIN assignments a ON a.id = at.assignment_id
      JOIN users u ON u.id = at.student_id
@@ -40,22 +50,23 @@ if (!$manager) {
 }
 $studentSql .=
     " GROUP BY u.id, u.first_name, u.last_name, c.id, c.display_name, c.name
-      HAVING COUNT(*) >= 3
-      ORDER BY average_percent DESC, works_count DESC, u.last_name, u.first_name
-      LIMIT 3";
+      HAVING COUNT(*) >= 1
+      ORDER BY average_grade DESC, average_percent DESC, works_count DESC, u.last_name, u.first_name
+      LIMIT 5";
 $stmt = $pdo->prepare($studentSql);
 $stmt->execute($studentParams);
 $studentRows = $stmt->fetchAll();
 
 $studentLeaders = array_map(static function(array $row): array {
     $percent = round((float)($row['average_percent'] ?? 0), 1);
+    $averageGrade = round((float)($row['average_grade'] ?? 0), 2);
     return [
         'id' => (int)$row['id'],
         'name' => trim((string)$row['last_name'] . ' ' . (string)$row['first_name']),
         'class_name' => (string)($row['class_name'] ?? ''),
         'works_count' => (int)$row['works_count'],
         'average_percent' => $percent,
-        'average_grade' => grade_from_percent($percent),
+        'average_grade' => $averageGrade,
     ];
 }, $studentRows);
 
@@ -92,33 +103,17 @@ foreach ($classRows as $classRow) {
     $studentCountStmt->execute([$classId]);
     $studentsCount = (int)$studentCountStmt->fetchColumn();
 
-    $assignmentSql =
-        "SELECT COUNT(DISTINCT a.id)
-         FROM assignments a
-         JOIN assignment_classes ac ON ac.assignment_id = a.id
-         WHERE a.school_id = ?
-           AND ac.class_id = ?
-           AND a.status IN ('published', 'closed')";
-    $assignmentParams = [$schoolId, $classId];
-    if (!$manager) {
-        $assignmentSql .= ' AND a.teacher_id = ?';
-        $assignmentParams[] = $teacherId;
-    }
-    $assignmentStmt = $pdo->prepare($assignmentSql);
-    $assignmentStmt->execute($assignmentParams);
-    $assignmentsCount = (int)$assignmentStmt->fetchColumn();
-
     $attemptSql =
         "SELECT COUNT(*) AS completed,
-                AVG(COALESCE(at.published_percent, at.percent)) AS average_percent
+                AVG({$effectivePercentSql}) AS average_percent,
+                AVG({$effectiveGradeSql}) AS average_grade
          FROM attempts at
          JOIN assignments a ON a.id = at.assignment_id
-         JOIN assignment_classes ac ON ac.assignment_id = a.id AND ac.class_id = ?
          JOIN class_students cs ON cs.student_id = at.student_id AND cs.class_id = ?
          WHERE a.school_id = ?
            AND at.status IN ('submitted', 'needs_review')
            AND {$latestAttemptSql}";
-    $attemptParams = [$classId, $classId, $schoolId];
+    $attemptParams = [$classId, $schoolId];
     if (!$manager) {
         $attemptSql .= ' AND a.teacher_id = ?';
         $attemptParams[] = $teacherId;
@@ -128,41 +123,38 @@ foreach ($classRows as $classRow) {
     $stats = $attemptStmt->fetch() ?: [];
 
     $completed = (int)($stats['completed'] ?? 0);
-    $expected = $studentsCount * $assignmentsCount;
     $averagePercent = $stats['average_percent'] !== null
         ? round((float)$stats['average_percent'], 1)
         : null;
-    $completionPercent = $expected > 0
-        ? min(100.0, round(($completed / $expected) * 100, 1))
-        : 0.0;
+    $averageGrade = $stats['average_grade'] !== null
+        ? round((float)$stats['average_grade'], 2)
+        : null;
 
-    if ($completed < 3 || $averagePercent === null) {
+    if ($completed < 1 || $averageGrade === null || $averagePercent === null) {
         continue;
     }
 
-    $rating = round(($averagePercent * 0.8) + ($completionPercent * 0.2), 2);
     $classLeaders[] = [
         'id' => $classId,
         'name' => (string)$classRow['name'],
         'students_count' => $studentsCount,
-        'assignments_count' => $assignmentsCount,
+        'works_count' => $completed,
         'completed' => $completed,
-        'expected' => $expected,
         'average_percent' => $averagePercent,
-        'average_grade' => grade_from_percent($averagePercent),
-        'completion_percent' => $completionPercent,
-        'rating' => $rating,
+        'average_grade' => $averageGrade,
     ];
 }
 
 usort($classLeaders, static function(array $a, array $b): int {
-    $ratingCompare = ($b['rating'] <=> $a['rating']);
-    if ($ratingCompare !== 0) return $ratingCompare;
+    $gradeCompare = ($b['average_grade'] <=> $a['average_grade']);
+    if ($gradeCompare !== 0) return $gradeCompare;
     $averageCompare = ($b['average_percent'] <=> $a['average_percent']);
     if ($averageCompare !== 0) return $averageCompare;
+    $worksCompare = ($b['works_count'] <=> $a['works_count']);
+    if ($worksCompare !== 0) return $worksCompare;
     return strcmp((string)$a['name'], (string)$b['name']);
 });
-$classLeaders = array_slice($classLeaders, 0, 3);
+$classLeaders = array_slice($classLeaders, 0, 5);
 
 $schoolLeaders = [];
 if (is_platform_admin($user)) {
@@ -185,33 +177,22 @@ if (is_platform_admin($user)) {
         $schoolStudentsStmt->execute([$candidateSchoolId]);
         $schoolStudents = (int)$schoolStudentsStmt->fetchColumn();
 
-        $expectedStmt = $pdo->prepare(
-            "SELECT COUNT(*)
-             FROM assignment_classes ac
-             JOIN assignments a ON a.id = ac.assignment_id
-             JOIN classes c ON c.id = ac.class_id
-             JOIN class_students cs ON cs.class_id = c.id
-             WHERE a.school_id = ?
-               AND c.school_id = ?
-               AND a.status IN ('published', 'closed')"
-        );
-        $expectedStmt->execute([$candidateSchoolId, $candidateSchoolId]);
-        $expected = (int)$expectedStmt->fetchColumn();
-
         $completedStmt = $pdo->prepare(
-            "SELECT COUNT(DISTINCT at.id) AS completed,
-                    AVG(COALESCE(at.published_percent, at.percent)) AS average_percent
+            "SELECT COUNT(*) AS completed,
+                    AVG({$effectivePercentSql}) AS average_percent,
+                    AVG({$effectiveGradeSql}) AS average_grade
              FROM attempts at
              JOIN assignments a ON a.id = at.assignment_id
-             JOIN assignment_classes ac ON ac.assignment_id = a.id
-             JOIN class_students cs
-               ON cs.student_id = at.student_id
-              AND cs.class_id = ac.class_id
-             JOIN classes c ON c.id = ac.class_id
              WHERE a.school_id = ?
-               AND c.school_id = ?
                AND at.status IN ('submitted', 'needs_review')
-               AND {$latestAttemptSql}"
+               AND {$latestAttemptSql}
+               AND EXISTS (
+                   SELECT 1
+                   FROM class_students school_cs
+                   JOIN classes school_c ON school_c.id = school_cs.class_id
+                   WHERE school_cs.student_id = at.student_id
+                     AND school_c.school_id = ?
+               )"
         );
         $completedStmt->execute([$candidateSchoolId, $candidateSchoolId]);
         $schoolStats = $completedStmt->fetch() ?: [];
@@ -220,43 +201,42 @@ if (is_platform_admin($user)) {
         $averagePercent = $schoolStats['average_percent'] !== null
             ? round((float)$schoolStats['average_percent'], 1)
             : null;
-        $completionPercent = $expected > 0
-            ? min(100.0, round(($completed / $expected) * 100, 1))
-            : 0.0;
+        $averageGrade = $schoolStats['average_grade'] !== null
+            ? round((float)$schoolStats['average_grade'], 2)
+            : null;
 
-        if ($completed < 5 || $averagePercent === null) {
+        if ($completed < 1 || $averageGrade === null || $averagePercent === null) {
             continue;
         }
 
-        $rating = round(($averagePercent * 0.8) + ($completionPercent * 0.2), 2);
         $schoolLeaders[] = [
             'id' => $candidateSchoolId,
             'name' => (string)$schoolRow['name'],
             'students_count' => $schoolStudents,
+            'works_count' => $completed,
             'completed' => $completed,
-            'expected' => $expected,
             'average_percent' => $averagePercent,
-            'average_grade' => grade_from_percent($averagePercent),
-            'completion_percent' => $completionPercent,
-            'rating' => $rating,
-        ];
-    }
+            'average_grade' => $averageGrade,
+        ];    }
 
     usort($schoolLeaders, static function(array $a, array $b): int {
-        $ratingCompare = ($b['rating'] <=> $a['rating']);
-        if ($ratingCompare !== 0) return $ratingCompare;
-        return ($b['average_percent'] <=> $a['average_percent']);
+        $gradeCompare = ($b['average_grade'] <=> $a['average_grade']);
+        if ($gradeCompare !== 0) return $gradeCompare;
+        $averageCompare = ($b['average_percent'] <=> $a['average_percent']);
+        if ($averageCompare !== 0) return $averageCompare;
+        return ($b['works_count'] <=> $a['works_count']);
     });
-    $schoolLeaders = array_slice($schoolLeaders, 0, 3);
+    $schoolLeaders = array_slice($schoolLeaders, 0, 5);
 }
 
 json_response([
     'ok' => true,
     'rules' => [
-        'student_min_works' => 3,
-        'class_min_completed' => 3,
-        'school_min_completed' => 5,
-        'rating_formula' => '80% средний результат + 20% выполнение',
+        'student_min_works' => 1,
+        'class_min_completed' => 1,
+        'school_min_completed' => 1,
+        'leaders_limit' => 5,
+        'rating_formula' => 'Средняя оценка по всем выполненным работам',
     ],
     'students' => $studentLeaders,
     'classes' => $classLeaders,
