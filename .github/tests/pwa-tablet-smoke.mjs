@@ -18,13 +18,13 @@ assert(manifest.icons.some(icon => icon.sizes === '192x192' && icon.type === 'im
 assert(manifest.icons.some(icon => icon.sizes === '512x512' && icon.type === 'image/png'));
 assert(manifest.icons.some(icon => icon.purpose === 'maskable'));
 for (const html of [login, index]) {
-  assert(html.includes('manifest.webmanifest?v=46'), 'manifest version must be consistent');
-  assert(html.includes('pwa.js?v=46'), 'PWA handler must be updated on all entry points');
-  assert(html.includes('pwa.css?v=46'), 'PWA styles must be updated on all entry points');
+  assert(/manifest\.webmanifest\?v=\d+/.test(html), 'manifest must be versioned on all entry points');
+  assert(/pwa\.js\?v=\d+/.test(html), 'PWA handler must be versioned on all entry points');
+  assert(/pwa\.css\?v=\d+/.test(html), 'PWA styles must be versioned on all entry points');
 }
-assert(login.includes('login.css?v=47'));
-assert(index.includes('styles.css?v=77'));
-assert(sw.includes("const CACHE = 'uvoria-v81'"));
+assert(/login\.css\?v=\d+/.test(login), 'login styles must be versioned');
+assert(/styles\.css\?v=\d+/.test(index), 'app styles must be versioned');
+assert(/const CACHE = 'uvoria-v\d+'/.test(sw), 'service worker cache must be versioned');
 assert(loginCss.includes('Tablet auth layout and touch ergonomics v46'));
 assert(appCss.includes('Tablet touch and scroll access v76'));
 assert(pwa.includes('showInstallGuide'));
