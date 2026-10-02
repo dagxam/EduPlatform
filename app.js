@@ -3437,8 +3437,10 @@ function renderResultsLeaderList(targetId, items, type) {
           <small>${escapeHtml(meta)}</small>
         </div>
         <div class="result-leader-score" title="Средняя оценка">
-          <strong>${escapeHtml(gradeText)}</strong>
-          <span class="grade ${gradeClass}">ср.</span>
+          <span class="leader-average-badge ${gradeClass}">
+            <strong>${escapeHtml(gradeText)}</strong>
+            <small>средняя</small>
+          </span>
         </div>
       </div>`;
   }).join('');
