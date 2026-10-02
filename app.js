@@ -2275,6 +2275,9 @@ const historyEventLabels = {
   assignment_duplicated: 'Задание продублировано',
   assignment_assigned: 'Задание назначено классу',
   assignment_assigned_to_class: 'Задание назначено классу',
+  assignment_assigned_to_student: 'Задание назначено ученику',
+  assignment_unassigned_from_class: 'Назначение классу отменено',
+  assignment_unassigned_from_student: 'Персональное назначение отменено',
   assignment_updated: 'Задание изменено',
   assignment_deleted: 'Задание удалено',
   assignment_submitted_for_review: 'Задание отправлено на проверку',
@@ -6057,7 +6060,7 @@ function formatStudentDeadline(value) {
 function renderStudentAssignmentCards(target, rows) {
   if (!target) return;
   if (!rows.length) {
-    target.innerHTML = '<article class="student-task"><h3>Заданий пока нет</h3><p>Когда учитель назначит работу вашему классу, она появится здесь.</p></article>';
+    target.innerHTML = '<article class="student-task"><h3>Заданий пока нет</h3><p>Здесь появятся только работы, назначенные вашему классу или лично вам.</p></article>';
     return;
   }
 
@@ -6076,7 +6079,10 @@ function renderStudentAssignmentCards(target, rows) {
     return `
       <article class="student-task" data-student-assignment-card="${item.id}">
         <div class="student-task-top">
-          <span class="subject-pill">${escapeHtml(item.subject_name || 'Предмет')}</span>
+          <div class="student-task-labels">
+            <span class="subject-pill">${escapeHtml(item.subject_name || 'Предмет')}</span>
+            ${Number(item.assigned_personally || 0) === 1 ? '<span class="personal-assignment-badge">Лично вам</span>' : ''}
+          </div>
           <span class="status ${activeAttempt ? 'blue' : exhausted ? 'green' : 'amber'}">${escapeHtml(formatStudentDeadline(item.due_at))}</span>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
