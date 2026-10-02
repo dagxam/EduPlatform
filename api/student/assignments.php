@@ -21,16 +21,16 @@ $stmt = $pdo->prepare(
             CASE WHEN ast.student_id IS NOT NULL THEN 1 ELSE 0 END AS assigned_personally
      FROM assignments a
      LEFT JOIN subjects s ON s.id = a.subject_id
-     LEFT JOIN class_students cs ON cs.student_id = :student_id
+     LEFT JOIN class_students cs ON cs.student_id = :student_id_class
      LEFT JOIN classes c ON c.id = cs.class_id
      LEFT JOIN assignment_classes ac
        ON ac.assignment_id = a.id
       AND ac.class_id = cs.class_id
      LEFT JOIN assignment_students ast
        ON ast.assignment_id = a.id
-      AND ast.student_id = :student_id
+      AND ast.student_id = :student_id_personal
      LEFT JOIN questions q ON q.assignment_id = a.id
-     LEFT JOIN attempts at ON at.assignment_id = a.id AND at.student_id = :student_id
+     LEFT JOIN attempts at ON at.assignment_id = a.id AND at.student_id = :student_id_attempt
      WHERE a.status = "published"
        AND (a.starts_at IS NULL OR a.starts_at <= CURRENT_TIMESTAMP)
        AND (ac.assignment_id IS NOT NULL OR ast.assignment_id IS NOT NULL)
@@ -40,7 +40,11 @@ $stmt = $pdo->prepare(
        a.due_at,
        a.id DESC'
 );
-$stmt->execute(['student_id' => (int)$user['id']]);
+$stmt->execute([
+    'student_id_class' => (int)$user['id'],
+    'student_id_personal' => (int)$user['id'],
+    'student_id_attempt' => (int)$user['id'],
+]);
 $assignments = $stmt->fetchAll();
 
 foreach ($assignments as &$assignment) {
