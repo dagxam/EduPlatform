@@ -8742,3 +8742,25 @@ input,select,textarea,button{
     grid-template-columns:1fr;
   }
 }
+
+
+.student-task-labels{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  min-width:0;
+}
+.personal-assignment-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:5px 8px;
+  border:1px solid color-mix(in srgb,var(--brand) 24%,#dfe6ec);
+  border-radius:999px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  font-size:9px;
+  font-weight:850;
+  white-space:nowrap;
+}
