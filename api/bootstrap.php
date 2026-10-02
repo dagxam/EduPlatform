@@ -335,6 +335,21 @@ function mysql_add_index_if_missing(PDO $pdo, string $table, string $index, stri
 
 function mysql_apply_runtime_migrations(PDO $pdo): void
 {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS assignment_students (
+            assignment_id BIGINT UNSIGNED NOT NULL,
+            student_id BIGINT UNSIGNED NOT NULL,
+            time_limit_minutes INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (assignment_id, student_id),
+            KEY idx_assignment_students_student (student_id, assignment_id),
+            CONSTRAINT fk_assignment_students_assignment
+                FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+            CONSTRAINT fk_assignment_students_student
+                FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     mysql_add_index_if_missing(
         $pdo,
         'attempts',
@@ -391,6 +406,10 @@ function mysql_apply_schema(PDO $pdo): void
         );
         $stmt->execute();
         if ((string)($stmt->fetchColumn() ?: '') === mysql_schema_version()) {
+            // Keep additive hotfix migrations running even when the base schema version
+            // is already current. This lets existing MySQL installations receive
+            // newly introduced tables/indexes without a destructive full reimport.
+            mysql_apply_runtime_migrations($pdo);
             $applied = true;
             return;
         }
