@@ -183,6 +183,17 @@ CREATE TABLE IF NOT EXISTS assignment_classes (
   CONSTRAINT fk_assignment_classes_class FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS assignment_students (
+  assignment_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  time_limit_minutes INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (assignment_id, student_id),
+  KEY idx_assignment_students_student (student_id, assignment_id),
+  CONSTRAINT fk_assignment_students_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignment_students_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS assignment_imports (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   assignment_id BIGINT UNSIGNED NOT NULL,
