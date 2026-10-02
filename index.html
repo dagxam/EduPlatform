@@ -1211,14 +1211,25 @@
     <div class="modal assign-class-modal">
       <button class="modal-close" data-close-modal="assignToClassModal">×</button>
       <span class="section-kicker">Публикация</span>
-      <h2 id="assignToClassTitle">Назначить задание классу</h2>
-      <p>Выберите класс и время выполнения. Лимит задаётся отдельно для каждого класса.</p>
+      <h2 id="assignToClassTitle">Назначить задание</h2>
+      <p>Назначьте работу всему классу или одному ученику. Время можно задать отдельно для каждого назначения.</p>
       <form id="assignToClassForm" class="assign-class-form">
         <input type="hidden" id="assignToClassAssignmentId">
+
+        <div class="assign-target-switch" role="radiogroup" aria-label="Кому назначить">
+          <label><input type="radio" name="assign_target_type" value="class" checked><span>Классу</span></label>
+          <label><input type="radio" name="assign_target_type" value="student"><span>Отдельному ученику</span></label>
+        </div>
 
         <label class="assign-class-field">Класс
           <select id="assignToClassSelect" required>
             <option value="">Выберите класс</option>
+          </select>
+        </label>
+
+        <label class="assign-class-field hidden" id="assignStudentField">Ученик
+          <select id="assignToStudentSelect">
+            <option value="">Сначала выберите класс</option>
           </select>
         </label>
 
@@ -1242,7 +1253,7 @@
         </fieldset>
 
         <div class="form-error hidden" id="assignToClassError"></div>
-        <button class="primary-btn full assign-class-submit" type="submit">Назначить классу</button>
+        <button class="primary-btn full assign-class-submit" type="submit">Назначить</button>
       </form>
     </div>
   </div>
