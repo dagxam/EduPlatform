@@ -6,7 +6,7 @@ function attempt_for_student(PDO $pdo, int $attemptId, int $studentId): array
     $stmt = $pdo->prepare(
         'SELECT a.*,
                 ass.focus_policy,
-                COALESCE(a.time_limit_snapshot, ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes,
+                COALESCE(a.time_limit_snapshot, ast.time_limit_minutes, ac.time_limit_minutes, ass.time_limit_minutes) AS time_limit_minutes,
                 ass.max_attempts,
                 ass.status AS assignment_status
          FROM attempts a
@@ -15,6 +15,9 @@ function attempt_for_student(PDO $pdo, int $attemptId, int $studentId): array
          LEFT JOIN assignment_classes ac
            ON ac.assignment_id = a.assignment_id
           AND ac.class_id = cs.class_id
+         LEFT JOIN assignment_students ast
+           ON ast.assignment_id = a.assignment_id
+          AND ast.student_id = a.student_id
          WHERE a.id = :attempt_id AND a.student_id = :student_id
          LIMIT 1'
     );
