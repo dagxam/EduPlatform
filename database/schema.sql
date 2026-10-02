@@ -82,6 +82,19 @@ CREATE TABLE IF NOT EXISTS assignment_classes (
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS assignment_students (
+    assignment_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    time_limit_minutes INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (assignment_id, student_id),
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignment_students_student
+    ON assignment_students(student_id, assignment_id);
+
 CREATE TABLE IF NOT EXISTS assignment_imports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     assignment_id INTEGER NOT NULL UNIQUE,
