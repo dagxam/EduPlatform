@@ -589,6 +589,17 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'assignments', 'review_comment', 'TEXT');
     add_column_if_missing($pdo, 'assignments', 'completed_at', 'TEXT');
     add_column_if_missing($pdo, 'assignment_classes', 'time_limit_minutes', 'INTEGER');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS assignment_students (
+        assignment_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        time_limit_minutes INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (assignment_id, student_id),
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+        FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_assignment_students_student
+        ON assignment_students(student_id, assignment_id)");
 
     $pdo->exec("UPDATE assignments
         SET workflow_status = 'assigned'
