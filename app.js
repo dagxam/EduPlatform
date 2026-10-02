@@ -3409,20 +3409,25 @@ function renderResultsLeaderList(targetId, items, type) {
   if (!target) return;
   if (!Array.isArray(items) || !items.length) {
     const message = type === 'student'
-      ? 'Нужно минимум 3 работы на ученика.'
-      : 'Пока недостаточно выполненных работ для рейтинга.';
+      ? 'Рейтинг появится после первой выполненной работы.'
+      : 'Рейтинг появится после первой выполненной работы.';
     target.innerHTML = '<div class="history-empty"><b>Рейтинг ещё формируется</b><span>' + escapeHtml(message) + '</span></div>';
     return;
   }
 
-  target.innerHTML = items.slice(0,3).map((item,index) => {
+  target.innerHTML = items.slice(0,5).map((item,index) => {
     const percent = Math.round(Number(item.average_percent || 0));
-    const grade = String(item.average_grade || resultGradeFromPercent(percent));
+    const averageGrade = Number(item.average_grade || 0);
+    const gradeText = Number.isFinite(averageGrade) && averageGrade > 0
+      ? averageGrade.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(averageGrade) ? 0 : 1, maximumFractionDigits:2 })
+      : '—';
+    const gradeClass = resultGradeClass(String(Math.max(2, Math.min(5, Math.round(averageGrade || 2)))));
+    const works = Number(item.works_count || item.completed || 0);
     let meta = '';
     if (type === 'student') {
-      meta = [item.class_name || '', Number(item.works_count || 0) + ' работ'].filter(Boolean).join(' · ');
+      meta = [item.class_name || '', 'работ: ' + works, percent + '%'].filter(Boolean).join(' · ');
     } else {
-      meta = percent + '% средний · ' + Math.round(Number(item.completion_percent || 0)) + '% выполнено';
+      meta = ['выполнено: ' + works, percent + '% средний результат'].join(' · ');
     }
     return `
       <div class="result-leader-row ${index === 0 ? 'winner' : ''}">
@@ -3431,9 +3436,9 @@ function renderResultsLeaderList(targetId, items, type) {
           <b>${escapeHtml(item.name || '—')}</b>
           <small>${escapeHtml(meta)}</small>
         </div>
-        <div class="result-leader-score">
-          <strong>${percent}%</strong>
-          <span class="grade ${resultGradeClass(grade)}">${escapeHtml(grade)}</span>
+        <div class="result-leader-score" title="Средняя оценка">
+          <strong>${escapeHtml(gradeText)}</strong>
+          <span class="grade ${gradeClass}">ср.</span>
         </div>
       </div>`;
   }).join('');
