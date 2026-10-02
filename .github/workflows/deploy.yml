@@ -68,6 +68,9 @@ jobs:
       - name: Validate journal history retention
         run: php .github/tests/journal-history-smoke.php
 
+      - name: Validate leaderboards
+        run: php .github/tests/leaderboard-smoke.php
+
       - name: Validate backup engine
         run: |
           php -r 'require "api/bootstrap.php"; $pdo = app_db(); $backup = backup_create_archive($pdo, "manual"); if (empty($backup["file"]) || empty($backup["size_bytes"])) { fwrite(STDERR, "Backup smoke test failed\n"); exit(1); } echo "Backup engine OK: " . $backup["file"] . "\n";'
