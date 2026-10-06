@@ -1310,11 +1310,66 @@
         </div>
         <button class="primary-btn compact-btn" id="builderAddQuestionBtn" type="button">＋ Добавить задание</button>
       </div>
-      <div class="question-preview-summary" id="questionPreviewSummary"></div>
-      <div class="question-builder-help" id="questionBuilderHelp">Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.</div>
-      <div class="question-preview-list question-builder-list" id="questionPreviewList">
-        <p>Загрузка вопросов...</p>
+      <div class="assignment-overview-actions" id="assignmentOverviewActions">
+        <button class="secondary-btn compact-btn" type="button" data-assignment-overview-section="settings">✎ Редактировать задание</button>
+        <button class="secondary-btn compact-btn" type="button" data-assignment-overview-section="grading">★ Редактировать оценивание</button>
+        <button class="primary-btn compact-btn" type="button" data-assignment-overview-section="questions">☷ Редактировать вопросы</button>
       </div>
+
+      <section class="assignment-overview-section" id="assignmentOverviewSettings">
+        <div class="assignment-overview-section-head">
+          <div><span class="section-kicker">Настройки</span><h3>Редактировать задание</h3><p>Название, время, количество попыток и режим контроля.</p></div>
+          <span class="assignment-overview-lock hidden" id="assignmentSettingsLock">Только просмотр</span>
+        </div>
+        <form id="assignmentOverviewSettingsForm" class="assignment-overview-settings-form">
+          <div class="form-row">
+            <label>Название
+              <input id="assignmentOverviewTitle" name="title" maxlength="500" required>
+            </label>
+            <label>Время, минут
+              <input id="assignmentOverviewTimeLimit" name="time_limit_minutes" type="number" min="1" max="300" placeholder="Без ограничения">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>Количество попыток
+              <input id="assignmentOverviewMaxAttempts" name="max_attempts" type="number" min="1" max="10" required>
+            </label>
+            <label>Режим контроля
+              <select id="assignmentOverviewFocusPolicy" name="focus_policy">
+                <option value="allow">Обычный</option>
+                <option value="strict">Строгий</option>
+              </select>
+            </label>
+          </div>
+          <div class="assignment-overview-form-actions">
+            <span class="assignment-overview-save-state" id="assignmentOverviewSettingsState"></span>
+            <button class="primary-btn compact-btn" id="assignmentOverviewSettingsSave" type="submit">Сохранить задание</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="assignment-overview-section" id="assignmentOverviewGrading">
+        <div class="assignment-overview-section-head">
+          <div><span class="section-kicker">Оценивание</span><h3>Баллы за вопросы</h3><p>Измените вес каждого вопроса. Общий максимум пересчитывается автоматически.</p></div>
+          <strong class="assignment-grading-total" id="assignmentGradingTotal">0 балл.</strong>
+        </div>
+        <div class="assignment-grading-list" id="assignmentGradingList"><p>Загрузка оценивания...</p></div>
+        <div class="assignment-overview-form-actions">
+          <span class="assignment-overview-save-state" id="assignmentOverviewGradingState"></span>
+          <button class="primary-btn compact-btn" id="assignmentOverviewGradingSave" type="button">Сохранить оценивание</button>
+        </div>
+      </section>
+
+      <section class="assignment-overview-section" id="assignmentOverviewQuestions">
+        <div class="assignment-overview-section-head question-overview-heading">
+          <div><span class="section-kicker">Конструктор</span><h3>Редактировать вопросы</h3><p>Текст, тип, правильные ответы, изображения и баллы каждого вопроса.</p></div>
+        </div>
+        <div class="question-preview-summary" id="questionPreviewSummary"></div>
+        <div class="question-builder-help" id="questionBuilderHelp">Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.</div>
+        <div class="question-preview-list question-builder-list" id="questionPreviewList">
+          <p>Загрузка вопросов...</p>
+        </div>
+      </section>
       <div class="form-error hidden" id="questionPreviewError"></div>
     </div>
   </div>
