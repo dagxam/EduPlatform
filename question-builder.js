@@ -1,5 +1,6 @@
 (function () {
   var assignmentId = null;
+  var assignment = null;
   var questions = [];
   var editable = false;
   var draggedCard = null;
@@ -680,6 +681,177 @@
     node.classList.toggle('error', Boolean(isError));
   }
 
+  function setOverviewState(id, message, isError) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    node.textContent = message || '';
+    node.classList.toggle('error', Boolean(isError));
+  }
+
+  function updateGradingTotal() {
+    var total = Array.from(document.querySelectorAll('#assignmentGradingList [data-grading-points]'))
+      .reduce(function (sum, input) {
+        var value = Number(input.value || 0);
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    var target = document.getElementById('assignmentGradingTotal');
+    if (target) target.textContent = total.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' балл.';
+  }
+
+  function renderOverviewSettings() {
+    var title = document.getElementById('assignmentOverviewTitle');
+    var time = document.getElementById('assignmentOverviewTimeLimit');
+    var attempts = document.getElementById('assignmentOverviewMaxAttempts');
+    var focus = document.getElementById('assignmentOverviewFocusPolicy');
+    var save = document.getElementById('assignmentOverviewSettingsSave');
+    var lock = document.getElementById('assignmentSettingsLock');
+
+    if (title) title.value = assignment && assignment.title || '';
+    if (time) time.value = assignment && assignment.time_limit_minutes ? String(assignment.time_limit_minutes) : '';
+    if (attempts) attempts.value = String(assignment && assignment.max_attempts || 1);
+    if (focus) focus.value = assignment && assignment.focus_policy === 'strict' ? 'strict' : 'allow';
+
+    [title, time, attempts, focus].forEach(function (control) {
+      if (control) control.disabled = !editable;
+    });
+    if (save) {
+      save.disabled = !editable;
+      save.classList.toggle('hidden', !editable);
+    }
+    if (lock) lock.classList.toggle('hidden', editable);
+    setOverviewState('assignmentOverviewSettingsState', editable
+      ? ''
+      : 'Редактирование доступно только в черновике до первой попытки ученика.', false);
+  }
+
+  function renderOverviewGrading() {
+    var list = document.getElementById('assignmentGradingList');
+    var save = document.getElementById('assignmentOverviewGradingSave');
+    if (!list) return;
+
+    if (!questions.length) {
+      list.innerHTML = '<div class="subject-empty-list"><b>Нет вопросов</b><span>Сначала добавьте хотя бы один вопрос.</span></div>';
+      if (save) save.classList.add('hidden');
+      updateGradingTotal();
+      return;
+    }
+
+    list.innerHTML = questions.map(function (question, index) {
+      return '<label class="assignment-grading-row">'
+        + '<span class="assignment-grading-number">' + (index + 1) + '</span>'
+        + '<span class="assignment-grading-copy"><b>' + escapeHtml(question.text || ('Вопрос ' + (index + 1))) + '</b>'
+        + '<small>' + escapeHtml(typeInfo(question.interaction_type || question.type).label) + '</small></span>'
+        + '<span class="assignment-grading-points"><input type="number" min="0.1" max="1000" step="0.1" '
+        + 'data-grading-points="' + Number(question.id) + '" value="' + Number(question.points || 1) + '"'
+        + (editable ? '' : ' disabled') + '><small>балл.</small></span>'
+        + '</label>';
+    }).join('');
+
+    list.querySelectorAll('[data-grading-points]').forEach(function (input) {
+      input.addEventListener('input', updateGradingTotal);
+    });
+
+    if (save) {
+      save.disabled = !editable;
+      save.classList.toggle('hidden', !editable);
+    }
+    setOverviewState('assignmentOverviewGradingState', editable
+      ? ''
+      : 'Баллы нельзя менять после публикации задания или появления попыток учеников.', false);
+    updateGradingTotal();
+  }
+
+  function renderOverviewPanels() {
+    renderOverviewSettings();
+    renderOverviewGrading();
+  }
+
+  async function saveOverviewSettings(event) {
+    event.preventDefault();
+    if (!editable || !assignmentId) return;
+
+    var button = document.getElementById('assignmentOverviewSettingsSave');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Сохраняем...';
+    }
+    setOverviewState('assignmentOverviewSettingsState', 'Сохраняем...', false);
+
+    try {
+      var response = await fetch('./api/assignments/update.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignmentId,
+          title: document.getElementById('assignmentOverviewTitle')?.value || '',
+          time_limit_minutes: document.getElementById('assignmentOverviewTimeLimit')?.value || '',
+          max_attempts: Number(document.getElementById('assignmentOverviewMaxAttempts')?.value || 1),
+          focus_policy: document.getElementById('assignmentOverviewFocusPolicy')?.value || 'allow'
+        })
+      });
+      var data = await response.json();
+      if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить задание.');
+      setOverviewState('assignmentOverviewSettingsState', data.message || 'Сохранено ✓', false);
+      await load();
+      if (typeof loadAssignments === 'function') await loadAssignments();
+    } catch (error) {
+      setOverviewState('assignmentOverviewSettingsState', error.message, true);
+    } finally {
+      if (button) {
+        button.disabled = !editable;
+        button.textContent = 'Сохранить задание';
+      }
+    }
+  }
+
+  async function saveOverviewGrading() {
+    if (!editable || !assignmentId) return;
+
+    var button = document.getElementById('assignmentOverviewGradingSave');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Сохраняем...';
+    }
+    setOverviewState('assignmentOverviewGradingState', 'Сохраняем...', false);
+
+    var points = {};
+    document.querySelectorAll('#assignmentGradingList [data-grading-points]').forEach(function (input) {
+      points[String(input.dataset.gradingPoints || '')] = Number(input.value || 0);
+    });
+
+    try {
+      var response = await fetch('./api/assignments/update-grading.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignment_id: assignmentId, points: points })
+      });
+      var data = await response.json();
+      if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить оценивание.');
+      setOverviewState('assignmentOverviewGradingState', data.message || 'Оценивание сохранено ✓', false);
+      await load();
+      if (typeof loadAssignments === 'function') await loadAssignments();
+    } catch (error) {
+      setOverviewState('assignmentOverviewGradingState', error.message, true);
+    } finally {
+      if (button) {
+        button.disabled = !editable;
+        button.textContent = 'Сохранить оценивание';
+      }
+    }
+  }
+
+  function scrollOverviewSection(section) {
+    var ids = {
+      settings: 'assignmentOverviewSettings',
+      grading: 'assignmentOverviewGrading',
+      questions: 'assignmentOverviewQuestions'
+    };
+    var target = document.getElementById(ids[String(section || '')] || '');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function renderSummary() {
     var summary = document.getElementById('questionPreviewSummary');
     if (!summary) return;
@@ -698,7 +870,15 @@
 
   function render() {
     var list = document.getElementById('questionPreviewList');
-    var addButton = document.getElementById('builderAddQuestionBtn');
+    document.getElementById('assignmentOverviewSettingsForm')?.addEventListener('submit', saveOverviewSettings);
+  document.getElementById('assignmentOverviewGradingSave')?.addEventListener('click', saveOverviewGrading);
+  document.querySelectorAll('[data-assignment-overview-section]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      scrollOverviewSection(button.dataset.assignmentOverviewSection);
+    });
+  });
+
+  var addButton = document.getElementById('builderAddQuestionBtn');
     var help = document.getElementById('questionBuilderHelp');
     if (!list) return;
 
@@ -709,6 +889,7 @@
         : 'Работа уже опубликована или по ней есть попытки. Конструктор открыт только для просмотра.';
     }
 
+    renderOverviewPanels();
     renderSummary();
     list.innerHTML = '';
 
@@ -740,8 +921,9 @@
       var data = await response.json();
       if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить вопросы.');
 
+      assignment = data.assignment || null;
       questions = data.questions || [];
-      editable = Boolean(data.assignment && data.assignment.editable);
+      editable = Boolean(assignment && assignment.editable);
 
       var title = document.getElementById('questionPreviewTitle');
       if (title) title.textContent = data.assignment && data.assignment.title || 'Конструктор задания';
@@ -904,6 +1086,7 @@
 
   openQuestionPreview = async function (newAssignmentId) {
     assignmentId = Number(newAssignmentId);
+    assignment = null;
     questions = [];
     editable = false;
     var error = document.getElementById('questionPreviewError');
