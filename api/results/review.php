@@ -320,7 +320,7 @@ json_response([
         'submitted_at' => $attempt['submitted_at'] ?? null,
         'status' => (string)$attempt['status'],
         'termination_reason' => (string)($attempt['termination_reason'] ?? ''),
-        'closed_by_browser' => in_array((string)($attempt['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
+        'closed_by_browser' => in_array((string)($attempt['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'], true),
         'score' => $displayScore,
         'max_score' => $automaticMax,
         'percent' => $displayPercent,
