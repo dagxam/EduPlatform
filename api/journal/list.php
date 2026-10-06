@@ -197,7 +197,7 @@ if ($assignmentIds && $studentIds) {
             'adjusted' => $adjusted,
             'closed_by_browser' => in_array(
                 (string)($attempt['termination_reason'] ?? ''),
-                ['page_hidden', 'page_closed', 'browser_closed'],
+                ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'],
                 true
             ),
         ];
