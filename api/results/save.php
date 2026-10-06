@@ -13,10 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
 $scoreRaw = $data['score'] ?? null;
+$gradeRaw = trim((string)($data['grade'] ?? ''));
 $comment = trim((string)($data['comment'] ?? ''));
 
 if ($attemptId < 1 || !is_numeric($scoreRaw)) {
     json_response(['ok' => false, 'error' => 'Укажите корректные баллы.'], 422);
+}
+if (!in_array($gradeRaw, ['2', '3', '4', '5'], true)) {
+    json_response(['ok' => false, 'error' => 'Выберите оценку от 2 до 5.'], 422);
 }
 if (function_exists('mb_strlen') ? mb_strlen($comment) > 2000 : strlen($comment) > 2000) {
     json_response(['ok' => false, 'error' => 'Комментарий слишком длинный. Максимум 2000 символов.'], 422);
@@ -36,7 +40,7 @@ if ($score < 0 || $score > $maxScore) {
 }
 
 $percent = $maxScore > 0 ? round(($score / $maxScore) * 100, 2) : 0.0;
-$grade = grade_from_percent($percent);
+$grade = $gradeRaw;
 
 $before = [
     'score' => $attempt['manual_score'],
