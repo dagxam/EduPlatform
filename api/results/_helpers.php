@@ -50,12 +50,17 @@ function result_display_payload(array $row): array
 {
     $published = $row['published_score'] !== null;
     $percent = (float)($published ? $row['published_percent'] : ($row['percent'] ?? 0));
+    $grade = $published && in_array((string)($row['published_grade'] ?? ''), ['2', '3', '4', '5'], true)
+        ? (string)$row['published_grade']
+        : (in_array((string)($row['grade'] ?? ''), ['2', '3', '4', '5'], true)
+            ? (string)$row['grade']
+            : grade_from_percent($percent));
 
     return [
         'score' => (float)($published ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
         'percent' => $percent,
-        'grade' => grade_from_percent($percent),
+        'grade' => $grade,
         'comment' => (string)($published ? ($row['published_comment'] ?? '') : ''),
         'published_override' => $published,
         'revision' => (int)($row['result_revision'] ?? 0),
