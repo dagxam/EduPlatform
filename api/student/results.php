@@ -39,7 +39,11 @@ foreach ($stmt->fetchAll() as $row) {
         'score' => (float)($adjusted ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
         'percent' => $displayPercent,
-        'grade' => grade_from_percent($displayPercent),
+        'grade' => $adjusted && in_array((string)($row['published_grade'] ?? ''), ['2', '3', '4', '5'], true)
+            ? (string)$row['published_grade']
+            : (in_array((string)($row['grade'] ?? ''), ['2', '3', '4', '5'], true)
+                ? (string)$row['grade']
+                : grade_from_percent($displayPercent)),
         'comment' => (string)($adjusted ? ($row['published_comment'] ?? '') : ''),
         'adjusted' => $adjusted,
         'revision' => (int)($row['result_revision'] ?? 0),
