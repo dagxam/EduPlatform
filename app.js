@@ -3102,7 +3102,7 @@ function exportJournalCsv() {
 
 function resultClosedByBrowser(item) {
   return Boolean(item?.closed_by_browser)
-    || ['page_hidden', 'page_closed', 'browser_closed'].includes(String(item?.termination_reason || ''));
+    || ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'].includes(String(item?.termination_reason || ''));
 }
 
 function resultBrowserCloseBadge() {
@@ -6694,19 +6694,21 @@ async function startRealStudentAssignment(assignmentId) {
     AttemptSecurity.start({
       attemptId: questionData.attempt.id,
       focusPolicy: assignment.focus_policy || 'allow',
-      onLocked: () => {
+      onLocked: reason => {
         document.querySelectorAll('#realQuizForm input,#realQuizForm textarea,#realQuizForm select,#realQuizForm button')
           .forEach(el => el.disabled = true);
         const content = document.getElementById('quizContent');
         if (content && !content.querySelector('.strict-lock-overlay')) {
           const warning = document.createElement('div');
           warning.className = 'strict-lock-overlay';
-          warning.textContent = 'Вкладка была скрыта. Тест завершён — учитываются только ответы, отмеченные до этого момента.';
+          warning.textContent = reason === 'blur'
+            ? 'Окно теста потеряло фокус. Тест завершён — учитываются только ответы, отмеченные до этого момента.'
+            : 'Вкладка была скрыта. Тест завершён — учитываются только ответы, отмеченные до этого момента.';
           content.prepend(warning);
         }
       },
-      onHidden: () => {
-        sendActiveAttemptCloseBeacon('page_hidden');
+      onHidden: reason => {
+        sendActiveAttemptCloseBeacon(reason === 'blur' ? 'window_blur' : 'page_hidden');
       },
       onTerminated: (result, reason) => {
         const finalReason = reason || result?.termination_reason || '';
@@ -6714,7 +6716,9 @@ async function startRealStudentAssignment(assignmentId) {
           ? 'Время выполнения закончилось. Работа завершена автоматически.'
           : finalReason === 'page_hidden'
             ? 'Вкладка была скрыта. Тест завершён автоматически; учтены ответы, отмеченные до этого момента.'
-            : 'Попытка завершена системой контроля.';
+            : finalReason === 'window_blur'
+              ? 'Окно теста потеряло фокус. Переключение на другое окно Android засчитано как уход из теста.'
+              : 'Попытка завершена системой контроля.';
         renderRealAttemptResult(result || {}, note);
       }
     });
