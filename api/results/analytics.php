@@ -20,12 +20,15 @@ $latestAttemptSql =
 
 $effectivePercentSql = 'COALESCE(at.published_percent, at.percent)';
 $effectiveGradeSql =
-    "(CASE
-        WHEN {$effectivePercentSql} >= 90 THEN 5
-        WHEN {$effectivePercentSql} >= 75 THEN 4
-        WHEN {$effectivePercentSql} >= 50 THEN 3
-        ELSE 2
-      END)";
+    "COALESCE(
+        NULLIF(at.published_grade, ''),
+        CASE
+          WHEN {$effectivePercentSql} >= 90 THEN 5
+          WHEN {$effectivePercentSql} >= 75 THEN 4
+          WHEN {$effectivePercentSql} >= 50 THEN 3
+          ELSE 2
+        END
+      )";
 
 $studentSql =
     "SELECT u.id,
