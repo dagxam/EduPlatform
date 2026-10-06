@@ -846,8 +846,13 @@
             <small id="resultScoreLimit">Максимум: —</small>
           </label>
           <label>Оценка
-            <input id="resultEditGrade" type="text" value="—" readonly aria-readonly="true">
-            <small id="resultCalculatedPercent">Процент: —</small>
+            <select id="resultEditGrade" name="grade" required>
+              <option value="5">5 — отлично</option>
+              <option value="4">4 — хорошо</option>
+              <option value="3">3 — удовлетворительно</option>
+              <option value="2">2 — неудовлетворительно</option>
+            </select>
+            <small id="resultCalculatedPercent">Процент: — · оценку можно изменить вручную</small>
           </label>
         </div>
         <label>Комментарий ученику
@@ -901,9 +906,9 @@
             <option value="allow">Обычный</option>
             <option value="strict">Строгий — уход дополнительно фиксируется как нарушение</option>
           </select>
-          <small class="field-help">При любом режиме скрытие вкладки, сворачивание браузера или переход в другое приложение сразу завершает тест. Учитываются ответы, отмеченные до этого момента.</small>
+          <small class="field-help">Скрытие вкладки, сворачивание браузера, переход в другое приложение или потеря фокуса при работе в нескольких окнах Android завершают тест. Учитываются ответы, отмеченные до этого момента.</small>
         </label>
-        <div class="strict-warning hidden" id="strictWarning"><b>Строгий контроль</b><span>Уход со страницы дополнительно фиксируется как нарушение. Сам тест при скрытии вкладки завершается в любом режиме.</span></div>
+        <div class="strict-warning hidden" id="strictWarning"><b>Строгий контроль</b><span>Уход со страницы дополнительно фиксируется как нарушение. Переключение на другое окно Android, вкладку или приложение также считается уходом из теста.</span></div>
 
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
