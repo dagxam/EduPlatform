@@ -1,8 +1,10 @@
 const AttemptSecurity = (() => {
   let state = null;
   let heartbeatTimer = null;
+  let focusLossTimer = null;
   const HEARTBEAT_MIN_MS = 25000;
   const HEARTBEAT_JITTER_MS = 10000;
+  const FOCUS_LOSS_GRACE_MS = 1200;
   let hiddenHandled = false;
 
   async function sendEvent(eventType, keepalive = false) {
@@ -53,19 +55,21 @@ const AttemptSecurity = (() => {
     }
   }
 
-  function terminateForHidden() {
+  function terminateForFocusLoss(eventType = 'hidden') {
     if (!state || hiddenHandled) return;
     hiddenHandled = true;
     state.locked = true;
-    state.onLocked?.();
-    state.onHidden?.();
-    sendEvent('hidden', true).catch(() => {});
+    if (focusLossTimer) window.clearTimeout(focusLossTimer);
+    focusLossTimer = null;
+    state.onLocked?.(eventType);
+    state.onHidden?.(eventType);
+    sendEvent(eventType === 'blur' ? 'blur' : 'hidden', true).catch(() => {});
   }
 
   function handleVisibility() {
     if (!state) return;
     if (document.hidden) {
-      terminateForHidden();
+      terminateForFocusLoss('hidden');
       return;
     }
 
@@ -81,8 +85,26 @@ const AttemptSecurity = (() => {
     sendEvent('visible').catch(() => {});
   }
 
+  function handleWindowBlur() {
+    if (!state || state.locked) return;
+    if (focusLossTimer) window.clearTimeout(focusLossTimer);
+    focusLossTimer = window.setTimeout(() => {
+      focusLossTimer = null;
+      if (state && !document.hasFocus()) {
+        terminateForFocusLoss('blur');
+      }
+    }, FOCUS_LOSS_GRACE_MS);
+  }
+
+  function handleWindowFocus() {
+    if (focusLossTimer) window.clearTimeout(focusLossTimer);
+    focusLossTimer = null;
+    if (!state || state.locked) return;
+    sendEvent('focus').catch(() => {});
+  }
+
   function handlePageHide() {
-    terminateForHidden();
+    terminateForFocusLoss('hidden');
   }
 
   function start({ attemptId, focusPolicy = 'allow', onLocked = null, onHidden = null, onTerminated = null }) {
@@ -97,6 +119,8 @@ const AttemptSecurity = (() => {
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('pagehide', handlePageHide);
     heartbeat();
     scheduleHeartbeat(25000 + Math.floor(Math.random() * 5000));
@@ -104,9 +128,13 @@ const AttemptSecurity = (() => {
 
   function stop() {
     document.removeEventListener('visibilitychange', handleVisibility);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('focus', handleWindowFocus);
     window.removeEventListener('pagehide', handlePageHide);
     if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
+    if (focusLossTimer) window.clearTimeout(focusLossTimer);
     heartbeatTimer = null;
+    focusLossTimer = null;
     state = null;
     hiddenHandled = false;
   }
