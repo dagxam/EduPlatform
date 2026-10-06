@@ -3148,6 +3148,114 @@ function attemptReviewAnswerList(values, emptyText = 'Нет ответа') {
   return `<ol class="attempt-review-answer-list">${list.map(value => `<li>${escapeHtml(String(value))}</li>`).join('')}</ol>`;
 }
 
+function renderAttemptAnswerEditor(question) {
+  const editor = question?.editor || {};
+  const kind = String(editor.kind || 'text');
+  const questionId = Number(question?.id || 0);
+  let control = '';
+
+  if (kind === 'choice') {
+    const multiple = String(question?.type || '') === 'multiple';
+    const selected = new Set((editor.option_ids || []).map(Number));
+    control = '<div class="attempt-answer-edit-options">' + (question.options || []).map(option => {
+      const id = Number(option.id || 0);
+      const inputType = multiple ? 'checkbox' : 'radio';
+      return '<label class="attempt-answer-edit-option">'
+        + '<input type="' + inputType + '" name="answer_' + questionId + '" value="' + id + '"' + (selected.has(id) ? ' checked' : '') + '>'
+        + '<span>' + escapeHtml(option.text || '') + '</span>'
+        + '</label>';
+    }).join('') + '</div>';
+  } else if (kind === 'matching') {
+    const rights = Array.isArray(editor.right) ? editor.right : [];
+    const matches = editor.matches || {};
+    control = '<div class="attempt-answer-edit-matching">' + (editor.left || []).map(left => {
+      const key = String(left.key || '');
+      const current = String(matches[key] || '');
+      return '<label><span>' + escapeHtml(left.text || '') + '</span><select data-edit-match="' + escapeHtml(key) + '">'
+        + '<option value="">Нет ответа</option>'
+        + rights.map(right => '<option value="' + escapeHtml(right.key || '') + '"' + (String(right.key || '') === current ? ' selected' : '') + '>' + escapeHtml(right.text || '') + '</option>').join('')
+        + '</select></label>';
+    }).join('') + '</div>';
+  } else if (kind === 'order') {
+    const items = Array.isArray(editor.items) ? editor.items : [];
+    const current = Array.isArray(editor.order) ? editor.order.map(String) : [];
+    control = '<div class="attempt-answer-edit-order">' + items.map((_, index) =>
+      '<label><span>Позиция ' + (index + 1) + '</span><select data-edit-order-index="' + index + '">'
+      + '<option value="">Не выбрано</option>'
+      + items.map(item => '<option value="' + escapeHtml(item.key || '') + '"' + (String(item.key || '') === String(current[index] || '') ? ' selected' : '') + '>' + escapeHtml(item.text || '') + '</option>').join('')
+      + '</select></label>'
+    ).join('') + '</div>';
+  } else {
+    control = '<textarea data-edit-answer-text rows="3" maxlength="8000">' + escapeHtml(editor.answer_text || '') + '</textarea>';
+  }
+
+  return '<div class="attempt-answer-editor" data-answer-editor="' + questionId + '" data-answer-kind="' + escapeHtml(kind) + '">'
+    + '<div class="attempt-answer-editor-head"><div><b>Исправить ответ ученика</b><span>Изменение применяется только к этой попытке ученика.</span></div></div>'
+    + control
+    + '<div class="attempt-answer-editor-actions"><span class="attempt-answer-editor-status" aria-live="polite"></span><button class="secondary-btn" type="button" data-answer-save="' + questionId + '">Сохранить ответ</button></div>'
+    + '</div>';
+}
+
+function collectAttemptAnswerEditPayload(container) {
+  const kind = String(container?.dataset.answerKind || 'text');
+  if (kind === 'choice') {
+    return {
+      option_ids: [...container.querySelectorAll('input:checked')].map(input => Number(input.value))
+    };
+  }
+  if (kind === 'matching') {
+    const matches = {};
+    container.querySelectorAll('select[data-edit-match]').forEach(select => {
+      if (select.value) matches[String(select.dataset.editMatch || '')] = String(select.value);
+    });
+    return { matches };
+  }
+  if (kind === 'order') {
+    return {
+      order: [...container.querySelectorAll('select[data-edit-order-index]')]
+        .map(select => String(select.value || ''))
+        .filter(Boolean)
+    };
+  }
+  return { answer_text: String(container.querySelector('[data-edit-answer-text]')?.value || '') };
+}
+
+async function saveAttemptAnswerEdit(attemptId, questionId, container, button) {
+  const status = container?.querySelector('.attempt-answer-editor-status');
+  if (!attemptId || !questionId || !container || !button) return;
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  if (status) status.textContent = '';
+
+  try {
+    const response = await fetch('./api/results/update-answer.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        attempt_id:Number(attemptId),
+        question_id:Number(questionId),
+        payload:collectAttemptAnswerEditPayload(container)
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось изменить ответ ученика.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить ответ ученика.');
+
+    if (status) status.textContent = 'Сохранено';
+    await Promise.all([
+      loadResults().catch(() => {}),
+      loadJournal().catch(() => {}),
+      loadTeacherDashboard().catch(() => {})
+    ]);
+    await openAttemptReview(attemptId);
+  } catch (error) {
+    if (status) status.textContent = error?.message || 'Ошибка сохранения';
+    button.disabled = false;
+    button.textContent = 'Сохранить ответ';
+  }
+}
+
 function renderAttemptReviewQuestion(question, index) {
   const meta = attemptReviewStatusMeta(question.status);
   const earned = Number(question.earned_points || 0).toLocaleString('ru-RU');
@@ -3242,6 +3350,7 @@ function renderAttemptReviewQuestion(question, index) {
       ${question.original_text ? `<div class="attempt-review-original"><span>Исходный текст</span>${escapeHtml(question.original_text)}</div>` : ''}
       ${assetHtml}
       ${answerHtml}
+      ${renderAttemptAnswerEditor(question)}
     </article>`;
 }
 
@@ -3321,6 +3430,13 @@ async function openAttemptReview(attemptId) {
       const editId = Number(event.currentTarget.dataset.reviewEdit || 0);
       closeModal(attemptReviewModal);
       openResultEditor(editId);
+    });
+    content.querySelectorAll('[data-answer-save]').forEach(button => {
+      button.addEventListener('click', () => {
+        const questionId = Number(button.dataset.answerSave || 0);
+        const container = content.querySelector('[data-answer-editor="' + questionId + '"]');
+        saveAttemptAnswerEdit(id, questionId, container, button).catch(() => {});
+      });
     });
   } catch (error) {
     content.innerHTML = `<div class="attempt-review-error"><b>Не удалось открыть разбор</b><span>${escapeHtml(error.message)}</span><button class="secondary-btn" type="button" data-review-close>Закрыть</button></div>`;
@@ -3543,7 +3659,7 @@ function openResultEditor(attemptId) {
   const score = document.getElementById('resultEditScore');
   score.max = String(Number(auto.max_score || 0));
   score.value = String(Number(edit.score ?? auto.score ?? 0));
-  document.getElementById('resultEditGrade').value = resultGradeFromPercent(Number(edit.percent ?? auto.percent ?? 0));
+  document.getElementById('resultEditGrade').value = String(edit.grade ?? published.grade ?? auto.grade ?? resultGradeFromPercent(Number(edit.percent ?? auto.percent ?? 0)));
   document.getElementById('resultEditComment').value = String(
     item.has_unpublished_draft && draft ? (draft.comment || '') : (published.comment || '')
   );
@@ -3566,11 +3682,8 @@ function updateResultEditorPercent() {
   const score = Number(document.getElementById('resultEditScore')?.value || 0);
   const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
   const roundedPercent = Math.round(percent * 100) / 100;
-  const grade = resultGradeFromPercent(roundedPercent);
   const node = document.getElementById('resultCalculatedPercent');
-  if (node) node.textContent = 'Процент: ' + roundedPercent + '%';
-  const gradeNode = document.getElementById('resultEditGrade');
-  if (gradeNode) gradeNode.value = grade;
+  if (node) node.textContent = 'Процент: ' + roundedPercent + '% · оценку можно изменить вручную';
 }
 
 async function saveResultDraft(showFeedback = true) {
@@ -3584,6 +3697,7 @@ async function saveResultDraft(showFeedback = true) {
   const payload = {
     attempt_id: Number(activeResultEdit.attempt_id),
     score: Number(document.getElementById('resultEditScore').value),
+    grade: String(document.getElementById('resultEditGrade').value || ''),
     comment: String(document.getElementById('resultEditComment').value || '').trim()
   };
 
@@ -3765,6 +3879,7 @@ document.getElementById('resultEditScore')?.addEventListener('input', updateResu
 document.getElementById('resultResetAutoBtn')?.addEventListener('click', () => {
   if (!activeResultEdit) return;
   document.getElementById('resultEditScore').value = String(Number(activeResultEdit.automatic?.score || 0));
+  document.getElementById('resultEditGrade').value = String(activeResultEdit.automatic?.grade || resultGradeFromPercent(Number(activeResultEdit.automatic?.percent || 0)));
   document.getElementById('resultEditComment').value = '';
   updateResultEditorPercent();
 });
