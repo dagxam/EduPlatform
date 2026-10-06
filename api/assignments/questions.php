@@ -12,7 +12,8 @@ $schoolId = require_active_school($user, false);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status
+    'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status,
+            max_attempts, time_limit_minutes, focus_policy
      FROM assignments
      WHERE id = :id AND school_id = :school_id
      LIMIT 1'
@@ -104,6 +105,11 @@ json_response([
         'status' => (string)$assignment['status'],
         'workflow_status' => (string)($assignment['workflow_status'] ?? 'draft'),
         'attempts_count' => $attemptsCount,
+        'max_attempts' => (int)($assignment['max_attempts'] ?? 1),
+        'time_limit_minutes' => $assignment['time_limit_minutes'] !== null
+            ? (int)$assignment['time_limit_minutes']
+            : null,
+        'focus_policy' => (string)($assignment['focus_policy'] ?? 'allow'),
         'editable' => $editable,
     ],
     'questions' => $questions,
