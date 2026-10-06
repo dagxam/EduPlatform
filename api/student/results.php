@@ -34,7 +34,7 @@ foreach ($stmt->fetchAll() as $row) {
         'subject_name' => (string)($row['subject_name'] ?? ''),
         'submitted_at' => $row['submitted_at'],
         'termination_reason' => (string)($row['termination_reason'] ?? ''),
-        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
+        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'], true),
         'variant_label' => (string)($row['variant_label'] ?? ''),
         'score' => (float)($adjusted ? $row['published_score'] : ($row['score'] ?? 0)),
         'max_score' => (float)($row['max_score'] ?? 0),
