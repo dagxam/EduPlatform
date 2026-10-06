@@ -125,6 +125,10 @@ foreach ($questionOrder as $questionId) {
     $correctAnswer = null;
     $options = [];
     $matchingRows = [];
+    $editor = [
+        'kind' => 'text',
+        'answer_text' => $rawAnswer,
+    ];
 
     if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
         $optionStmt->execute(['question_id' => $questionId]);
@@ -139,6 +143,10 @@ foreach ($questionOrder as $questionId) {
 
         $selectedIds = json_decode($rawAnswer, true);
         $selectedIds = is_array($selectedIds) ? array_map('intval', $selectedIds) : [];
+        $editor = [
+            'kind' => 'choice',
+            'option_ids' => array_values($selectedIds),
+        ];
         $correctIds = expected_choice_option_ids($pdo, $questionId, $interaction);
         $selectedMap = array_fill_keys($selectedIds, true);
         $correctMap = array_fill_keys($correctIds, true);
@@ -167,6 +175,18 @@ foreach ($questionOrder as $questionId) {
         $correctKeys = json_decode((string)($row['correct_text'] ?? ''), true);
         $correctKeys = is_array($correctKeys) ? array_map('strval', $correctKeys) : [];
 
+        $editor = [
+            'kind' => 'order',
+            'order' => array_values($studentKeys),
+            'items' => array_values(array_map(
+                static fn($key, $text): array => [
+                    'key' => (string)$key,
+                    'text' => (string)$text,
+                ],
+                array_keys($itemsMap),
+                array_values($itemsMap)
+            )),
+        ];
         $studentAnswer = array_values(array_map(
             static fn(string $key): string => (string)($itemsMap[$key] ?? $key),
             $studentKeys
@@ -182,6 +202,27 @@ foreach ($questionOrder as $questionId) {
         $studentMap = is_array($studentMap) ? $studentMap : [];
         $correctMap = json_decode((string)($row['correct_text'] ?? ''), true);
         $correctMap = is_array($correctMap) ? $correctMap : [];
+
+        $editor = [
+            'kind' => 'matching',
+            'matches' => array_map('strval', $studentMap),
+            'left' => array_values(array_map(
+                static fn($key, $text): array => [
+                    'key' => (string)$key,
+                    'text' => (string)$text,
+                ],
+                array_keys($left),
+                array_values($left)
+            )),
+            'right' => array_values(array_map(
+                static fn($key, $text): array => [
+                    'key' => (string)$key,
+                    'text' => (string)$text,
+                ],
+                array_keys($right),
+                array_values($right)
+            )),
+        ];
 
         foreach ($left as $leftKey => $leftText) {
             $selectedKey = (string)($studentMap[(string)$leftKey] ?? '');
@@ -239,6 +280,7 @@ foreach ($questionOrder as $questionId) {
         'correct_answer' => $correctAnswer,
         'options' => $options,
         'matching' => $matchingRows,
+        'editor' => $editor,
         'original_text' => $interaction === 'correction'
             ? (string)($settings['original_text'] ?? '')
             : '',
@@ -258,7 +300,9 @@ $automaticGrade = grade_from_percent($automaticPercent);
 $published = $attempt['published_score'] !== null;
 $displayScore = (float)($published ? $attempt['published_score'] : $automaticScore);
 $displayPercent = (float)($published ? $attempt['published_percent'] : $automaticPercent);
-$displayGrade = grade_from_percent($displayPercent);
+$displayGrade = $published && in_array((string)($attempt['published_grade'] ?? ''), ['2', '3', '4', '5'], true)
+    ? (string)$attempt['published_grade']
+    : grade_from_percent($displayPercent);
 $displayComment = (string)($published ? ($attempt['published_comment'] ?? '') : '');
 
 json_response([
