@@ -74,6 +74,9 @@ jobs:
       - name: Validate result editing and Android focus handling
         run: php .github/tests/result-editing-smoke.php
 
+      - name: Validate assignment overview editing
+        run: php .github/tests/assignment-overview-editing-smoke.php
+
       - name: Validate backup engine
         run: |
           php -r 'require "api/bootstrap.php"; $pdo = app_db(); $backup = backup_create_archive($pdo, "manual"); if (empty($backup["file"]) || empty($backup["size_bytes"])) { fwrite(STDERR, "Backup smoke test failed\n"); exit(1); } echo "Backup engine OK: " . $backup["file"] . "\n";'
