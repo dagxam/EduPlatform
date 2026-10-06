@@ -27,7 +27,9 @@ $revision = (int)($attempt['result_revision'] ?? 0) + 1;
 $score = (float)$attempt['manual_score'];
 $maxScore = (float)($attempt['max_score'] ?? 0);
 $percent = (float)($attempt['manual_percent'] ?? 0);
-$grade = grade_from_percent($percent);
+$grade = in_array((string)($attempt['manual_grade'] ?? ''), ['2', '3', '4', '5'], true)
+    ? (string)$attempt['manual_grade']
+    : grade_from_percent($percent);
 $comment = trim((string)($attempt['manual_comment'] ?? ''));
 
 $pdo->beginTransaction();
