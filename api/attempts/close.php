@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
 $finishReason = trim((string)($data['finish_reason'] ?? 'page_closed'));
-if (!in_array($finishReason, ['page_hidden', 'page_closed', 'browser_closed'], true)) {
+if (!in_array($finishReason, ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'], true)) {
     $finishReason = 'page_closed';
 }
 if ($attemptId < 1) {
