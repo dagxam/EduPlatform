@@ -76,12 +76,16 @@ foreach ($rows as $row) {
             'score' => (float)($row['score'] ?? 0),
             'max_score' => (float)($row['max_score'] ?? 0),
             'percent' => (float)($row['percent'] ?? 0),
-            'grade' => grade_from_percent((float)($row['percent'] ?? 0)),
+            'grade' => in_array((string)($row['grade'] ?? ''), ['2', '3', '4', '5'], true)
+                ? (string)$row['grade']
+                : grade_from_percent((float)($row['percent'] ?? 0)),
         ],
         'draft' => $row['manual_score'] !== null ? [
             'score' => (float)$row['manual_score'],
             'percent' => (float)($row['manual_percent'] ?? 0),
-            'grade' => grade_from_percent((float)($row['manual_percent'] ?? 0)),
+            'grade' => in_array((string)($row['manual_grade'] ?? ''), ['2', '3', '4', '5'], true)
+                ? (string)$row['manual_grade']
+                : grade_from_percent((float)($row['manual_percent'] ?? 0)),
             'comment' => (string)($row['manual_comment'] ?? ''),
             'updated_at' => $row['manual_updated_at'],
         ] : null,
