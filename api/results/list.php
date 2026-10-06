@@ -68,7 +68,7 @@ foreach ($rows as $row) {
         'submitted_at' => $row['submitted_at'],
         'status' => (string)$row['status'],
         'termination_reason' => (string)($row['termination_reason'] ?? ''),
-        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed'], true),
+        'closed_by_browser' => in_array((string)($row['termination_reason'] ?? ''), ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'], true),
         'variant_label' => (string)($row['variant_label'] ?? ''),
         'correct_count' => (int)($row['correct_count'] ?? 0),
         'total_questions' => (int)($row['total_questions'] ?? 0),
