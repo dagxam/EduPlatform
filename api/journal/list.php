@@ -164,7 +164,7 @@ if ($assignmentIds && $studentIds) {
         "SELECT at.id, at.assignment_id, at.student_id, at.submitted_at, at.started_at,
                 at.termination_reason, at.status,
                 at.score, at.max_score, at.percent,
-                at.published_score, at.published_percent, at.result_published_at
+                at.published_score, at.published_percent, at.published_grade, at.result_published_at
          FROM attempts at
          WHERE at.assignment_id IN ($assignmentMarks)
            AND at.student_id IN ($studentMarks)
@@ -190,7 +190,9 @@ if ($assignmentIds && $studentIds) {
             'score' => $score,
             'max_score' => (float)($attempt['max_score'] ?? 0),
             'percent' => $percent,
-            'grade' => grade_from_percent($percent),
+            'grade' => $adjusted && in_array((string)($attempt['published_grade'] ?? ''), ['2', '3', '4', '5'], true)
+                ? (string)$attempt['published_grade']
+                : grade_from_percent($percent),
             'submitted_at' => $attempt['submitted_at'] ?? $attempt['started_at'],
             'adjusted' => $adjusted,
             'closed_by_browser' => in_array(
