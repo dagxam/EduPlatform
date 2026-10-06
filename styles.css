@@ -8790,3 +8790,125 @@ input,select,textarea,button{
   font-weight:850;
   white-space:nowrap;
 }
+
+
+/* Per-student answer editor v80 */
+.attempt-answer-editor{
+  display:grid;
+  gap:11px;
+  margin-top:14px;
+  padding:13px;
+  border:1px solid #dfe6ed;
+  border-radius:13px;
+  background:#f8fafc;
+}
+.attempt-answer-editor-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.attempt-answer-editor-head>div{
+  display:grid;
+  gap:3px;
+}
+.attempt-answer-editor-head b{
+  color:#2f4052;
+  font-size:12px;
+}
+.attempt-answer-editor-head span{
+  color:#84909d;
+  font-size:9px;
+  line-height:1.4;
+}
+.attempt-answer-edit-options,
+.attempt-answer-edit-matching,
+.attempt-answer-edit-order{
+  display:grid;
+  gap:8px;
+}
+.attempt-answer-edit-option{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+  padding:9px 10px;
+  border:1px solid #e2e7ec;
+  border-radius:10px;
+  background:#fff;
+  color:#3e4d5d;
+  font-size:12px;
+  cursor:pointer;
+}
+.attempt-answer-edit-option input{
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  margin:0;
+}
+.attempt-answer-edit-matching label,
+.attempt-answer-edit-order label{
+  display:grid;
+  grid-template-columns:minmax(100px,.8fr) minmax(140px,1.2fr);
+  align-items:center;
+  gap:10px;
+  margin:0;
+}
+.attempt-answer-edit-matching label>span,
+.attempt-answer-edit-order label>span{
+  color:#5d6b79;
+  font-size:11px;
+  line-height:1.35;
+}
+.attempt-answer-editor textarea,
+.attempt-answer-editor select{
+  width:100%;
+  box-sizing:border-box;
+}
+.attempt-answer-editor textarea{
+  min-height:82px;
+  resize:vertical;
+  border:1px solid #d8e0e8;
+  border-radius:10px;
+  background:#fff;
+  padding:10px 11px;
+  color:#334252;
+  font:inherit;
+  font-size:12px;
+  line-height:1.45;
+}
+.attempt-answer-editor-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+}
+.attempt-answer-editor-status{
+  margin-right:auto;
+  color:#2d7d51;
+  font-size:10px;
+  font-weight:800;
+}
+.attempt-answer-editor-actions button{
+  min-height:38px;
+}
+@media(max-width:640px){
+  .attempt-answer-editor{
+    padding:11px;
+  }
+  .attempt-answer-edit-matching label,
+  .attempt-answer-edit-order label{
+    grid-template-columns:1fr;
+    gap:5px;
+  }
+  .attempt-answer-editor-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .attempt-answer-editor-status{
+    margin:0;
+  }
+  .attempt-answer-editor-actions button{
+    width:100%;
+  }
+}
