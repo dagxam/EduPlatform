@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $attemptId = (int)($data['attempt_id'] ?? 0);
 $eventType = trim((string)($data['event_type'] ?? ''));
-if ($attemptId < 1 || !in_array($eventType, ['hidden', 'visible'], true)) {
+if ($attemptId < 1 || !in_array($eventType, ['hidden', 'visible', 'blur', 'focus'], true)) {
     json_response(['ok' => false, 'error' => 'Некорректное событие безопасности.'], 422);
 }
 
@@ -42,10 +42,16 @@ $stmt = $pdo->prepare(
 $stmt->execute([
     'attempt_id' => $attemptId,
     'event_type' => $eventType,
-    'details' => $eventType === 'hidden' ? 'document.visibilityState=hidden' : 'document.visibilityState=visible',
+    'details' => match ($eventType) {
+        'hidden' => 'document.visibilityState=hidden',
+        'visible' => 'document.visibilityState=visible',
+        'blur' => 'window focus lost',
+        'focus' => 'window focus restored',
+        default => $eventType,
+    },
 ]);
 
-if ($eventType === 'hidden') {
+if (in_array($eventType, ['hidden', 'blur'], true)) {
     if (($attempt['focus_policy'] ?? 'allow') === 'strict') {
         $pdo->prepare(
             'UPDATE attempts
@@ -60,9 +66,17 @@ if ($eventType === 'hidden') {
         )->execute(['id' => $attemptId]);
     }
 
-    audit_event('attempt_page_hidden', 'attempt', $attemptId, [
-        'focus_policy' => (string)($attempt['focus_policy'] ?? 'allow'),
-    ], null, (int)$user['id']);
+    audit_event(
+        $eventType === 'blur' ? 'attempt_window_blurred' : 'attempt_page_hidden',
+        'attempt',
+        $attemptId,
+        [
+            'focus_policy' => (string)($attempt['focus_policy'] ?? 'allow'),
+            'event_type' => $eventType,
+        ],
+        null,
+        (int)$user['id']
+    );
 }
 
 // Finalization is handled by close.php with a snapshot of the visible form.
