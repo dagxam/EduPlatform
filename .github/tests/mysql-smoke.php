@@ -48,6 +48,19 @@ $assignmentStudentsRestored = (int)$pdo->query(
 mysql_smoke_assert($assignmentStudentsRestored === 1, 'runtime migration did not restore assignment_students');
 
 mysql_smoke_assert(
+    mysql_column_exists($pdo, 'schools', 'grade_5_min'),
+    'schools.grade_5_min migration missing'
+);
+mysql_smoke_assert(
+    mysql_column_exists($pdo, 'schools', 'grade_4_min'),
+    'schools.grade_4_min migration missing'
+);
+mysql_smoke_assert(
+    mysql_column_exists($pdo, 'schools', 'grade_3_min'),
+    'schools.grade_3_min migration missing'
+);
+
+mysql_smoke_assert(
     mysql_column_exists($pdo, 'questions', 'is_active'),
     'questions.is_active migration missing'
 );
