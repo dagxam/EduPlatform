@@ -490,18 +490,42 @@ function grade_question_answer(PDO $pdo, int $questionId, array $payload): array
     ];
 }
 
+function attempt_question_ids(PDO $pdo, int $attemptId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT assignment_id, question_order_json
+         FROM attempts
+         WHERE id = :attempt_id
+         LIMIT 1'
+    );
+    $stmt->execute(['attempt_id' => $attemptId]);
+    $attempt = $stmt->fetch();
+    if (!$attempt) return [];
+
+    $ids = array_values(array_unique(array_filter(
+        array_map('intval', decoded_json_array($attempt['question_order_json'] ?? null)),
+        static fn(int $id): bool => $id > 0
+    )));
+    if ($ids) {
+        return $ids;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id
+         FROM questions
+         WHERE assignment_id = :assignment_id
+           AND is_active = 1
+         ORDER BY position, id'
+    );
+    $stmt->execute(['assignment_id' => (int)$attempt['assignment_id']]);
+    return array_map('intval', array_column($stmt->fetchAll(), 'id'));
+}
+
 function save_attempt_answers_snapshot(PDO $pdo, int $attemptId, array $answersSnapshot): int
 {
     if (!$answersSnapshot) return 0;
 
-    $stmt = $pdo->prepare(
-        'SELECT q.id
-         FROM questions q
-         JOIN attempts a ON a.assignment_id = q.assignment_id
-         WHERE a.id = :attempt_id'
-    );
-    $stmt->execute(['attempt_id' => $attemptId]);
-    $validIds = array_fill_keys(array_map('intval', array_column($stmt->fetchAll(), 'id')), true);
+    $validIds = array_fill_keys(attempt_question_ids($pdo, $attemptId), true);
     if (!$validIds) return 0;
 
     // Grade first, before opening the write transaction. Imported-key repair
@@ -555,16 +579,9 @@ function save_attempt_answers_snapshot(PDO $pdo, int $attemptId, array $answersS
 
 function save_attempt_answer(PDO $pdo, int $attemptId, int $questionId, array $payload): array
 {
-    $stmt = $pdo->prepare(
-        'SELECT q.id
-         FROM questions q
-         JOIN attempts a ON a.assignment_id = q.assignment_id
-         WHERE a.id = :attempt_id AND q.id = :question_id
-         LIMIT 1'
-    );
-    $stmt->execute(['attempt_id' => $attemptId, 'question_id' => $questionId]);
-    if (!$stmt->fetchColumn()) {
-        json_response(['ok' => false, 'error' => 'Вопрос не относится к этой попытке.'], 422);
+    $validIds = array_fill_keys(attempt_question_ids($pdo, $attemptId), true);
+    if (!isset($validIds[$questionId])) {
+        json_response(['ok' => false, 'error' => 'Вопрос не относится к этой версии попытки.'], 422);
     }
 
     $graded = grade_question_answer($pdo, $questionId, $payload);
@@ -726,12 +743,19 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
     // Recalculate every saved answer from its actual value before the total.
     regrade_attempt_answers($pdo, $attemptId);
 
-    $stmt = $pdo->prepare(
-        'SELECT COALESCE(SUM(points), 0) FROM questions
-         WHERE assignment_id = (SELECT assignment_id FROM attempts WHERE id = :attempt_id)'
-    );
-    $stmt->execute(['attempt_id' => $attemptId]);
-    $maxScore = (float)$stmt->fetchColumn();
+    $attemptQuestionIds = attempt_question_ids($pdo, $attemptId);
+    if ($attemptQuestionIds) {
+        $placeholders = implode(',', array_fill(0, count($attemptQuestionIds), '?'));
+        $stmt = $pdo->prepare(
+            'SELECT COALESCE(SUM(points), 0)
+             FROM questions
+             WHERE id IN (' . $placeholders . ')'
+        );
+        $stmt->execute($attemptQuestionIds);
+        $maxScore = (float)$stmt->fetchColumn();
+    } else {
+        $maxScore = 0.0;
+    }
 
     $stmt = $pdo->prepare(
         'SELECT COALESCE(SUM(score), 0) AS total_score,
@@ -831,6 +855,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
         'SELECT id
          FROM questions
          WHERE assignment_id = :assignment_id
+           AND is_active = 1
          ORDER BY position, id'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
@@ -843,6 +868,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
              FROM question_options qo
              JOIN questions q ON q.id = qo.question_id
              WHERE q.assignment_id = :assignment_id
+               AND q.is_active = 1
              ORDER BY q.position, q.id, qo.position, qo.id'
         );
         $stmt->execute(['assignment_id' => $assignmentId]);
