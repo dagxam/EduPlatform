@@ -29,12 +29,16 @@ $checks = [
     ['builder', "./api/assignments/update-grading.php", 'builder saves grading'],
     ['builder', "assignmentOverviewQuestions", 'builder navigates to question editing'],
     ['builder', "dataset.builderBound", 'overview controls are bound only once'],
+    ['builder', "showOverviewSection", 'overview buttons switch real editor tabs'],
+    ['builder', "overviewActions.addEventListener('click'", 'overview tabs use delegated click handling'],
+    ['builder', "aria-selected", 'overview tabs expose selected state'],
     ['app', "data-edit-assignment", 'existing assignments expose a real edit action'],
     ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
     ['helper', "\$attemptsCount === 0", 'existing assignments remain editable until first attempt'],
     ['index', "Редактировать задание", 'overview shows assignment edit action'],
     ['index', "Редактировать оценивание", 'overview shows grading edit action'],
     ['index', "Редактировать вопросы", 'overview shows question edit action'],
+    ['index', "assignment-overview-tab", 'overview controls use tab styling'],
 ];
 
 foreach ($checks as [$file, $needle, $label]) {
