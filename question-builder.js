@@ -455,7 +455,7 @@
           });
           var data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить изображение.');
-          await load(question.id);
+          await load(Number(data.question_id || question.id));
         } catch (error) {
           setState(card, error.message, true);
         }
@@ -543,7 +543,7 @@
           var data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить вопрос.');
           setState(card, 'Сохранено ✓');
-          await load(question.id);
+          await load(Number(data.question_id || question.id));
           if (typeof loadAssignments === 'function') await loadAssignments();
         } catch (error) {
           setState(card, error.message, true);
