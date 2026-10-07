@@ -721,7 +721,7 @@
     if (lock) lock.classList.toggle('hidden', editable);
     setOverviewState('assignmentOverviewSettingsState', editable
       ? ''
-      : 'Редактирование доступно только в черновике до первой попытки ученика.', false);
+      : 'Редактирование доступно до первой попытки ученика и до завершения задания.', false);
   }
 
   function renderOverviewGrading() {
@@ -757,7 +757,7 @@
     }
     setOverviewState('assignmentOverviewGradingState', editable
       ? ''
-      : 'Баллы нельзя менять после публикации задания или появления попыток учеников.', false);
+      : 'Баллы нельзя менять после начала хотя бы одной попытки ученика или после завершения задания.', false);
     updateGradingTotal();
   }
 
@@ -870,15 +870,7 @@
 
   function render() {
     var list = document.getElementById('questionPreviewList');
-    document.getElementById('assignmentOverviewSettingsForm')?.addEventListener('submit', saveOverviewSettings);
-  document.getElementById('assignmentOverviewGradingSave')?.addEventListener('click', saveOverviewGrading);
-  document.querySelectorAll('[data-assignment-overview-section]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      scrollOverviewSection(button.dataset.assignmentOverviewSection);
-    });
-  });
-
-  var addButton = document.getElementById('builderAddQuestionBtn');
+    var addButton = document.getElementById('builderAddQuestionBtn');
     var help = document.getElementById('questionBuilderHelp');
     if (!list) return;
 
@@ -886,7 +878,7 @@
     if (help) {
       help.textContent = editable
         ? 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.'
-        : 'Работа уже опубликована или по ней есть попытки. Конструктор открыт только для просмотра.';
+        : 'Редактирование заблокировано только потому, что по работе уже есть попытки учеников или задание завершено.';
     }
 
     renderOverviewPanels();
@@ -932,7 +924,7 @@
       if (hint) {
         hint.textContent = editable
           ? 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.'
-          : 'Вопросы можно просматривать, но редактирование этой работы уже заблокировано.';
+          : 'Вопросы можно просматривать, но менять их нельзя после начала хотя бы одной попытки или после завершения задания.';
       }
 
       render();
@@ -1077,6 +1069,29 @@
     var modal = document.querySelector('#questionPreviewModal .question-builder-modal');
     (modal || document.body).appendChild(overlay);
   }
+
+  var overviewSettingsForm = document.getElementById('assignmentOverviewSettingsForm');
+  if (overviewSettingsForm && !overviewSettingsForm.dataset.builderBound) {
+    overviewSettingsForm.dataset.builderBound = '1';
+    overviewSettingsForm.addEventListener('submit', saveOverviewSettings);
+  }
+
+  var overviewGradingSave = document.getElementById('assignmentOverviewGradingSave');
+  if (overviewGradingSave && !overviewGradingSave.dataset.builderBound) {
+    overviewGradingSave.dataset.builderBound = '1';
+    overviewGradingSave.addEventListener('click', saveOverviewGrading);
+  }
+
+  document.querySelectorAll('[data-assignment-overview-section]').forEach(function (button) {
+    if (button.dataset.builderBound) return;
+    button.dataset.builderBound = '1';
+    button.addEventListener('click', function () {
+      document.querySelectorAll('[data-assignment-overview-section]').forEach(function (item) {
+        item.classList.toggle('active', item === button);
+      });
+      scrollOverviewSection(button.dataset.assignmentOverviewSection);
+    });
+  });
 
   var addButton = document.getElementById('builderAddQuestionBtn');
   if (addButton) {
