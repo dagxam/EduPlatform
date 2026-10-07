@@ -144,6 +144,7 @@ const titles = {
   'school-management': ['Администрирование', 'Управление школой'],
   journal: ['Успеваемость класса', 'Журнал'],
   results: ['Аналитика успеваемости', 'Результаты'],
+  'live-execution': ['Контроль в реальном времени', 'Выполнение'],
   'student-dashboard': ['Кабинет ученика', 'Мои занятия'],
   'student-tasks': ['Учёба', 'Мои задания'],
   'student-results': ['Успеваемость', 'Мои оценки']
@@ -166,6 +167,14 @@ document.addEventListener('keydown', event => {
 });
 
 function showView(id) {
+  const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
+  if (currentUser?.role === 'student' && !studentViews.has(id)) {
+    id = 'student-dashboard';
+  }
+  if (id !== 'live-execution') {
+    stopLiveExecutionAutoRefresh();
+  }
+
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const view = document.getElementById(id);
   if (view) view.classList.add('active');
@@ -394,6 +403,12 @@ function applyUser(user) {
   const platformAdmin = admin && Number(user.is_platform_admin) === 1;
   const teacher = !student && (user.role === 'teacher' || Boolean(user.can_teach));
 
+  document.body.classList.toggle('student-session', student);
+  document.querySelectorAll('.teacher-nav [data-view]').forEach(button => {
+    const staffView = document.getElementById(button.dataset.view);
+    staffView?.classList.toggle('student-forbidden-view', student);
+  });
+
   teacherNav.classList.toggle('hidden', student);
   studentNav.classList.toggle('hidden', !student);
 
@@ -520,6 +535,7 @@ async function selectSchool(schoolId) {
     if (selectedId === 0) {
       activeSchoolName = '';
       applySchoolBranding(null);
+      renderLiveExecution({ items: [] });
       showView('teacher-dashboard');
       return;
     }
@@ -529,6 +545,7 @@ async function selectSchool(schoolId) {
     applySchoolBranding({ theme_color: selectedSchool?.theme_color || '#1d68f0' });
 
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
+    await loadLiveExecution({ silent: true }).catch(() => {});
     await loadSchoolManagement();
     showView('school-management');
   } catch (error) {
@@ -570,6 +587,7 @@ document.getElementById('schoolForm')?.addEventListener('submit', async event =>
     teacherOptionsCache = [];
     await loadSchools();
     await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
+    await loadLiveExecution({ silent: true }).catch(() => {});
     await loadSchoolManagement();
     showView('school-management');
   } catch (e) {
@@ -3870,6 +3888,157 @@ async function loadStudentResults() {
   }
 }
 
+let liveExecutionTimer = null;
+let liveExecutionLoading = false;
+
+function stopLiveExecutionAutoRefresh() {
+  if (liveExecutionTimer) {
+    window.clearInterval(liveExecutionTimer);
+    liveExecutionTimer = null;
+  }
+}
+
+function liveExecutionDuration(seconds) {
+  const total = Math.max(0, Number(seconds || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = Math.floor(total % 60);
+  if (hours > 0) return hours + ' ч ' + String(minutes).padStart(2, '0') + ' мин';
+  if (minutes > 0) return minutes + ' мин ' + String(secs).padStart(2, '0') + ' сек';
+  return secs + ' сек';
+}
+
+function renderLiveExecution(data) {
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const list = document.getElementById('liveExecutionList');
+  const badge = document.getElementById('liveExecutionBadge');
+  const countNode = document.getElementById('liveExecutionCount');
+  const classesNode = document.getElementById('liveExecutionClasses');
+  const assignmentsNode = document.getElementById('liveExecutionAssignments');
+  const updatedNode = document.getElementById('liveExecutionUpdated');
+
+  const classCount = new Set(items.map(item => String(item.class_name || '')).filter(Boolean)).size;
+  const assignmentCount = new Set(items.map(item => Number(item.assignment_id || 0)).filter(Boolean)).size;
+
+  if (countNode) countNode.textContent = String(items.length);
+  if (classesNode) classesNode.textContent = String(classCount);
+  if (assignmentsNode) assignmentsNode.textContent = String(assignmentCount);
+  if (updatedNode) {
+    updatedNode.textContent = new Date().toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  if (badge) {
+    badge.textContent = String(items.length);
+    badge.classList.toggle('hidden', items.length === 0);
+  }
+
+  if (!list) return;
+  if (!items.length) {
+    list.innerHTML = `
+      <div class="live-execution-empty">
+        <div class="live-execution-empty-icon">✓</div>
+        <div>
+          <b>Сейчас никто не выполняет задания</b>
+          <span>Как только ученик откроет назначенную работу, он появится здесь автоматически.</span>
+        </div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const answered = Math.max(0, Number(item.answered_count || 0));
+    const total = Math.max(0, Number(item.question_count || 0));
+    const progress = total > 0 ? Math.min(100, Math.round((answered / total) * 100)) : 0;
+    const timeLimit = Number(item.time_limit_minutes || 0);
+    const elapsed = Math.max(0, Number(item.elapsed_seconds || 0));
+    const remainingSeconds = timeLimit > 0 ? Math.max(0, timeLimit * 60 - elapsed) : null;
+    const heartbeatAgo = Math.max(0, Number(item.last_seen_seconds_ago || 0));
+    const subject = item.subject_name ? escapeHtml(item.subject_name) : 'Предмет не указан';
+
+    return `
+      <article class="live-execution-card">
+        <div class="live-execution-student">
+          <span class="live-online-dot" aria-hidden="true"></span>
+          <div>
+            <strong>${escapeHtml(item.student_name || 'Ученик')}</strong>
+            <span>${escapeHtml(item.class_name || 'Без класса')}</span>
+          </div>
+        </div>
+        <div class="live-execution-assignment">
+          <span class="section-kicker">${subject}</span>
+          <b>${escapeHtml(item.assignment_title || 'Задание')}</b>
+        </div>
+        <div class="live-execution-progress">
+          <div>
+            <span>Ответы</span>
+            <b>${answered}${total ? ' / ' + total : ''}</b>
+          </div>
+          <div class="live-progress-track"><span style="width:${progress}%"></span></div>
+        </div>
+        <div class="live-execution-time">
+          <span>В работе</span>
+          <b>${escapeHtml(liveExecutionDuration(elapsed))}</b>
+          <small>${remainingSeconds === null
+            ? 'без лимита времени'
+            : 'осталось ' + escapeHtml(liveExecutionDuration(remainingSeconds))}</small>
+        </div>
+        <div class="live-execution-heartbeat">
+          <span class="status green">Выполняет</span>
+          <small>связь ${heartbeatAgo <= 5 ? 'только что' : heartbeatAgo + ' сек. назад'}</small>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+async function loadLiveExecution(options = {}) {
+  if (currentUser?.role === 'student' || liveExecutionLoading) return null;
+  const silent = Boolean(options.silent);
+  const list = document.getElementById('liveExecutionList');
+
+  liveExecutionLoading = true;
+  if (!silent && list && !list.querySelector('.live-execution-card')) {
+    list.innerHTML = '<div class="history-empty"><b>Проверяем активность...</b><span>Загрузка текущих попыток учеников.</span></div>';
+  }
+
+  try {
+    const response = await fetch('./api/attempts/live.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить текущие выполнения.');
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось загрузить текущие выполнения.');
+    }
+    renderLiveExecution(data);
+    return data;
+  } catch (error) {
+    if (!silent && list) {
+      list.innerHTML = '<div class="history-empty"><b>Не удалось обновить монитор</b><span>' + escapeHtml(error.message) + '</span></div>';
+    }
+    throw error;
+  } finally {
+    liveExecutionLoading = false;
+  }
+}
+
+function startLiveExecutionAutoRefresh() {
+  stopLiveExecutionAutoRefresh();
+  loadLiveExecution().catch(() => {});
+  liveExecutionTimer = window.setInterval(() => {
+    if (document.getElementById('live-execution')?.classList.contains('active')) {
+      loadLiveExecution({ silent: true }).catch(() => {});
+    }
+  }, 20000);
+}
+
+document.getElementById('refreshLiveExecutionBtn')?.addEventListener('click', () => {
+  loadLiveExecution().catch(error => alert(error.message));
+});
+
 document.getElementById('resultsSearch')?.addEventListener('input', renderResults);
 document.getElementById('resultsClassFilter')?.addEventListener('change', renderResults);
 document.getElementById('resultsAssignmentFilter')?.addEventListener('change', renderResults);
@@ -3934,6 +4103,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'assignments') loadAssignments();
   if (btn.dataset.view === 'journal') loadJournal().catch(() => {});
   if (btn.dataset.view === 'results') loadResults().catch(() => {});
+  if (btn.dataset.view === 'live-execution') startLiveExecutionAutoRefresh();
   if (btn.dataset.view === 'student-results') loadStudentResults().catch(() => {});
   if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
   if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
@@ -7117,7 +7287,7 @@ function requestedInitialView(user) {
   if (!requested) return null;
 
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
-  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'staff-profile']);
+  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'live-execution', 'staff-profile']);
   if (user?.role === 'student' && studentViews.has(requested)) return requested;
   if (user?.role !== 'student' && staffViews.has(requested)) return requested;
   return null;
@@ -7157,6 +7327,7 @@ loadSession().then(async user => {
       if (requested === 'subjects') await loadSubjectsWorkspace();
       if (requested === 'assignments') await loadAssignments();
       if (requested === 'results') await loadResults().catch(() => {});
+      if (requested === 'live-execution') startLiveExecutionAutoRefresh();
       if (requested === 'uvoria-library') await loadLibrary().catch(() => {});
       if (requested === 'activity-history') await loadActivityHistory().catch(() => {});
       if (requested === 'staff-profile') await loadStaffProfile().catch(() => {});
