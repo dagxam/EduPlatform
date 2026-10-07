@@ -721,17 +721,20 @@
     }
     if (lock) {
       lock.classList.toggle('hidden', editable);
-      lock.textContent = Number(assignment && assignment.active_attempts_count || 0) > 0
-        ? 'Идёт попытка'
-        : 'Только просмотр';
+      lock.textContent = 'Только просмотр';
     }
+    var activeCount = Number(assignment && assignment.active_attempts_count || 0);
+    var staleCount = Number(assignment && assignment.stale_attempts_count || 0);
+    var historyCount = Number(assignment && assignment.attempts_count || 0);
     setOverviewState('assignmentOverviewSettingsState', editable
-      ? (Number(assignment && assignment.attempts_count || 0) > 0
-          ? 'Задание активно. Изменения применятся к следующим попыткам; прошлые версии сохранены.'
-          : '')
-      : (Number(assignment && assignment.active_attempts_count || 0) > 0
-          ? 'Сейчас ученик выполняет это задание. Редактирование включится сразу после завершения активной попытки.'
-          : 'Задание завершено. Для редактирования его нужно снова сделать активным.'), false);
+      ? (activeCount > 0
+          ? 'Сейчас есть активная попытка. Редактирование разрешено: текущий ученик сохранит свою версию, изменения получат следующие попытки.'
+          : (staleCount > 0
+              ? 'Найдены старые незавершённые сессии. Они больше не блокируют редактирование и будут закрыты автоматически.'
+              : (historyCount > 0
+                  ? 'Можно редактировать. Прошлые попытки и оценки сохраняют свои версии задания.'
+                  : '')))
+      : 'Задание завершено. Для редактирования его нужно снова сделать активным.', false);
   }
 
   function renderOverviewGrading() {
@@ -767,11 +770,9 @@
     }
     setOverviewState('assignmentOverviewGradingState', editable
       ? (Number(assignment && assignment.attempts_count || 0) > 0
-          ? 'Можно менять баллы: старые попытки сохранят прежнюю версию оценивания.'
+          ? 'Баллы можно менять. Уже начатые и завершённые попытки сохраняют прежнюю версию оценивания.'
           : '')
-      : (Number(assignment && assignment.active_attempts_count || 0) > 0
-          ? 'Баллы временно заблокированы, пока ученик выполняет текущую попытку.'
-          : 'Оценивание завершённого задания доступно только для просмотра.'), false);
+      : 'Оценивание завершённого задания доступно только для просмотра.', false);
     updateGradingTotal();
   }
 
@@ -921,10 +922,10 @@
     if (addButton) addButton.classList.toggle('hidden', !editable);
     if (help) {
       help.textContent = editable
-        ? 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.'
-        : (Number(assignment && assignment.active_attempts_count || 0) > 0
-            ? 'Редактирование временно остановлено: сейчас ученик выполняет эту работу.'
-            : 'Задание завершено. Вопросы доступны только для просмотра.');
+        ? (Number(assignment && assignment.active_attempts_count || 0) > 0
+            ? 'Ученик выполняет сохранённую версию работы. Вы можете редактировать вопросы — изменения применятся только к следующим попыткам.'
+            : 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.')
+        : 'Задание завершено. Вопросы доступны только для просмотра.';
     }
 
     renderOverviewPanels();
@@ -969,10 +970,10 @@
       var hint = document.getElementById('questionBuilderHint');
       if (hint) {
         hint.textContent = editable
-          ? 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.'
-          : (Number(assignment && assignment.active_attempts_count || 0) > 0
-              ? 'Сейчас есть активная попытка ученика. После её завершения вопросы снова можно будет редактировать.'
-              : 'Задание завершено. Вопросы доступны только для просмотра.');
+          ? (Number(assignment && assignment.active_attempts_count || 0) > 0
+              ? 'Редактор доступен. Текущая попытка закреплена за своей версией вопросов и не изменится.'
+              : 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.')
+          : 'Задание завершено. Вопросы доступны только для просмотра.';
       }
 
       render();
