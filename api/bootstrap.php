@@ -296,6 +296,43 @@ function mysql_schema_version(): string
     return '2';
 }
 
+function mysql_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = :table_name
+           AND column_name = :column_name
+         LIMIT 1'
+    );
+    $stmt->execute([
+        'table_name' => $table,
+        'column_name' => $column,
+    ]);
+    return (bool)$stmt->fetchColumn();
+}
+
+function mysql_add_column_if_missing(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $safe = static function (string $name): string {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new InvalidArgumentException('Некорректное имя поля базы данных.');
+        }
+        return $name;
+    };
+
+    $table = $safe($table);
+    $column = $safe($column);
+    if (!preg_match('/^[a-zA-Z0-9_ (),]+$/', $definition)) {
+        throw new InvalidArgumentException('Некорректное определение поля базы данных.');
+    }
+
+    if (!mysql_column_exists($pdo, $table, $column)) {
+        $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+    }
+}
+
 function mysql_index_exists(PDO $pdo, string $table, string $index): bool
 {
     $stmt = $pdo->prepare(
@@ -335,6 +372,9 @@ function mysql_add_index_if_missing(PDO $pdo, string $table, string $index, stri
 
 function mysql_apply_runtime_migrations(PDO $pdo): void
 {
+    mysql_add_column_if_missing($pdo, 'questions', 'is_active', 'TINYINT NOT NULL DEFAULT 1');
+    mysql_add_column_if_missing($pdo, 'questions', 'revision_of_id', 'BIGINT UNSIGNED NULL');
+
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS assignment_students (
             assignment_id BIGINT UNSIGNED NOT NULL,
@@ -348,6 +388,13 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
             CONSTRAINT fk_assignment_students_student
                 FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    mysql_add_index_if_missing(
+        $pdo,
+        'questions',
+        'idx_questions_assignment_active_position',
+        'assignment_id, is_active, position, id'
     );
 
     mysql_add_index_if_missing(
@@ -664,6 +711,11 @@ function apply_schema_migrations(PDO $pdo): void
         ON school_material_transfers(target_school_id, status, created_at)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_material_transfers_source
         ON school_material_transfers(source_school_id, created_at)");
+    add_column_if_missing($pdo, 'questions', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
+    add_column_if_missing($pdo, 'questions', 'revision_of_id', 'INTEGER');
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_questions_assignment_active_position
+        ON questions(assignment_id, is_active, position, id)");
+
     add_column_if_missing($pdo, 'attempts', 'last_seen_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'termination_reason', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'focus_violations', 'INTEGER NOT NULL DEFAULT 0');
