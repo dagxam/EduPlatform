@@ -830,7 +830,12 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
     $needsReview = (int)($row['needs_review'] ?? 0);
 
     $percent = $maxScore > 0 ? round(($score / $maxScore) * 100, 2) : 0.0;
-    $grade = grade_from_percent($percent);
+    $assignmentStmt = $pdo->prepare('SELECT assignment_id FROM attempts WHERE id = :attempt_id LIMIT 1');
+    $assignmentStmt->execute(['attempt_id' => $attemptId]);
+    $assignmentId = (int)($assignmentStmt->fetchColumn() ?: 0);
+    $grade = $assignmentId > 0
+        ? grade_from_percent_for_assignment($pdo, $assignmentId, $percent)
+        : grade_from_percent($percent);
     $status = $needsReview ? 'needs_review' : 'submitted';
 
     $stmt = $pdo->prepare(
