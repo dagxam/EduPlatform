@@ -9,6 +9,7 @@ $files = [
     'builder' => file_get_contents($root . '/question-builder.js'),
     'app' => file_get_contents($root . '/app.js'),
     'helper' => file_get_contents($root . '/api/questions/_helpers.php'),
+    'attempt_helper' => file_get_contents($root . '/api/attempts/_helpers.php'),
     'index' => file_get_contents($root . '/index.html'),
 ];
 
@@ -34,7 +35,10 @@ $checks = [
     ['builder', "aria-selected", 'overview tabs expose selected state'],
     ['app', "data-edit-assignment", 'existing assignments expose a real edit action'],
     ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
-    ['helper', "\$attemptsCount === 0", 'existing assignments remain editable until first attempt'],
+    ['helper', "\$activeAttemptsCount === 0", 'active assignments are editable between student attempts'],
+    ['helper', "question_editor_fork_revision", 'question revisions preserve historical attempts'],
+    ['attempt_helper', "attempt_question_ids", 'attempt grading is pinned to its question revision'],
+    ['attempt_helper', "AND is_active = 1", 'new attempts use only current question revisions'],
     ['index', "Редактировать задание", 'overview shows assignment edit action'],
     ['index', "Редактировать оценивание", 'overview shows grading edit action'],
     ['index', "Редактировать вопросы", 'overview shows question edit action'],
