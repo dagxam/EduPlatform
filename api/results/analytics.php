@@ -75,10 +75,11 @@ $studentLeaders = array_map(static function(array $row) use ($studentScale): arr
     $averageGrade = round((float)($row['average_grade'] ?? 0), 2);
     $totalScore = round((float)($row['total_score'] ?? 0), 2);
     $totalMaxScore = round((float)($row['total_max_score'] ?? 0), 2);
-    $finalPercent = $totalMaxScore > 0
-        ? round(($totalScore / $totalMaxScore) * 100, 1)
+    $finalPercentRaw = $totalMaxScore > 0
+        ? ($totalScore / $totalMaxScore) * 100
         : 0.0;
-    $finalGrade = grade_from_percent($finalPercent, $studentScale);
+    $finalPercent = round($finalPercentRaw, 1);
+    $finalGrade = grade_from_percent($finalPercentRaw, $studentScale);
 
     return [
         'id' => (int)$row['id'],
