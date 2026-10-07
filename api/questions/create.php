@@ -12,7 +12,7 @@ $pdo = app_db();
 $assignment = question_editor_assignment($pdo, $user, $assignmentId, true);
 $normalized = question_editor_normalize_payload($data);
 
-$stmt = $pdo->prepare('SELECT COALESCE(MAX(position), 0) + 1 FROM questions WHERE assignment_id = :assignment_id');
+$stmt = $pdo->prepare('SELECT COALESCE(MAX(position), 0) + 1 FROM questions WHERE assignment_id = :assignment_id AND is_active = 1');
 $stmt->execute(['assignment_id' => $assignmentId]);
 $position = (int)$stmt->fetchColumn();
 
