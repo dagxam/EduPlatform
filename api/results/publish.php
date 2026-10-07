@@ -29,7 +29,7 @@ $maxScore = (float)($attempt['max_score'] ?? 0);
 $percent = (float)($attempt['manual_percent'] ?? 0);
 $grade = in_array((string)($attempt['manual_grade'] ?? ''), ['2', '3', '4', '5'], true)
     ? (string)$attempt['manual_grade']
-    : grade_from_percent($percent);
+    : grade_from_percent_for_school($pdo, $schoolId, $percent);
 $comment = trim((string)($attempt['manual_comment'] ?? ''));
 
 $pdo->beginTransaction();
