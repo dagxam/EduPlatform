@@ -13,6 +13,9 @@ if ($questionId < 1 || empty($_FILES['file'])) {
 
 $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
+$assignment = question_editor_assignment($pdo, $user, (int)$question['assignment_id'], true);
+$hasHistory = (int)($assignment['attempts_count'] ?? 0) > 0;
+$effectiveQuestionId = $questionId;
 $file = $_FILES['file'];
 if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     json_response(['ok' => false, 'error' => 'Не удалось загрузить изображение.'], 422);
@@ -34,19 +37,32 @@ if (!isset($extensions[$mime])) {
     json_response(['ok' => false, 'error' => 'Поддерживаются PNG, JPG, WEBP и GIF.'], 422);
 }
 
+if ($hasHistory) {
+    $pdo->beginTransaction();
+    try {
+        $effectiveQuestionId = question_editor_fork_revision($pdo, $questionId);
+        $pdo->prepare('UPDATE assignments SET updated_at = CURRENT_TIMESTAMP WHERE id = :id')
+            ->execute(['id' => (int)$question['assignment_id']]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+}
+
 $dir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'question-assets';
 if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
     json_response(['ok' => false, 'error' => 'Не удалось подготовить хранилище изображений.'], 500);
 }
 
-$storedName = 'question-' . $questionId . '-' . bin2hex(random_bytes(10)) . '.' . $extensions[$mime];
+$storedName = 'question-' . $effectiveQuestionId . '-' . bin2hex(random_bytes(10)) . '.' . $extensions[$mime];
 $destination = $dir . DIRECTORY_SEPARATOR . $storedName;
 if (!move_uploaded_file($tmp, $destination)) {
     json_response(['ok' => false, 'error' => 'Не удалось сохранить изображение.'], 500);
 }
 
 $stmt = $pdo->prepare('SELECT COALESCE(MAX(position), 0) + 1 FROM question_assets WHERE question_id = :question_id');
-$stmt->execute(['question_id' => $questionId]);
+$stmt->execute(['question_id' => $effectiveQuestionId]);
 $position = (int)$stmt->fetchColumn();
 
 try {
@@ -55,7 +71,7 @@ try {
          VALUES (:question_id, :stored_name, :original_name, :mime_type, :position)'
     );
     $stmt->execute([
-        'question_id' => $questionId,
+        'question_id' => $effectiveQuestionId,
         'stored_name' => $storedName,
         'original_name' => basename((string)($file['name'] ?? 'image.' . $extensions[$mime])),
         'mime_type' => $mime,
@@ -67,13 +83,16 @@ try {
     throw $e;
 }
 
-audit_event('question_image_added', 'question', $questionId, [
+audit_event('question_image_added', 'question', $effectiveQuestionId, [
     'assignment_id' => (int)$question['assignment_id'],
     'asset_id' => $assetId,
+    'previous_question_id' => $hasHistory ? $questionId : null,
 ], (int)$question['school_id'], (int)$user['id']);
 
 json_response([
     'ok' => true,
+    'question_id' => $effectiveQuestionId,
+    'revised' => $hasHistory,
     'asset' => [
         'id' => $assetId,
         'original_name' => basename((string)($file['name'] ?? '')),
