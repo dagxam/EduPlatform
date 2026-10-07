@@ -123,9 +123,14 @@ CREATE TABLE IF NOT EXISTS questions (
     correct_text TEXT,
     interaction_type TEXT,
     settings_json TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    revision_of_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_questions_assignment_active_position
+    ON questions(assignment_id, is_active, position, id);
 
 CREATE TABLE IF NOT EXISTS question_options (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
