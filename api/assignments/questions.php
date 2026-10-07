@@ -49,9 +49,9 @@ if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (
 $attemptStmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
 $attemptStmt->execute(['assignment_id' => $assignmentId]);
 $attemptsCount = (int)$attemptStmt->fetchColumn();
-$editable = (string)($assignment['workflow_status'] ?? 'draft') === 'draft'
-    && (string)$assignment['status'] === 'draft'
-    && $attemptsCount === 0;
+$editable = $attemptsCount === 0
+    && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+    && (string)$assignment['status'] !== 'closed';
 
 $stmt = $pdo->prepare(
     'SELECT q.id, q.type, q.interaction_type, q.text, q.points, q.position,
