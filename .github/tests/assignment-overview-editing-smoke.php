@@ -35,7 +35,9 @@ $checks = [
     ['builder', "aria-selected", 'overview tabs expose selected state'],
     ['app', "data-edit-assignment", 'existing assignments expose a real edit action'],
     ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
-    ['helper', "\$activeAttemptsCount === 0", 'active assignments are editable between student attempts'],
+    ['helper', "'editable'] =", 'assignment helper exposes editable state'],
+    ['helper', "question revisions pin every already-started attempt", 'active attempts must not block revision-safe editing'],
+    ['questions', "'stale_attempts_count' => \$staleAttemptsCount", 'overview exposes stale attempt count'],
     ['helper', "question_editor_fork_revision", 'question revisions preserve historical attempts'],
     ['attempt_helper', "attempt_question_ids", 'attempt grading is pinned to its question revision'],
     ['attempt_helper', "AND is_active = 1", 'new attempts use only current question revisions'],
@@ -59,6 +61,12 @@ if (str_contains($files['builder'], "function render() {\n    var list = documen
 
 if (str_contains($files['app'], 'data-preview-questions')) {
     fwrite(STDERR, "Assignment overview smoke failed: legacy preview-only action still exists.\n");
+    exit(1);
+}
+
+if (str_contains($files['helper'], '$activeAttemptsCount === 0')
+    || str_contains($files['helper'], 'ASSIGNMENT_HAS_ACTIVE_ATTEMPT')) {
+    fwrite(STDERR, "Assignment overview smoke failed: active attempts still block revision-safe editing.\n");
     exit(1);
 }
 
