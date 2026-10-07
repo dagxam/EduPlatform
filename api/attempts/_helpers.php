@@ -135,7 +135,7 @@ function question_answer_key_edited(PDO $pdo, int $questionId): bool
              FROM audit_log
              WHERE entity_type = "question"
                AND entity_id = :question_id
-               AND event_type = "question_updated"
+               AND event_type IN ("question_updated", "question_revised")
              ORDER BY id DESC
              LIMIT 1'
         );
