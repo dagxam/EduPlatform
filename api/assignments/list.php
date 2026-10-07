@@ -51,7 +51,7 @@ $stmt = app_db()->prepare(
      LEFT JOIN schools src ON src.id = a.source_school_id
      LEFT JOIN library_items li ON li.source_school_id = a.school_id AND li.source_assignment_id = a.id
      LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
-     LEFT JOIN questions q ON q.assignment_id = a.id
+     LEFT JOIN questions q ON q.assignment_id = a.id AND q.is_active = 1
      LEFT JOIN assignment_classes ac ON ac.assignment_id = a.id
      LEFT JOIN classes c ON c.id = ac.class_id
      LEFT JOIN attempts at ON at.assignment_id = a.id AND at.status <> 'in_progress'
