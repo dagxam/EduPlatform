@@ -7,6 +7,10 @@ $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
 $pdo = app_db();
 $manager = can_manage_school($user, $schoolId);
+$gradeScale = school_grade_scale($pdo, $schoolId);
+$grade5Min = (int)$gradeScale['grade_5_min'];
+$grade4Min = (int)$gradeScale['grade_4_min'];
+$grade3Min = (int)$gradeScale['grade_3_min'];
 $isMysql = db_driver($pdo) === 'mysql';
 $plusSevenDaysSql = $isMysql
     ? 'DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY)'
@@ -113,12 +117,16 @@ $attemptSql =
     "SELECT COUNT(*) AS submitted_count,
             SUM(CASE WHEN at.submitted_at >= {$minusSevenDaysSql} THEN 1 ELSE 0 END) AS last_7_days,
             AVG(COALESCE(at.published_percent, at.percent)) AS avg_percent,
-            AVG(CASE
-              WHEN COALESCE(at.published_percent, at.percent) >= 90 THEN 5
-              WHEN COALESCE(at.published_percent, at.percent) >= 75 THEN 4
-              WHEN COALESCE(at.published_percent, at.percent) >= 50 THEN 3
-              ELSE 2
-            END) AS avg_grade
+            AVG(COALESCE(
+              NULLIF(at.published_grade, ''),
+              NULLIF(at.grade, ''),
+              CASE
+                WHEN COALESCE(at.published_percent, at.percent) >= {$grade5Min} THEN 5
+                WHEN COALESCE(at.published_percent, at.percent) >= {$grade4Min} THEN 4
+                WHEN COALESCE(at.published_percent, at.percent) >= {$grade3Min} THEN 3
+                ELSE 2
+              END
+            )) AS avg_grade
      FROM attempts at
      JOIN assignments a ON a.id = at.assignment_id
      JOIN class_students cs ON cs.student_id = at.student_id
