@@ -17,6 +17,12 @@ if ($assignmentId < 1) {
 $pdo = app_db();
 $studentId = (int)$user['id'];
 
+// If the browser/app disappeared without delivering close.php (common on
+// Android task switching or force-close), do not let the orphaned attempt
+// block the student forever. A healthy open attempt sends heartbeat every
+// ~25-35 seconds, so 120 seconds is safely beyond the normal interval.
+finalize_stale_attempts($pdo, $assignmentId, $studentId, null, 120);
+
 $stmt = $pdo->prepare(
     'SELECT ass.id,
             ass.max_attempts,
