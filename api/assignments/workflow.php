@@ -71,7 +71,7 @@ if ($action === 'prepare') {
         json_response(['ok' => false, 'error' => 'Подготовить можно только черновик.'], 409);
     }
 
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM questions WHERE assignment_id = :assignment_id');
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM questions WHERE assignment_id = :assignment_id AND is_active = 1');
     $stmt->execute(['assignment_id' => $assignmentId]);
     $questionCount = (int)$stmt->fetchColumn();
 
