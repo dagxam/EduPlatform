@@ -47,27 +47,18 @@ $assignmentStudentsRestored = (int)$pdo->query(
 )->fetchColumn();
 mysql_smoke_assert($assignmentStudentsRestored === 1, 'runtime migration did not restore assignment_students');
 
-$questionColumnsStmt = $pdo->prepare(
-    'SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = DATABASE()
-       AND table_name = "questions"
-       AND column_name IN ("is_active", "revision_of_id")'
+mysql_smoke_assert(
+    mysql_column_exists($pdo, 'questions', 'is_active'),
+    'questions.is_active migration missing'
 );
-$questionColumnsStmt->execute();
-$questionRevisionColumns = array_map('strval', array_column($questionColumnsStmt->fetchAll(), 'column_name'));
-mysql_smoke_assert(in_array('is_active', $questionRevisionColumns, true), 'questions.is_active migration missing');
-mysql_smoke_assert(in_array('revision_of_id', $questionRevisionColumns, true), 'questions.revision_of_id migration missing');
-
-$questionRevisionIndex = $pdo->prepare(
-    'SELECT COUNT(*)
-     FROM information_schema.statistics
-     WHERE table_schema = DATABASE()
-       AND table_name = "questions"
-       AND index_name = "idx_questions_assignment_active_position"'
+mysql_smoke_assert(
+    mysql_column_exists($pdo, 'questions', 'revision_of_id'),
+    'questions.revision_of_id migration missing'
 );
-$questionRevisionIndex->execute();
-mysql_smoke_assert((int)$questionRevisionIndex->fetchColumn() > 0, 'question revision index missing');
+mysql_smoke_assert(
+    mysql_index_exists($pdo, 'questions', 'idx_questions_assignment_active_position'),
+    'question revision index missing'
+);
 
 $version = $pdo->query(
     "SELECT meta_value FROM urovia_meta WHERE meta_key = 'schema_version'"
