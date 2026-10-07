@@ -47,17 +47,30 @@ if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (
 }
 
 $attemptStmt = $pdo->prepare(
-    'SELECT COUNT(*) AS total_count,
-            SUM(CASE WHEN status = "in_progress" THEN 1 ELSE 0 END) AS active_count
+    'SELECT status, started_at, last_seen_at
      FROM attempts
      WHERE assignment_id = :assignment_id'
 );
 $attemptStmt->execute(['assignment_id' => $assignmentId]);
-$attemptStats = $attemptStmt->fetch() ?: [];
-$attemptsCount = (int)($attemptStats['total_count'] ?? 0);
-$activeAttemptsCount = (int)($attemptStats['active_count'] ?? 0);
-$editable = $activeAttemptsCount === 0
-    && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+$attemptRows = $attemptStmt->fetchAll();
+$attemptsCount = count($attemptRows);
+$activeAttemptsCount = 0;
+$staleAttemptsCount = 0;
+$now = time();
+foreach ($attemptRows as $attemptRow) {
+    if ((string)($attemptRow['status'] ?? '') !== 'in_progress') continue;
+    $lastSeenRaw = trim((string)($attemptRow['last_seen_at'] ?? ''));
+    $startedRaw = trim((string)($attemptRow['started_at'] ?? ''));
+    $activityRaw = $lastSeenRaw !== '' ? $lastSeenRaw : $startedRaw;
+    $activityAt = $activityRaw !== '' ? strtotime($activityRaw . ' UTC') : false;
+    if ($activityAt !== false && ($now - $activityAt) <= 90) {
+        $activeAttemptsCount++;
+    } else {
+        $staleAttemptsCount++;
+    }
+}
+$editable =
+    (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
     && (string)$assignment['status'] !== 'closed';
 
 $stmt = $pdo->prepare(
@@ -114,6 +127,7 @@ json_response([
         'workflow_status' => (string)($assignment['workflow_status'] ?? 'draft'),
         'attempts_count' => $attemptsCount,
         'active_attempts_count' => $activeAttemptsCount,
+        'stale_attempts_count' => $staleAttemptsCount,
         'max_attempts' => (int)($assignment['max_attempts'] ?? 1),
         'time_limit_minutes' => $assignment['time_limit_minutes'] !== null
             ? (int)$assignment['time_limit_minutes']
