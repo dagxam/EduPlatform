@@ -94,7 +94,7 @@ json_response([
         'score' => $score,
         'max_score' => $maxScore,
         'percent' => $percent,
-        'grade' => grade_from_percent($percent),
+        'grade' => grade_from_percent_for_school($pdo, $schoolId, $percent),
         'needs_review' => $needsReview === 1,
         'question_results' => $results,
         'test_mode' => true,
