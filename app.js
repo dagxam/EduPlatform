@@ -30,6 +30,7 @@ const studentEditModal = document.getElementById('studentEditModal');
 let currentUser = null;
 let activeSchoolName = '';
 let currentBranding = { theme_color: '#1d68f0' };
+let currentGradeScale = { grade_5_min: 85, grade_4_min: 71, grade_3_min: 50 };
 
 let appDialogResolver = null;
 
@@ -370,6 +371,75 @@ async function loadSchoolBranding() {
   }
 }
 
+function normalizeClientGradeScale(scale = null) {
+  const fallback = { grade_5_min: 85, grade_4_min: 71, grade_3_min: 50 };
+  const grade5 = Number(scale?.grade_5_min ?? fallback.grade_5_min);
+  const grade4 = Number(scale?.grade_4_min ?? fallback.grade_4_min);
+  const grade3 = Number(scale?.grade_3_min ?? fallback.grade_3_min);
+  if (!Number.isInteger(grade3) || !Number.isInteger(grade4) || !Number.isInteger(grade5)
+      || grade3 < 1 || grade3 > 98 || grade4 <= grade3 || grade4 > 99 || grade5 <= grade4 || grade5 > 100) {
+    return fallback;
+  }
+  return { grade_5_min: grade5, grade_4_min: grade4, grade_3_min: grade3 };
+}
+
+function applyGradeScale(scale = null) {
+  currentGradeScale = normalizeClientGradeScale(scale);
+  const values = {
+    gradeScale5Min: currentGradeScale.grade_5_min,
+    gradeScale4Min: currentGradeScale.grade_4_min,
+    gradeScale3Min: currentGradeScale.grade_3_min
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = String(value);
+  });
+  updateGradeScalePreview();
+}
+
+async function loadGradeScale() {
+  try {
+    const response = await fetch('./api/school/grading-scale.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить шкалу оценок.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить шкалу оценок.');
+    applyGradeScale(data.grade_scale);
+    return data;
+  } catch (error) {
+    applyGradeScale(null);
+    throw error;
+  }
+}
+
+function gradeScaleFromInputs() {
+  return normalizeClientGradeScale({
+    grade_5_min: Number(document.getElementById('gradeScale5Min')?.value || 85),
+    grade_4_min: Number(document.getElementById('gradeScale4Min')?.value || 71),
+    grade_3_min: Number(document.getElementById('gradeScale3Min')?.value || 50)
+  });
+}
+
+function updateGradeScalePreview() {
+  const scale = document.getElementById('gradeScale5Min')
+    ? gradeScaleFromInputs()
+    : currentGradeScale;
+  const ranges = {
+    5: scale.grade_5_min + '–100%',
+    4: scale.grade_4_min + '–' + (scale.grade_5_min - 1) + '%',
+    3: scale.grade_3_min + '–' + (scale.grade_4_min - 1) + '%',
+    2: '0–' + (scale.grade_3_min - 1) + '%'
+  };
+  [5,4,3,2].forEach(grade => {
+    const node = document.getElementById('gradeScaleRange' + grade);
+    if (node) node.textContent = ranges[grade];
+  });
+  const preview = document.getElementById('gradeScalePreview');
+  if (preview) preview.textContent =
+    '5: ' + ranges[5] + ' · 4: ' + ranges[4] + ' · 3: ' + ranges[3] + ' · 2: ' + ranges[2];
+}
+
 const roleLabels = {
   admin: 'Администратор',
   teacher: 'Учитель',
@@ -389,6 +459,7 @@ async function loadSession() {
       return null;
     }
     applySchoolBranding(data.branding);
+    await loadGradeScale().catch(() => {});
     return data.user;
   } catch {
     window.location.replace('./login.html');
@@ -535,6 +606,7 @@ async function selectSchool(schoolId) {
     if (selectedId === 0) {
       activeSchoolName = '';
       applySchoolBranding(null);
+      applyGradeScale(null);
       renderLiveExecution({ items: [] });
       showView('teacher-dashboard');
       return;
@@ -544,7 +616,7 @@ async function selectSchool(schoolId) {
     activeSchoolName = selectedSchool?.name || '';
     applySchoolBranding({ theme_color: selectedSchool?.theme_color || '#1d68f0' });
 
-    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard()]);
+    await Promise.all([loadClasses(), loadSubjects(), loadAssignments(), loadSchoolBranding(), loadTeacherDashboard(), loadGradeScale()]);
     await loadLiveExecution({ silent: true }).catch(() => {});
     await loadSchoolManagement();
     showView('school-management');
@@ -2711,17 +2783,17 @@ function resultGradeClass(grade) {
 
 function resultGradeFromPercent(percent) {
   const value = Math.max(0, Math.min(100, Number(percent || 0)));
-  if (value >= 90) return '5';
-  if (value >= 75) return '4';
-  if (value >= 50) return '3';
+  if (value >= currentGradeScale.grade_5_min) return '5';
+  if (value >= currentGradeScale.grade_4_min) return '4';
+  if (value >= currentGradeScale.grade_3_min) return '3';
   return '2';
 }
 
 function resultPercentClass(percent) {
   const value = Math.max(0, Math.min(100, Math.round(Number(percent || 0))));
-  if (value < 50) return 'result-percent-low';
-  if (value < 60) return 'result-percent-warn';
-  if (value < 75) return 'result-percent-mid';
+  if (value < currentGradeScale.grade_3_min) return 'result-percent-low';
+  if (value < currentGradeScale.grade_4_min) return 'result-percent-warn';
+  if (value < currentGradeScale.grade_5_min) return 'result-percent-mid';
   return 'result-percent-high';
 }
 
@@ -5634,10 +5706,7 @@ function submitQuiz(e) {
   });
 
   const percent = Math.round((correct / quiz.length) * 100);
-  let grade = 2;
-  if (percent >= 90) grade = 5;
-  else if (percent >= 75) grade = 4;
-  else if (percent >= 50) grade = 3;
+  const grade = Number(resultGradeFromPercent(percent));
 
   document.getElementById('quizContent').innerHTML = `
     <div class="result-card">
@@ -6831,7 +6900,7 @@ function renderRealAttemptResult(result, note = '') {
         </div>
       </div>
       <div class="student-finish-message">
-        <b>${percent >= 90 ? 'Отличный результат' : percent >= 75 ? 'Хорошая работа' : percent >= 50 ? 'Работа зачтена' : 'Результат сохранён'}</b>
+        <b>${String(grade) === '5' ? 'Отличный результат' : String(grade) === '4' ? 'Хорошая работа' : String(grade) === '3' ? 'Работа зачтена' : 'Результат сохранён'}</b>
         <span>Оценку и историю выполненных работ всегда можно посмотреть в разделе «Мои оценки».</span>
       </div>
       <div class="student-finish-actions">
