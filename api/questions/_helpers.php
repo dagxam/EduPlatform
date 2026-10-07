@@ -42,14 +42,14 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
     $stmt->execute(['assignment_id' => $assignmentId]);
     $attemptsCount = (int)$stmt->fetchColumn();
     $assignment['attempts_count'] = $attemptsCount;
-    $assignment['editable'] = (string)($assignment['workflow_status'] ?? 'draft') === 'draft'
-        && (string)$assignment['status'] === 'draft'
-        && $attemptsCount === 0;
+    $assignment['editable'] = $attemptsCount === 0
+        && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+        && (string)$assignment['status'] !== 'closed';
 
     if ($requireEditable && !$assignment['editable']) {
         json_response([
             'ok' => false,
-            'error' => 'Редактировать вопросы можно только в черновике до начала попыток учеников.',
+            'error' => 'Редактирование недоступно после начала хотя бы одной попытки ученика или после завершения задания.',
             'code' => 'ASSIGNMENT_NOT_EDITABLE',
         ], 409);
     }
