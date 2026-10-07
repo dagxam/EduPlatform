@@ -38,19 +38,32 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
         }
     }
 
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) AS total_count,
+                SUM(CASE WHEN status = "in_progress" THEN 1 ELSE 0 END) AS active_count
+         FROM attempts
+         WHERE assignment_id = :assignment_id'
+    );
     $stmt->execute(['assignment_id' => $assignmentId]);
-    $attemptsCount = (int)$stmt->fetchColumn();
+    $attemptStats = $stmt->fetch() ?: [];
+    $attemptsCount = (int)($attemptStats['total_count'] ?? 0);
+    $activeAttemptsCount = (int)($attemptStats['active_count'] ?? 0);
+
     $assignment['attempts_count'] = $attemptsCount;
-    $assignment['editable'] = $attemptsCount === 0
+    $assignment['active_attempts_count'] = $activeAttemptsCount;
+    $assignment['editable'] = $activeAttemptsCount === 0
         && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
         && (string)$assignment['status'] !== 'closed';
 
     if ($requireEditable && !$assignment['editable']) {
+        $error = $activeAttemptsCount > 0
+            ? 'Сейчас задание выполняет ученик. Дождитесь завершения активной попытки и повторите редактирование.'
+            : 'Завершённое задание нельзя редактировать. Сначала верните его в активное состояние.';
         json_response([
             'ok' => false,
-            'error' => 'Редактирование недоступно после начала хотя бы одной попытки ученика или после завершения задания.',
-            'code' => 'ASSIGNMENT_NOT_EDITABLE',
+            'error' => $error,
+            'code' => $activeAttemptsCount > 0 ? 'ASSIGNMENT_HAS_ACTIVE_ATTEMPT' : 'ASSIGNMENT_NOT_EDITABLE',
+            'active_attempts_count' => $activeAttemptsCount,
         ], 409);
     }
 
