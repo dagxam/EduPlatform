@@ -9219,3 +9219,38 @@ input,select,textarea,button{
     grid-template-columns:1fr!important;
   }
 }
+
+
+/* Existing assignment editor reliability v83 */
+.assignment-edit-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  cursor:pointer;
+}
+.assignment-overview-actions button{
+  cursor:pointer;
+}
+.assignment-overview-actions button.active{
+  border-color:var(--brand);
+  background:var(--brand);
+  color:#fff;
+  box-shadow:0 7px 18px color-mix(in srgb,var(--brand) 18%,transparent);
+}
+.assignment-icon-btn.is-loading,
+.assignment-edit-btn.is-loading{
+  pointer-events:none;
+  opacity:.68;
+}
+@media(max-width:760px){
+  .assignment-edit-btn{
+    width:100%;
+    min-height:44px;
+  }
+  .assignment-overview-actions button{
+    min-height:46px;
+    text-align:left;
+    justify-content:flex-start;
+  }
+}
