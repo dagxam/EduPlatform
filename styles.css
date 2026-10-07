@@ -9709,3 +9709,50 @@ body.student-session .assignment-author-only {
     width:100%;
   }
 }
+
+
+/* Student cumulative leaderboard result */
+.result-leader-row.student-total{
+  min-height:66px;
+}
+.result-leader-row.student-total .result-leader-copy{
+  gap:5px;
+}
+.result-leader-row.student-total .leader-student-meta{
+  display:grid;
+  gap:2px;
+  overflow:visible;
+  white-space:normal;
+  text-overflow:clip;
+}
+.result-leader-row.student-total .leader-student-meta>span{
+  display:block;
+  min-width:0;
+}
+.result-leader-row.student-total .leader-student-total{
+  color:#5b6d7f;
+  font-size:8px;
+  font-weight:700;
+}
+.result-leader-row.student-total .leader-student-total>b{
+  color:#354b61;
+  font-size:inherit;
+  font-weight:900;
+}
+.result-leader-row.student-total .leader-average-badge{
+  min-width:54px;
+}
+@media(max-width:520px){
+  .result-leader-row.student-total{
+    grid-template-columns:28px minmax(0,1fr) 52px;
+    min-height:72px;
+    gap:8px;
+  }
+  .result-leader-row.student-total .result-leader-copy>b{
+    white-space:normal;
+    line-height:1.25;
+  }
+  .result-leader-row.student-total .leader-student-total{
+    line-height:1.35;
+  }
+}
