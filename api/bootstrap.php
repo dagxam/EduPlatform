@@ -372,6 +372,9 @@ function mysql_add_index_if_missing(PDO $pdo, string $table, string $index, stri
 
 function mysql_apply_runtime_migrations(PDO $pdo): void
 {
+    mysql_add_column_if_missing($pdo, 'schools', 'grade_5_min', 'INT NOT NULL DEFAULT 85');
+    mysql_add_column_if_missing($pdo, 'schools', 'grade_4_min', 'INT NOT NULL DEFAULT 71');
+    mysql_add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INT NOT NULL DEFAULT 50');
     mysql_add_column_if_missing($pdo, 'questions', 'is_active', 'TINYINT NOT NULL DEFAULT 1');
     mysql_add_column_if_missing($pdo, 'questions', 'revision_of_id', 'BIGINT UNSIGNED NULL');
 
@@ -635,6 +638,9 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'school_users', 'can_teach', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'schools', 'theme_color', "TEXT NOT NULL DEFAULT '#1d68f0'");
     add_column_if_missing($pdo, 'schools', 'assignment_review_required', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'schools', 'grade_5_min', 'INTEGER NOT NULL DEFAULT 85');
+    add_column_if_missing($pdo, 'schools', 'grade_4_min', 'INTEGER NOT NULL DEFAULT 71');
+    add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INTEGER NOT NULL DEFAULT 50');
     $pdo->exec("UPDATE school_users SET can_teach = 1 WHERE role = 'teacher' AND can_teach = 0");
     if ((int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_platform_admin = 1")->fetchColumn() === 0) {
         $pdo->exec("UPDATE users SET is_platform_admin = 1 WHERE id = (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)");
@@ -1133,13 +1139,85 @@ function normalize_email(string $email): string
     return function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
 }
 
-function grade_from_percent(float $percent): string
+function default_grade_scale(): array
+{
+    return [
+        'grade_5_min' => 85,
+        'grade_4_min' => 71,
+        'grade_3_min' => 50,
+    ];
+}
+
+function normalize_grade_scale(?array $scale): array
+{
+    $defaults = default_grade_scale();
+    $grade5 = (int)($scale['grade_5_min'] ?? $defaults['grade_5_min']);
+    $grade4 = (int)($scale['grade_4_min'] ?? $defaults['grade_4_min']);
+    $grade3 = (int)($scale['grade_3_min'] ?? $defaults['grade_3_min']);
+
+    if (
+        $grade3 < 1 || $grade3 > 98
+        || $grade4 <= $grade3 || $grade4 > 99
+        || $grade5 <= $grade4 || $grade5 > 100
+    ) {
+        return $defaults;
+    }
+
+    return [
+        'grade_5_min' => $grade5,
+        'grade_4_min' => $grade4,
+        'grade_3_min' => $grade3,
+    ];
+}
+
+function school_grade_scale(PDO $pdo, ?int $schoolId): array
+{
+    if ($schoolId === null || $schoolId < 1) {
+        return default_grade_scale();
+    }
+
+    static $cache = [];
+    if (isset($cache[$schoolId])) {
+        return $cache[$schoolId];
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT grade_5_min, grade_4_min, grade_3_min
+             FROM schools
+             WHERE id = :id
+             LIMIT 1'
+        );
+        $stmt->execute(['id' => $schoolId]);
+        $row = $stmt->fetch();
+        return $cache[$schoolId] = normalize_grade_scale(is_array($row) ? $row : null);
+    } catch (Throwable) {
+        return $cache[$schoolId] = default_grade_scale();
+    }
+}
+
+function grade_from_percent(float $percent, ?array $scale = null): string
 {
     $percent = max(0.0, min(100.0, $percent));
-    if ($percent >= 90.0) return '5';
-    if ($percent >= 75.0) return '4';
-    if ($percent >= 50.0) return '3';
+    $scale = normalize_grade_scale($scale);
+
+    if ($percent >= (float)$scale['grade_5_min']) return '5';
+    if ($percent >= (float)$scale['grade_4_min']) return '4';
+    if ($percent >= (float)$scale['grade_3_min']) return '3';
     return '2';
+}
+
+function grade_from_percent_for_school(PDO $pdo, ?int $schoolId, float $percent): string
+{
+    return grade_from_percent($percent, school_grade_scale($pdo, $schoolId));
+}
+
+function grade_from_percent_for_assignment(PDO $pdo, int $assignmentId, float $percent): string
+{
+    $stmt = $pdo->prepare('SELECT school_id FROM assignments WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $assignmentId]);
+    $schoolId = (int)($stmt->fetchColumn() ?: 0);
+    return grade_from_percent_for_school($pdo, $schoolId > 0 ? $schoolId : null, $percent);
 }
 
 function find_user_by_identity(PDO $pdo, string $identity): ?array
