@@ -46,10 +46,17 @@ if (!can_manage_school($user, $schoolId) && (int)$assignment['teacher_id'] !== (
     }
 }
 
-$attemptStmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
+$attemptStmt = $pdo->prepare(
+    'SELECT COUNT(*) AS total_count,
+            SUM(CASE WHEN status = "in_progress" THEN 1 ELSE 0 END) AS active_count
+     FROM attempts
+     WHERE assignment_id = :assignment_id'
+);
 $attemptStmt->execute(['assignment_id' => $assignmentId]);
-$attemptsCount = (int)$attemptStmt->fetchColumn();
-$editable = $attemptsCount === 0
+$attemptStats = $attemptStmt->fetch() ?: [];
+$attemptsCount = (int)($attemptStats['total_count'] ?? 0);
+$activeAttemptsCount = (int)($attemptStats['active_count'] ?? 0);
+$editable = $activeAttemptsCount === 0
     && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
     && (string)$assignment['status'] !== 'closed';
 
@@ -105,6 +112,7 @@ json_response([
         'status' => (string)$assignment['status'],
         'workflow_status' => (string)($assignment['workflow_status'] ?? 'draft'),
         'attempts_count' => $attemptsCount,
+        'active_attempts_count' => $activeAttemptsCount,
         'max_attempts' => (int)($assignment['max_attempts'] ?? 1),
         'time_limit_minutes' => $assignment['time_limit_minutes'] !== null
             ? (int)$assignment['time_limit_minutes']
