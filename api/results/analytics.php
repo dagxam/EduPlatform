@@ -19,6 +19,7 @@ $latestAttemptSql =
     )";
 
 $effectivePercentSql = 'COALESCE(at.published_percent, at.percent)';
+$effectiveScoreSql = 'COALESCE(at.published_score, at.score, 0)';
 $effectiveGradeSql =
     "COALESCE(
         NULLIF(at.published_grade, ''),
@@ -37,6 +38,13 @@ $studentSql =
             u.last_name,
             COALESCE(c.display_name, c.name) AS class_name,
             COUNT(*) AS works_count,
+            SUM({$effectiveScoreSql}) AS total_score,
+            SUM(COALESCE(at.max_score, 0)) AS total_max_score,
+            CASE
+              WHEN SUM(COALESCE(at.max_score, 0)) > 0
+              THEN (SUM({$effectiveScoreSql}) * 100.0) / SUM(COALESCE(at.max_score, 0))
+              ELSE 0
+            END AS final_percent,
             AVG({$effectivePercentSql}) AS average_percent,
             AVG({$effectiveGradeSql}) AS average_grade
      FROM attempts at
@@ -55,21 +63,33 @@ if (!$manager) {
 $studentSql .=
     " GROUP BY u.id, u.first_name, u.last_name, c.id, c.display_name, c.name
       HAVING COUNT(*) >= 1
-      ORDER BY average_grade DESC, average_percent DESC, works_count DESC, u.last_name, u.first_name
+      ORDER BY final_percent DESC, works_count DESC, u.last_name, u.first_name
       LIMIT 5";
 $stmt = $pdo->prepare($studentSql);
 $stmt->execute($studentParams);
 $studentRows = $stmt->fetchAll();
 
-$studentLeaders = array_map(static function(array $row): array {
-    $percent = round((float)($row['average_percent'] ?? 0), 1);
+$studentScale = school_grade_scale($pdo, $schoolId);
+$studentLeaders = array_map(static function(array $row) use ($studentScale): array {
+    $averagePercent = round((float)($row['average_percent'] ?? 0), 1);
     $averageGrade = round((float)($row['average_grade'] ?? 0), 2);
+    $totalScore = round((float)($row['total_score'] ?? 0), 2);
+    $totalMaxScore = round((float)($row['total_max_score'] ?? 0), 2);
+    $finalPercent = $totalMaxScore > 0
+        ? round(($totalScore / $totalMaxScore) * 100, 1)
+        : 0.0;
+    $finalGrade = grade_from_percent($finalPercent, $studentScale);
+
     return [
         'id' => (int)$row['id'],
         'name' => trim((string)$row['last_name'] . ' ' . (string)$row['first_name']),
         'class_name' => (string)($row['class_name'] ?? ''),
         'works_count' => (int)$row['works_count'],
-        'average_percent' => $percent,
+        'total_score' => $totalScore,
+        'total_max_score' => $totalMaxScore,
+        'final_percent' => $finalPercent,
+        'final_grade' => $finalGrade,
+        'average_percent' => $averagePercent,
         'average_grade' => $averageGrade,
     ];
 }, $studentRows);
@@ -240,7 +260,7 @@ json_response([
         'class_min_completed' => 1,
         'school_min_completed' => 1,
         'leaders_limit' => 5,
-        'rating_formula' => 'Средняя оценка по всем выполненным работам',
+        'rating_formula' => 'Итоговый процент по сумме баллов всех выполненных работ; оценка по шкале школы',
     ],
     'students' => $studentLeaders,
     'classes' => $classLeaders,
