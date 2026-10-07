@@ -9567,3 +9567,145 @@ body.student-session .assignment-author-only {
     padding: 24px 16px;
   }
 }
+
+
+/* Configurable school grade scale */
+.school-grade-scale-panel{
+  position:relative;
+  overflow:hidden;
+}
+.school-grade-scale-panel::after{
+  content:"";
+  position:absolute;
+  width:180px;
+  height:180px;
+  right:-75px;
+  top:-85px;
+  border-radius:50%;
+  background:color-mix(in srgb,var(--brand) 7%,transparent);
+  pointer-events:none;
+}
+.grade-scale-badge{
+  min-width:48px;
+  height:32px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid color-mix(in srgb,var(--brand) 24%,#dce4ed);
+  border-radius:10px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  font-size:12px;
+  font-weight:900;
+}
+.grade-scale-form{
+  position:relative;
+  z-index:1;
+}
+.grade-scale-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.grade-scale-item{
+  min-height:82px;
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr) 72px;
+  align-items:center;
+  gap:10px;
+  margin:0;
+  padding:11px;
+  border:1px solid #e4e9ef;
+  border-radius:13px;
+  background:#fbfcfe;
+}
+.grade-scale-item.is-fixed{
+  grid-template-columns:38px minmax(0,1fr) auto;
+}
+.grade-scale-mark{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  font-size:15px;
+  font-weight:950;
+}
+.grade-scale-5 .grade-scale-mark{
+  background:#e9f8ef;
+  color:#18864b;
+}
+.grade-scale-4 .grade-scale-mark{
+  background:#eaf2ff;
+  color:#236bc7;
+}
+.grade-scale-3 .grade-scale-mark{
+  background:#fff5df;
+  color:#ad7414;
+}
+.grade-scale-2 .grade-scale-mark{
+  background:#fff0f0;
+  color:#bb3f3f;
+}
+.grade-scale-copy{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.grade-scale-copy b{
+  color:#2e4052;
+  font-size:11px;
+  font-weight:900;
+}
+.grade-scale-copy small{
+  color:#7c8997;
+  font-size:9px;
+  font-weight:700;
+}
+.grade-scale-item input{
+  width:72px;
+  min-width:0;
+  text-align:center;
+  font-weight:850;
+}
+.grade-scale-fixed{
+  padding:6px 8px;
+  border-radius:8px;
+  background:#eef1f5;
+  color:#7a8694;
+  font-size:9px;
+  font-weight:800;
+}
+.grade-scale-preview{
+  padding:10px 12px;
+  border:1px dashed color-mix(in srgb,var(--brand) 28%,#dce4ed);
+  border-radius:10px;
+  background:var(--brand-soft);
+  color:#4c5e72;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+@media(max-width:980px){
+  .grade-scale-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:560px){
+  .grade-scale-grid{
+    grid-template-columns:1fr;
+  }
+  .grade-scale-item,
+  .grade-scale-item.is-fixed{
+    grid-template-columns:40px minmax(0,1fr) 76px;
+    min-height:72px;
+  }
+  .grade-scale-item input{
+    width:76px;
+    min-height:44px;
+  }
+  .grade-scale-form>button{
+    width:100%;
+  }
+}
