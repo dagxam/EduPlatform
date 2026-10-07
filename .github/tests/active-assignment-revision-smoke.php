@@ -20,6 +20,7 @@ $pdo->exec('PRAGMA foreign_keys = ON');
 $schema = file_get_contents(dirname(__DIR__, 2) . '/database/schema.sql');
 revision_assert($schema !== false, 'schema.sql missing');
 $pdo->exec($schema);
+apply_schema_migrations($pdo);
 
 $pdo->exec(
     "INSERT INTO users (id, first_name, last_name, email, password_hash, role)
