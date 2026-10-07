@@ -50,7 +50,9 @@ $pdo->exec('CREATE TABLE questions (
     position INTEGER NOT NULL DEFAULT 0,
     correct_text TEXT,
     interaction_type TEXT,
-    settings_json TEXT
+    settings_json TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    revision_of_id INTEGER
 )');
 $pdo->exec('CREATE TABLE question_options (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +80,10 @@ $pdo->exec('CREATE TABLE attempts (
     grade TEXT,
     status TEXT NOT NULL DEFAULT "in_progress",
     termination_reason TEXT,
-    last_seen_at TEXT
+    last_seen_at TEXT,
+    question_order_json TEXT,
+    option_order_json TEXT,
+    structured_order_json TEXT
 )');
 $pdo->exec('CREATE TABLE answers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
