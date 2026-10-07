@@ -3638,30 +3638,51 @@ function renderResultsLeaderList(targetId, items, type) {
   }
 
   target.innerHTML = items.slice(0,5).map((item,index) => {
-    const percent = Math.round(Number(item.average_percent || 0));
-    const averageGrade = Number(item.average_grade || 0);
-    const gradeText = Number.isFinite(averageGrade) && averageGrade > 0
-      ? averageGrade.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(averageGrade) ? 0 : 1, maximumFractionDigits:2 })
-      : '—';
-    const gradeClass = resultGradeClass(String(Math.max(2, Math.min(5, Math.round(averageGrade || 2)))));
     const works = Number(item.works_count || item.completed || 0);
-    let meta = '';
-    if (type === 'student') {
-      meta = [item.class_name || '', 'работ: ' + works, percent + '%'].filter(Boolean).join(' · ');
+    const isStudent = type === 'student';
+
+    const percent = isStudent
+      ? Number(item.final_percent || 0)
+      : Number(item.average_percent || 0);
+    const gradeValue = isStudent
+      ? String(item.final_grade || resultGradeFromPercent(percent))
+      : Number(item.average_grade || 0);
+    const gradeText = isStudent
+      ? gradeValue
+      : (Number.isFinite(gradeValue) && gradeValue > 0
+          ? gradeValue.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(gradeValue) ? 0 : 1, maximumFractionDigits:2 })
+          : '—');
+    const gradeClass = isStudent
+      ? resultGradeClass(gradeValue)
+      : resultGradeClass(String(Math.max(2, Math.min(5, Math.round(gradeValue || 2)))));
+
+    let metaHtml = '';
+    if (isStudent) {
+      const totalScore = Number(item.total_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
+      const totalMax = Number(item.total_max_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
+      const classText = item.class_name ? escapeHtml(item.class_name) + ' · ' : '';
+      metaHtml =
+        '<small class="leader-student-meta">' +
+          '<span>' + classText + 'выполнено работ: ' + works + '</span>' +
+          '<span class="leader-student-total">Итого: <b>' + escapeHtml(totalScore) + ' / ' + escapeHtml(totalMax) +
+          ' балл.</b> · ' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</span>' +
+        '</small>';
     } else {
-      meta = ['выполнено: ' + works, percent + '% средний результат'].join(' · ');
+      const meta = ['выполнено: ' + works, Math.round(percent) + '% средний результат'].join(' · ');
+      metaHtml = '<small>' + escapeHtml(meta) + '</small>';
     }
+
     return `
-      <div class="result-leader-row ${index === 0 ? 'winner' : ''}">
+      <div class="result-leader-row ${isStudent ? 'student-total' : ''} ${index === 0 ? 'winner' : ''}">
         <span class="result-leader-rank">${index + 1}</span>
         <div class="result-leader-copy">
           <b>${escapeHtml(item.name || '—')}</b>
-          <small>${escapeHtml(meta)}</small>
+          ${metaHtml}
         </div>
-        <div class="result-leader-score" title="Средняя оценка">
+        <div class="result-leader-score" title="${isStudent ? 'Итоговая оценка по всем выполненным работам' : 'Средняя оценка'}">
           <span class="leader-average-badge ${gradeClass}">
             <strong>${escapeHtml(gradeText)}</strong>
-            <small>средняя</small>
+            <small>${isStudent ? 'итог' : 'средняя'}</small>
           </span>
         </div>
       </div>`;
