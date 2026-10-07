@@ -5755,6 +5755,7 @@ async function loadAssignmentReviewSettings() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки школы.');
     if (checkbox) checkbox.checked = Boolean(data.settings?.assignment_review_required);
+    applyGradeScale(data.settings || null);
   } catch (error) {
     const node = document.getElementById('assignmentReviewSettingsError');
     if (node) {
@@ -5787,6 +5788,7 @@ document.getElementById('assignmentReviewSettingsForm')?.addEventListener('submi
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить настройку.');
 
     assignmentWorkflowContext.review_required = Boolean(data.settings?.assignment_review_required);
+    applyGradeScale(data.settings || null);
     if (result) {
       result.textContent = assignmentWorkflowContext.review_required
         ? 'Проверка заданий администратором включена.'
@@ -5802,6 +5804,77 @@ document.getElementById('assignmentReviewSettingsForm')?.addEventListener('submi
   } finally {
     button.disabled = false;
     button.textContent = 'Сохранить настройку';
+  }
+});
+
+document.querySelectorAll('#gradeScaleSettingsForm input[type="number"]').forEach(input => {
+  input.addEventListener('input', updateGradeScalePreview);
+});
+
+document.getElementById('gradeScaleSettingsForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const error = document.getElementById('gradeScaleSettingsError');
+  const result = document.getElementById('gradeScaleSettingsResult');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  const grade5 = Number(document.getElementById('gradeScale5Min')?.value);
+  const grade4 = Number(document.getElementById('gradeScale4Min')?.value);
+  const grade3 = Number(document.getElementById('gradeScale3Min')?.value);
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+
+  if (!Number.isInteger(grade3) || !Number.isInteger(grade4) || !Number.isInteger(grade5)
+      || grade3 < 1 || grade3 > 98 || grade4 <= grade3 || grade4 > 99 || grade5 <= grade4 || grade5 > 100) {
+    if (error) {
+      error.textContent = 'Порог для 3 должен быть ниже 4, а порог для 4 — ниже 5. Используйте целые проценты от 1 до 100.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/school/settings.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grade_5_min: grade5,
+        grade_4_min: grade4,
+        grade_3_min: grade3
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить шкалу оценок.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить шкалу оценок.');
+
+    applyGradeScale(data.settings || null);
+    if (result) {
+      const scale = currentGradeScale;
+      result.textContent =
+        'Шкала сохранена: 5 — ' + scale.grade_5_min + '–100%, 4 — ' +
+        scale.grade_4_min + '–' + (scale.grade_5_min - 1) + '%, 3 — ' +
+        scale.grade_3_min + '–' + (scale.grade_4_min - 1) + '%, 2 — 0–' +
+        (scale.grade_3_min - 1) + '%.';
+      result.classList.remove('hidden');
+    }
+
+    await Promise.all([
+      loadTeacherDashboard().catch(() => {}),
+      loadResults().catch(() => {}),
+      loadJournal().catch(() => {})
+    ]);
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить шкалу';
   }
 });
 
