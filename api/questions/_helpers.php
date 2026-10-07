@@ -87,7 +87,103 @@ function question_editor_question(PDO $pdo, array $user, int $questionId, bool $
     }
 
     question_editor_assignment($pdo, $user, (int)$question['assignment_id'], $requireEditable);
+    if ($requireEditable && array_key_exists('is_active', $question) && (int)$question['is_active'] !== 1) {
+        json_response([
+            'ok' => false,
+            'error' => 'Открыта устаревшая версия вопроса. Обновите редактор задания.',
+            'code' => 'QUESTION_REVISION_STALE',
+        ], 409);
+    }
     return $question;
+}
+
+function question_editor_assignment_has_history(PDO $pdo, int $assignmentId): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM attempts
+         WHERE assignment_id = :assignment_id
+         LIMIT 1'
+    );
+    $stmt->execute(['assignment_id' => $assignmentId]);
+    return (bool)$stmt->fetchColumn();
+}
+
+function question_editor_fork_revision(PDO $pdo, int $questionId, array $overrides = []): int
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, assignment_id, type, text, points, position, correct_text,
+                interaction_type, settings_json, is_active, revision_of_id
+         FROM questions
+         WHERE id = :id
+         LIMIT 1'
+    );
+    $stmt->execute(['id' => $questionId]);
+    $source = $stmt->fetch();
+    if (!$source) {
+        throw new RuntimeException('Вопрос для создания ревизии не найден.');
+    }
+    if ((int)($source['is_active'] ?? 1) !== 1) {
+        throw new RuntimeException('Нельзя создать ревизию из устаревшей версии вопроса.');
+    }
+
+    $value = static function (string $key) use ($source, $overrides) {
+        return array_key_exists($key, $overrides) ? $overrides[$key] : ($source[$key] ?? null);
+    };
+
+    $rootRevisionId = (int)($source['revision_of_id'] ?? 0);
+    if ($rootRevisionId < 1) {
+        $rootRevisionId = (int)$source['id'];
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO questions
+         (assignment_id, type, text, points, position, correct_text,
+          interaction_type, settings_json, is_active, revision_of_id)
+         VALUES
+         (:assignment_id, :type, :text, :points, :position, :correct_text,
+          :interaction_type, :settings_json, 1, :revision_of_id)'
+    );
+    $insert->execute([
+        'assignment_id' => (int)$source['assignment_id'],
+        'type' => (string)$value('type'),
+        'text' => (string)$value('text'),
+        'points' => (float)$value('points'),
+        'position' => (int)$value('position'),
+        'correct_text' => $value('correct_text'),
+        'interaction_type' => $value('interaction_type'),
+        'settings_json' => $value('settings_json'),
+        'revision_of_id' => $rootRevisionId,
+    ]);
+    $newQuestionId = (int)$pdo->lastInsertId();
+
+    $copyOptions = $pdo->prepare(
+        'INSERT INTO question_options (question_id, text, is_correct, position)
+         SELECT :new_question_id, text, is_correct, position
+         FROM question_options
+         WHERE question_id = :old_question_id
+         ORDER BY position, id'
+    );
+    $copyOptions->execute([
+        'new_question_id' => $newQuestionId,
+        'old_question_id' => $questionId,
+    ]);
+
+    $copyAssets = $pdo->prepare(
+        'INSERT INTO question_assets (question_id, stored_name, original_name, mime_type, position)
+         SELECT :new_question_id, stored_name, original_name, mime_type, position
+         FROM question_assets
+         WHERE question_id = :old_question_id
+         ORDER BY position, id'
+    );
+    $copyAssets->execute([
+        'new_question_id' => $newQuestionId,
+        'old_question_id' => $questionId,
+    ]);
+
+    $pdo->prepare('UPDATE questions SET is_active = 0 WHERE id = :id')
+        ->execute(['id' => $questionId]);
+
+    return $newQuestionId;
 }
 
 function question_editor_normalize_payload(array $data): array
@@ -279,7 +375,7 @@ function question_editor_replace_options(PDO $pdo, int $questionId, array $optio
 
 function question_editor_refresh_import_count(PDO $pdo, int $assignmentId): void
 {
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM questions WHERE assignment_id = :assignment_id');
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM questions WHERE assignment_id = :assignment_id AND is_active = 1');
     $stmt->execute(['assignment_id' => $assignmentId]);
     $count = (int)$stmt->fetchColumn();
 
