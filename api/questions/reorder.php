@@ -16,7 +16,7 @@ $ids = array_values(array_unique(array_filter(
 $pdo = app_db();
 $assignment = question_editor_assignment($pdo, $user, $assignmentId, true);
 
-$stmt = $pdo->prepare('SELECT id FROM questions WHERE assignment_id = :assignment_id ORDER BY position, id');
+$stmt = $pdo->prepare('SELECT id FROM questions WHERE assignment_id = :assignment_id AND is_active = 1 ORDER BY position, id');
 $stmt->execute(['assignment_id' => $assignmentId]);
 $existing = array_map('intval', array_column($stmt->fetchAll(), 'id'));
 
@@ -28,7 +28,7 @@ if ($sortedA !== $sortedB) {
 
 $pdo->beginTransaction();
 try {
-    $stmt = $pdo->prepare('UPDATE questions SET position = :position WHERE id = :id');
+    $stmt = $pdo->prepare('UPDATE questions SET position = :position WHERE id = :id AND is_active = 1');
     foreach ($ids as $index => $id) {
         $stmt->execute(['position' => $index + 1, 'id' => $id]);
     }
