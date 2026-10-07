@@ -29,6 +29,7 @@ $checks = [
     ['student_results', "published_grade", 'student sees published teacher grade'],
     ['app', "./api/results/update-answer.php", 'UI saves corrected answers'],
     ['app', "grade: String(document.getElementById('resultEditGrade').value", 'UI submits explicit grade'],
+    ['app', 'Изменить оценку', 'grade editing is available inside attempt review'],
     ['security', "window.addEventListener('blur'", 'Android multi-window blur is monitored'],
     ['security', "FOCUS_LOSS_GRACE_MS", 'focus loss has a short grace period'],
     ['close', "'window_blur'", 'server accepts window blur finish reason'],
@@ -47,4 +48,9 @@ if (str_contains($files['index'], 'id="resultEditGrade" type="text"')) {
     exit(1);
 }
 
-echo "Result editing and Android focus smoke OK\n";
+if (str_contains($files['app'], 'data-journal-action-edit')) {
+    fwrite(STDERR, "Result editing smoke failed: journal still has a separate edit action.\n");
+    exit(1);
+}
+
+echo "Result editing, review-first grading and Android focus smoke OK\n";
