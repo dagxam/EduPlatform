@@ -194,6 +194,7 @@ try {
         'SELECT *
          FROM questions
          WHERE assignment_id = :assignment_id
+           AND is_active = 1
          ORDER BY position, id'
     );
     $stmt->execute(['assignment_id' => $sourceId]);
