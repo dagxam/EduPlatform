@@ -423,7 +423,7 @@
             });
             var data = await response.json();
             if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось удалить изображение.');
-            await load(question.id);
+            await load(Number(data.question_id || question.id));
           } catch (error) {
             alert(error.message);
           }
@@ -719,10 +719,19 @@
       save.disabled = !editable;
       save.classList.toggle('hidden', !editable);
     }
-    if (lock) lock.classList.toggle('hidden', editable);
+    if (lock) {
+      lock.classList.toggle('hidden', editable);
+      lock.textContent = Number(assignment && assignment.active_attempts_count || 0) > 0
+        ? 'Идёт попытка'
+        : 'Только просмотр';
+    }
     setOverviewState('assignmentOverviewSettingsState', editable
-      ? ''
-      : 'Редактирование доступно до первой попытки ученика и до завершения задания.', false);
+      ? (Number(assignment && assignment.attempts_count || 0) > 0
+          ? 'Задание активно. Изменения применятся к следующим попыткам; прошлые версии сохранены.'
+          : '')
+      : (Number(assignment && assignment.active_attempts_count || 0) > 0
+          ? 'Сейчас ученик выполняет это задание. Редактирование включится сразу после завершения активной попытки.'
+          : 'Задание завершено. Для редактирования его нужно снова сделать активным.'), false);
   }
 
   function renderOverviewGrading() {
@@ -757,8 +766,12 @@
       save.classList.toggle('hidden', !editable);
     }
     setOverviewState('assignmentOverviewGradingState', editable
-      ? ''
-      : 'Баллы нельзя менять после начала хотя бы одной попытки ученика или после завершения задания.', false);
+      ? (Number(assignment && assignment.attempts_count || 0) > 0
+          ? 'Можно менять баллы: старые попытки сохранят прежнюю версию оценивания.'
+          : '')
+      : (Number(assignment && assignment.active_attempts_count || 0) > 0
+          ? 'Баллы временно заблокированы, пока ученик выполняет текущую попытку.'
+          : 'Оценивание завершённого задания доступно только для просмотра.'), false);
     updateGradingTotal();
   }
 
@@ -909,7 +922,9 @@
     if (help) {
       help.textContent = editable
         ? 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.'
-        : 'Редактирование заблокировано только потому, что по работе уже есть попытки учеников или задание завершено.';
+        : (Number(assignment && assignment.active_attempts_count || 0) > 0
+            ? 'Редактирование временно остановлено: сейчас ученик выполняет эту работу.'
+            : 'Задание завершено. Вопросы доступны только для просмотра.');
     }
 
     renderOverviewPanels();
@@ -955,7 +970,9 @@
       if (hint) {
         hint.textContent = editable
           ? 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.'
-          : 'Вопросы можно просматривать, но менять их нельзя после начала хотя бы одной попытки или после завершения задания.';
+          : (Number(assignment && assignment.active_attempts_count || 0) > 0
+              ? 'Сейчас есть активная попытка ученика. После её завершения вопросы снова можно будет редактировать.'
+              : 'Задание завершено. Вопросы доступны только для просмотра.');
       }
 
       render();
