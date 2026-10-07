@@ -80,6 +80,9 @@ jobs:
       - name: Validate active assignment question revisions
         run: php .github/tests/active-assignment-revision-smoke.php
 
+      - name: Validate stale attempt recovery
+        run: php .github/tests/stale-attempt-recovery-smoke.php
+
       - name: Validate backup engine
         run: |
           php -r 'require "api/bootstrap.php"; $pdo = app_db(); $backup = backup_create_archive($pdo, "manual"); if (empty($backup["file"]) || empty($backup["size_bytes"])) { fwrite(STDERR, "Backup smoke test failed\n"); exit(1); } echo "Backup engine OK: " . $backup["file"] . "\n";'
