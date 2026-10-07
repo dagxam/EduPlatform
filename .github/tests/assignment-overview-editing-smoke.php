@@ -36,7 +36,7 @@ $checks = [
     ['app', "data-edit-assignment", 'existing assignments expose a real edit action'],
     ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
     ['helper', "'editable'] =", 'assignment helper exposes editable state'],
-    ['helper', "question revisions pin every already-started attempt", 'active attempts must not block revision-safe editing'],
+    ['helper', "Question revisions pin every already-started attempt", 'active attempts must not block revision-safe editing'],
     ['questions', "'stale_attempts_count' => \$staleAttemptsCount", 'overview exposes stale attempt count'],
     ['helper', "question_editor_fork_revision", 'question revisions preserve historical attempts'],
     ['attempt_helper', "attempt_question_ids", 'attempt grading is pinned to its question revision'],
