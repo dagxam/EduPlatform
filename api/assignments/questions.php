@@ -65,6 +65,7 @@ $stmt = $pdo->prepare(
             q.correct_text, q.settings_json
      FROM questions q
      WHERE q.assignment_id = :assignment_id
+       AND q.is_active = 1
      ORDER BY q.position, q.id'
 );
 $stmt->execute(['assignment_id' => $assignmentId]);
