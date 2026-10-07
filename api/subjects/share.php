@@ -86,7 +86,7 @@ if ($assignmentIds) {
                 COUNT(DISTINCT q.id) AS questions_count
          FROM assignments a
          LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
-         LEFT JOIN questions q ON q.assignment_id = a.id
+         LEFT JOIN questions q ON q.assignment_id = a.id AND q.is_active = 1
          WHERE a.school_id = ?
            AND a.subject_id = ?
            AND a.id IN ($placeholders)
