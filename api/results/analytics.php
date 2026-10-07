@@ -22,10 +22,11 @@ $effectivePercentSql = 'COALESCE(at.published_percent, at.percent)';
 $effectiveGradeSql =
     "COALESCE(
         NULLIF(at.published_grade, ''),
+        NULLIF(at.grade, ''),
         CASE
-          WHEN {$effectivePercentSql} >= 90 THEN 5
-          WHEN {$effectivePercentSql} >= 75 THEN 4
-          WHEN {$effectivePercentSql} >= 50 THEN 3
+          WHEN {$effectivePercentSql} >= COALESCE((SELECT grade_5_min FROM schools gs5 WHERE gs5.id = a.school_id), 85) THEN 5
+          WHEN {$effectivePercentSql} >= COALESCE((SELECT grade_4_min FROM schools gs4 WHERE gs4.id = a.school_id), 71) THEN 4
+          WHEN {$effectivePercentSql} >= COALESCE((SELECT grade_3_min FROM schools gs3 WHERE gs3.id = a.school_id), 50) THEN 3
           ELSE 2
         END
       )";
