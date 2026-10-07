@@ -48,6 +48,7 @@
         <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
         <button class="nav-item" data-view="journal"><span>▦</span> Журнал</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
+        <button class="nav-item live-execution-nav" data-view="live-execution"><span>◉</span> Выполнение <b class="nav-count hidden" id="liveExecutionBadge">0</b></button>
         <button class="nav-item" data-view="staff-profile"><span>●</span> Профиль</button>
       </nav>
 
@@ -758,6 +759,56 @@
           </article>
         </div>
 
+      </section>
+
+      <section class="view staff-only-view" id="live-execution">
+        <div class="section-toolbar live-execution-toolbar">
+          <div>
+            <span class="section-kicker">В реальном времени</span>
+            <h2>Выполнение заданий</h2>
+            <p>Здесь отображаются ученики, которые выполняют задания прямо сейчас. Данные обновляются автоматически.</p>
+          </div>
+          <button class="secondary-btn" id="refreshLiveExecutionBtn" type="button">↻ Обновить</button>
+        </div>
+
+        <div class="results-overview-grid live-execution-overview">
+          <article class="result-overview-card">
+            <span>Выполняют сейчас</span>
+            <strong id="liveExecutionCount">0</strong>
+            <small>активных учеников</small>
+          </article>
+          <article class="result-overview-card">
+            <span>Классов онлайн</span>
+            <strong id="liveExecutionClasses">0</strong>
+            <small>с активными попытками</small>
+          </article>
+          <article class="result-overview-card">
+            <span>Заданий выполняется</span>
+            <strong id="liveExecutionAssignments">0</strong>
+            <small>разных работ</small>
+          </article>
+          <article class="result-overview-card">
+            <span>Обновлено</span>
+            <strong id="liveExecutionUpdated">—</strong>
+            <small>автообновление каждые 20 сек.</small>
+          </article>
+        </div>
+
+        <div class="panel live-execution-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">Сейчас</span>
+              <h3>Активные ученики</h3>
+            </div>
+            <span class="live-execution-legend"><i></i> На связи</span>
+          </div>
+          <div id="liveExecutionList" class="live-execution-list" aria-live="polite">
+            <div class="history-empty">
+              <b>Загрузка активности...</b>
+              <span>Проверяем, кто выполняет задания в данный момент.</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="view" id="student-dashboard">
