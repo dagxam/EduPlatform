@@ -7,6 +7,8 @@ $files = [
     'update' => file_get_contents($root . '/api/assignments/update.php'),
     'grading' => file_get_contents($root . '/api/assignments/update-grading.php'),
     'builder' => file_get_contents($root . '/question-builder.js'),
+    'app' => file_get_contents($root . '/app.js'),
+    'helper' => file_get_contents($root . '/api/questions/_helpers.php'),
     'index' => file_get_contents($root . '/index.html'),
 ];
 
@@ -26,6 +28,10 @@ $checks = [
     ['builder', "./api/assignments/update.php", 'builder saves assignment settings'],
     ['builder', "./api/assignments/update-grading.php", 'builder saves grading'],
     ['builder', "assignmentOverviewQuestions", 'builder navigates to question editing'],
+    ['builder', "dataset.builderBound", 'overview controls are bound only once'],
+    ['app', "data-edit-assignment", 'existing assignments expose a real edit action'],
+    ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
+    ['helper', "\$attemptsCount === 0", 'existing assignments remain editable until first attempt'],
     ['index', "Редактировать задание", 'overview shows assignment edit action'],
     ['index', "Редактировать оценивание", 'overview shows grading edit action'],
     ['index', "Редактировать вопросы", 'overview shows question edit action'],
@@ -36,6 +42,16 @@ foreach ($checks as [$file, $needle, $label]) {
         fwrite(STDERR, "Assignment overview smoke failed: {$label}.\n");
         exit(1);
     }
+}
+
+if (str_contains($files['builder'], "function render() {\n    var list = document.getElementById('questionPreviewList');\n    document.getElementById('assignmentOverviewSettingsForm')?.addEventListener")) {
+    fwrite(STDERR, "Assignment overview smoke failed: overview listeners are still rebound during render.\n");
+    exit(1);
+}
+
+if (str_contains($files['app'], 'data-preview-questions')) {
+    fwrite(STDERR, "Assignment overview smoke failed: legacy preview-only action still exists.\n");
+    exit(1);
 }
 
 echo "Assignment overview editing smoke OK\n";
