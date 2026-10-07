@@ -2848,7 +2848,6 @@ function renderJournal() {
     const actionButtons = actionCell
       ? '<div class="journal-row-actions">'
         + '<button class="result-icon-btn" type="button" data-journal-action-review="' + Number(actionCell.attempt_id) + '" data-tooltip="Разбор ' + actionScope + '" title="Разбор ' + actionScope + '" aria-label="Разбор ' + actionScope + '">' + resultActionIcon('review') + '</button>'
-        + '<button class="result-icon-btn" type="button" data-journal-action-edit="' + Number(actionCell.attempt_id) + '" data-tooltip="Редактировать ' + actionScope + '" title="Редактировать ' + actionScope + '" aria-label="Редактировать ' + actionScope + '">' + resultActionIcon('edit') + '</button>'
         + '<button class="result-icon-btn" type="button" data-journal-action-reset="' + Number(actionCell.attempt_id) + '" data-tooltip="Сбросить ' + actionScope + '" title="Сбросить ' + actionScope + '" aria-label="Сбросить ' + actionScope + '">' + resultActionIcon('reset') + '</button>'
         + '</div>'
       : '<span class="journal-actions-empty">—</span>';
@@ -2928,7 +2927,6 @@ function renderJournal() {
         + '</div>'
         + '<div class="journal-mobile-actions">'
         + '<button class="result-icon-btn" type="button" data-journal-action-review="' + Number(cell.attempt_id) + '" data-tooltip="Разбор" title="Разбор работы" aria-label="Разбор работы">' + resultActionIcon('review') + '</button>'
-        + '<button class="result-icon-btn" type="button" data-journal-action-edit="' + Number(cell.attempt_id) + '" data-tooltip="Редактировать" title="Редактировать результат" aria-label="Редактировать результат">' + resultActionIcon('edit') + '</button>'
         + '<button class="result-icon-btn" type="button" data-journal-action-reset="' + Number(cell.attempt_id) + '" data-tooltip="Сбросить" title="Сбросить результат" aria-label="Сбросить результат">' + resultActionIcon('reset') + '</button>'
         + '</div>'
         + '</article>';
@@ -2973,15 +2971,6 @@ function renderJournal() {
   });
   wrap.querySelectorAll('[data-journal-action-review]').forEach(button => {
     button.addEventListener('click', () => openAttemptReview(Number(button.dataset.journalActionReview)));
-  });
-  wrap.querySelectorAll('[data-journal-action-edit]').forEach(button => {
-    button.addEventListener('click', async () => {
-      const attemptId = Number(button.dataset.journalActionEdit || 0);
-      if (!resultsCache.some(item => Number(item.attempt_id) === attemptId)) {
-        await loadResults().catch(() => {});
-      }
-      openResultEditor(attemptId);
-    });
   });
   wrap.querySelectorAll('[data-journal-action-reset]').forEach(button => {
     button.addEventListener('click', async () => {
@@ -3388,8 +3377,11 @@ async function openAttemptReview(attemptId) {
     const browserClosed = resultClosedByBrowser(attempt)
       ? resultBrowserCloseBadge()
       : '';
-    const staffActions = currentUser?.role !== 'student' && resultsCache.some(item => Number(item.attempt_id) === id)
-      ? `<button class="secondary-btn" type="button" data-review-edit="${id}">Редактировать оценку</button>`
+    const staffActions = currentUser?.role !== 'student'
+      ? `<button class="attempt-review-grade-action" type="button" data-review-edit="${id}">
+          <span class="attempt-review-grade-action-icon">${resultActionIcon('edit')}</span>
+          <span class="attempt-review-grade-action-copy"><b>Изменить оценку</b><small>Баллы, итоговая оценка и комментарий ученику</small></span>
+        </button>`
       : '';
 
     content.innerHTML = `
@@ -3426,10 +3418,34 @@ async function openAttemptReview(attemptId) {
       </div>`;
 
     content.querySelector('[data-review-close]')?.addEventListener('click', () => closeModal(attemptReviewModal));
-    content.querySelector('[data-review-edit]')?.addEventListener('click', event => {
-      const editId = Number(event.currentTarget.dataset.reviewEdit || 0);
-      closeModal(attemptReviewModal);
-      openResultEditor(editId);
+    content.querySelector('[data-review-edit]')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      const editId = Number(button.dataset.reviewEdit || 0);
+      if (!editId) return;
+
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.classList.add('is-loading');
+      button.innerHTML = '<span class="attempt-review-grade-action-copy"><b>Загрузка...</b><small>Подготавливаем редактирование оценки</small></span>';
+
+      try {
+        if (!resultsCache.some(item => Number(item.attempt_id) === editId)) {
+          await loadResults();
+        }
+        if (!resultsCache.some(item => Number(item.attempt_id) === editId)) {
+          throw new Error('Не удалось найти результат ученика для редактирования.');
+        }
+        closeModal(attemptReviewModal);
+        openResultEditor(editId);
+      } catch (error) {
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.innerHTML = originalHtml;
+        await appAlert(error?.message || 'Не удалось открыть изменение оценки.', {
+          title:'Изменение оценки',
+          tone:'danger'
+        });
+      }
     });
     content.querySelectorAll('[data-answer-save]').forEach(button => {
       button.addEventListener('click', () => {
