@@ -29,7 +29,8 @@ $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
 $pdo->exec('CREATE TABLE assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT
+    title TEXT,
+    school_id INTEGER
 )');
 $pdo->exec('CREATE TABLE assignment_imports (
     assignment_id INTEGER PRIMARY KEY,
