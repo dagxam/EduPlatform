@@ -222,9 +222,12 @@ CREATE TABLE IF NOT EXISTS questions (
   correct_text LONGTEXT NULL,
   interaction_type VARCHAR(64) NULL,
   settings_json LONGTEXT NULL,
+  is_active TINYINT NOT NULL DEFAULT 1,
+  revision_of_id BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_questions_assignment_position (assignment_id, position, id),
+  KEY idx_questions_assignment_active_position (assignment_id, is_active, position, id),
   CONSTRAINT fk_questions_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
