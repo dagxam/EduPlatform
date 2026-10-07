@@ -39,31 +39,47 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
     }
 
     $stmt = $pdo->prepare(
-        'SELECT COUNT(*) AS total_count,
-                SUM(CASE WHEN status = "in_progress" THEN 1 ELSE 0 END) AS active_count
+        'SELECT status, started_at, last_seen_at
          FROM attempts
          WHERE assignment_id = :assignment_id'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
-    $attemptStats = $stmt->fetch() ?: [];
-    $attemptsCount = (int)($attemptStats['total_count'] ?? 0);
-    $activeAttemptsCount = (int)($attemptStats['active_count'] ?? 0);
+    $attemptRows = $stmt->fetchAll();
+    $attemptsCount = count($attemptRows);
+    $activeAttemptsCount = 0;
+    $staleAttemptsCount = 0;
+    $now = time();
+    foreach ($attemptRows as $attemptRow) {
+        if ((string)($attemptRow['status'] ?? '') !== 'in_progress') continue;
+        $lastSeenRaw = trim((string)($attemptRow['last_seen_at'] ?? ''));
+        $startedRaw = trim((string)($attemptRow['started_at'] ?? ''));
+        $activityRaw = $lastSeenRaw !== '' ? $lastSeenRaw : $startedRaw;
+        $activityAt = $activityRaw !== '' ? strtotime($activityRaw . ' UTC') : false;
+        if ($activityAt !== false && ($now - $activityAt) <= 90) {
+            $activeAttemptsCount++;
+        } else {
+            $staleAttemptsCount++;
+        }
+    }
 
     $assignment['attempts_count'] = $attemptsCount;
     $assignment['active_attempts_count'] = $activeAttemptsCount;
-    $assignment['editable'] = $activeAttemptsCount === 0
-        && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+    $assignment['stale_attempts_count'] = $staleAttemptsCount;
+
+    // Question revisions pin every already-started attempt to its own question IDs.
+    // Therefore even a genuinely active attempt must not block editing: changes
+    // become a new revision for future attempts and cannot alter the open one.
+    $assignment['editable'] =
+        (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
         && (string)$assignment['status'] !== 'closed';
 
     if ($requireEditable && !$assignment['editable']) {
-        $error = $activeAttemptsCount > 0
-            ? 'Сейчас задание выполняет ученик. Дождитесь завершения активной попытки и повторите редактирование.'
-            : 'Завершённое задание нельзя редактировать. Сначала верните его в активное состояние.';
         json_response([
             'ok' => false,
-            'error' => $error,
-            'code' => $activeAttemptsCount > 0 ? 'ASSIGNMENT_HAS_ACTIVE_ATTEMPT' : 'ASSIGNMENT_NOT_EDITABLE',
+            'error' => 'Завершённое задание нельзя редактировать. Сначала верните его в активное состояние.',
+            'code' => 'ASSIGNMENT_NOT_EDITABLE',
             'active_attempts_count' => $activeAttemptsCount,
+            'stale_attempts_count' => $staleAttemptsCount,
         ], 409);
     }
 
