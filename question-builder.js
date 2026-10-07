@@ -3,6 +3,7 @@
   var assignment = null;
   var questions = [];
   var editable = false;
+  var activeOverviewSection = 'settings';
   var draggedCard = null;
 
   var types = [
@@ -764,6 +765,7 @@
   function renderOverviewPanels() {
     renderOverviewSettings();
     renderOverviewGrading();
+    showOverviewSection(activeOverviewSection, { scroll:false });
   }
 
   async function saveOverviewSettings(event) {
@@ -842,14 +844,43 @@
     }
   }
 
-  function scrollOverviewSection(section) {
+  function showOverviewSection(section, options) {
+    var value = ['settings', 'grading', 'questions'].includes(String(section || ''))
+      ? String(section)
+      : 'settings';
     var ids = {
       settings: 'assignmentOverviewSettings',
       grading: 'assignmentOverviewGrading',
       questions: 'assignmentOverviewQuestions'
     };
-    var target = document.getElementById(ids[String(section || '')] || '');
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    activeOverviewSection = value;
+
+    Object.keys(ids).forEach(function (key) {
+      var panel = document.getElementById(ids[key]);
+      if (panel) panel.classList.toggle('hidden', key !== value);
+    });
+
+    document.querySelectorAll('[data-assignment-overview-section]').forEach(function (button) {
+      var selected = button.dataset.assignmentOverviewSection === value;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+      button.setAttribute('tabindex', selected ? '0' : '-1');
+    });
+
+    var actions = document.getElementById('assignmentOverviewActions');
+    if (actions) actions.dataset.activeSection = value;
+
+    if (!options || options.scroll !== false) {
+      var modal = document.querySelector('#questionPreviewModal .question-builder-modal');
+      if (modal && typeof modal.scrollTo === 'function') {
+        modal.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  }
+
+  function scrollOverviewSection(section) {
+    showOverviewSection(section);
   }
 
   function renderSummary() {
@@ -1082,16 +1113,31 @@
     overviewGradingSave.addEventListener('click', saveOverviewGrading);
   }
 
-  document.querySelectorAll('[data-assignment-overview-section]').forEach(function (button) {
-    if (button.dataset.builderBound) return;
-    button.dataset.builderBound = '1';
-    button.addEventListener('click', function () {
-      document.querySelectorAll('[data-assignment-overview-section]').forEach(function (item) {
-        item.classList.toggle('active', item === button);
-      });
-      scrollOverviewSection(button.dataset.assignmentOverviewSection);
+  var overviewActions = document.getElementById('assignmentOverviewActions');
+  if (overviewActions && !overviewActions.dataset.builderBound) {
+    overviewActions.dataset.builderBound = '1';
+    overviewActions.setAttribute('role', 'tablist');
+    overviewActions.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-assignment-overview-section]');
+      if (!button || !overviewActions.contains(button)) return;
+      event.preventDefault();
+      showOverviewSection(button.dataset.assignmentOverviewSection);
     });
-  });
+    overviewActions.addEventListener('keydown', function (event) {
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      var buttons = Array.from(overviewActions.querySelectorAll('[data-assignment-overview-section]'));
+      if (!buttons.length) return;
+      var current = Math.max(0, buttons.indexOf(document.activeElement));
+      var next = current;
+      if (event.key === 'ArrowRight') next = (current + 1) % buttons.length;
+      if (event.key === 'ArrowLeft') next = (current - 1 + buttons.length) % buttons.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = buttons.length - 1;
+      event.preventDefault();
+      buttons[next].focus();
+      showOverviewSection(buttons[next].dataset.assignmentOverviewSection);
+    });
+  }
 
   var addButton = document.getElementById('builderAddQuestionBtn');
   if (addButton) {
@@ -1104,6 +1150,7 @@
     assignment = null;
     questions = [];
     editable = false;
+    activeOverviewSection = 'settings';
     var error = document.getElementById('questionPreviewError');
     if (error) error.classList.add('hidden');
     if (typeof openModal === 'function') openModal(document.getElementById('questionPreviewModal'));
