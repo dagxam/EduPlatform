@@ -65,6 +65,9 @@ jobs:
       - name: Validate import-to-grading pipeline
         run: php .github/tests/grading-smoke.php
 
+      - name: Validate configurable grading scale
+        run: php .github/tests/grading-scale-smoke.php
+
       - name: Validate journal history retention
         run: php .github/tests/journal-history-smoke.php
 
