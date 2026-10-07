@@ -60,6 +60,67 @@ function finalize_expired_attempt(PDO $pdo, array $attempt): ?array
     return finalize_attempt($pdo, (int)$attempt['id'], 'time_limit');
 }
 
+function attempt_activity_timestamp(array $attempt): ?int
+{
+    $lastSeenRaw = trim((string)($attempt['last_seen_at'] ?? ''));
+    $startedRaw = trim((string)($attempt['started_at'] ?? ''));
+    $activityRaw = $lastSeenRaw !== '' ? $lastSeenRaw : $startedRaw;
+    if ($activityRaw === '') return null;
+
+    $timestamp = strtotime($activityRaw . ' UTC');
+    return $timestamp === false ? null : $timestamp;
+}
+
+function attempt_is_stale(array $attempt, int $staleSeconds = 120): bool
+{
+    if ((string)($attempt['status'] ?? 'in_progress') !== 'in_progress') return false;
+    $timestamp = attempt_activity_timestamp($attempt);
+    if ($timestamp === null) return true;
+    return (time() - $timestamp) > max(60, $staleSeconds);
+}
+
+function finalize_stale_attempts(
+    PDO $pdo,
+    ?int $assignmentId = null,
+    ?int $studentId = null,
+    ?int $schoolId = null,
+    int $staleSeconds = 120
+): int {
+    $sql =
+        'SELECT at.id, at.student_id, at.status, at.started_at, at.last_seen_at
+         FROM attempts at
+         JOIN assignments ass ON ass.id = at.assignment_id
+         WHERE at.status = "in_progress"';
+    $params = [];
+
+    if ($assignmentId !== null) {
+        $sql .= ' AND at.assignment_id = :assignment_id';
+        $params['assignment_id'] = $assignmentId;
+    }
+    if ($studentId !== null) {
+        $sql .= ' AND at.student_id = :student_id';
+        $params['student_id'] = $studentId;
+    }
+    if ($schoolId !== null) {
+        $sql .= ' AND ass.school_id = :school_id';
+        $params['school_id'] = $schoolId;
+    }
+
+    $sql .= ' ORDER BY COALESCE(at.last_seen_at, at.started_at), at.id LIMIT 500';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    $finalized = 0;
+    foreach ($rows as $row) {
+        if (!attempt_is_stale($row, $staleSeconds)) continue;
+        finalize_attempt($pdo, (int)$row['id'], 'connection_lost');
+        $finalized++;
+    }
+
+    return $finalized;
+}
+
 function normalize_answer_text(string $value): string
 {
     $value = trim($value);
