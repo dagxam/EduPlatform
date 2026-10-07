@@ -96,6 +96,36 @@ security_assert(
     'browser hardening headers must remain configured'
 );
 
+
+
+$liveExecution = security_read($root . '/api/attempts/live.php');
+security_assert(
+    str_contains($liveExecution, "require_user(['admin', 'teacher'])")
+        && !str_contains($liveExecution, "require_user(['admin', 'teacher', 'student'])"),
+    'live execution monitor must remain staff-only'
+);
+security_assert(
+    str_contains($liveExecution, 'at.status = "in_progress"')
+        && str_contains($liveExecution, '$activeWindowSeconds = 90'),
+    'live execution monitor must show only fresh active attempts'
+);
+
+$appJs = security_read($root . '/app.js');
+security_assert(
+    str_contains($appJs, "const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results'])")
+        && str_contains($appJs, "currentUser?.role === 'student' && !studentViews.has(id)")
+        && str_contains($appJs, "document.body.classList.toggle('student-session', student)"),
+    'student UI must not navigate into staff/admin views'
+);
+
+$styles = security_read($root . '/styles.css');
+security_assert(
+    str_contains($styles, 'body.student-session .student-forbidden-view')
+        && str_contains($styles, 'body.student-session .admin-only')
+        && str_contains($styles, 'body.student-session .platform-admin-only'),
+    'student session must hide administrative controls defensively'
+);
+
 echo "UROVIA security smoke OK\n";
 
 
