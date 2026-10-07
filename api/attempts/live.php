@@ -2,10 +2,16 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require __DIR__ . '/_helpers.php';
 
 $user = require_user(['admin', 'teacher']);
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
+
+// Periodically clean orphaned attempts for this school. This keeps the live
+// monitor and subsequent student starts consistent even when Android/browser
+// shutdown prevented the close beacon from reaching the server.
+finalize_stale_attempts($pdo, null, null, $schoolId, 120);
 
 $conditions = [
     'at.status = "in_progress"',
