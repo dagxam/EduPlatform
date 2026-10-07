@@ -4161,7 +4161,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-footer">
           <div class="subject-assignment-actions">
             <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
-            <button class="secondary-btn compact-btn" type="button" data-preview-questions="${item.id}">Конструктор</button>
+            <button class="secondary-btn compact-btn assignment-edit-btn" type="button" data-edit-assignment="${item.id}">✎ Редактировать</button>
             <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
             ${libraryAssignmentAction(item)}
             ${assignmentDeleteButton(item)}
@@ -4564,6 +4564,37 @@ async function transitionAssignmentWorkflow(assignmentId, action) {
   }
 }
 
+async function openAssignmentEditor(assignmentId, button = null) {
+  const id = Number(assignmentId || 0);
+  if (!id) return;
+
+  const originalTitle = button?.getAttribute('title') || '';
+  const originalLabel = button?.getAttribute('aria-label') || '';
+  if (button) {
+    button.disabled = true;
+    button.classList.add('is-loading');
+    button.setAttribute('aria-busy', 'true');
+    button.setAttribute('title', 'Открываем редактор...');
+  }
+
+  try {
+    await openQuestionPreview(id);
+  } catch (error) {
+    await appAlert(error?.message || 'Не удалось открыть редактор задания.', {
+      title:'Редактирование задания',
+      tone:'danger'
+    });
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('is-loading');
+      button.removeAttribute('aria-busy');
+      if (originalTitle) button.setAttribute('title', originalTitle);
+      if (originalLabel) button.setAttribute('aria-label', originalLabel);
+    }
+  }
+}
+
 function wireAssignmentWorkflowButtons(root) {
   if (!root) return;
   root.querySelectorAll('[data-workflow-action]').forEach(button => {
@@ -4584,8 +4615,11 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-library-submit]').forEach(button => {
     button.addEventListener('click', () => submitAssignmentToLibrary(Number(button.dataset.librarySubmit)));
   });
-  root.querySelectorAll('[data-preview-questions]').forEach(button => {
-    button.addEventListener('click', () => openQuestionPreview(Number(button.dataset.previewQuestions)));
+  root.querySelectorAll('[data-edit-assignment]').forEach(button => {
+    button.addEventListener('click', () => openAssignmentEditor(
+      Number(button.dataset.editAssignment),
+      button
+    ));
   });
   root.querySelectorAll('[data-test-assignment]').forEach(button => {
     button.addEventListener('click', () => openAssignmentTestPreview(Number(button.dataset.testAssignment)));
@@ -4763,7 +4797,7 @@ function renderAssignments() {
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
-            ${assignmentTableIconButton('builder', 'Конструктор задания', 'data-preview-questions="' + Number(item.id) + '"')}
+            ${assignmentTableIconButton('builder', 'Редактировать задание', 'data-edit-assignment="' + Number(item.id) + '"')}
             ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
             ${assignmentTableLibraryAction(item)}
             ${assignmentTableDeleteButton(item)}
