@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
+require dirname(__DIR__) . '/attempts/_helpers.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -149,10 +150,21 @@ if ($action === 'prepare') {
         json_response(['ok' => false, 'error' => 'Вернуть в черновик можно только готовое, ещё не назначенное задание.'], 409);
     }
 
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM assignment_classes WHERE assignment_id = :assignment_id');
-    $stmt->execute(['assignment_id' => $assignmentId]);
+    $stmt = $pdo->prepare(
+        'SELECT
+           (SELECT COUNT(*) FROM assignment_classes WHERE assignment_id = :class_assignment_id)
+           +
+           (SELECT COUNT(*) FROM assignment_students WHERE assignment_id = :student_assignment_id)'
+    );
+    $stmt->execute([
+        'class_assignment_id' => $assignmentId,
+        'student_assignment_id' => $assignmentId,
+    ]);
     if ((int)$stmt->fetchColumn() > 0) {
-        json_response(['ok' => false, 'error' => 'Задание уже связано с классом и не может быть возвращено в черновик.'], 409);
+        json_response([
+            'ok' => false,
+            'error' => 'Задание уже назначено. Сначала отмените все назначения классам и отдельным ученикам.'
+        ], 409);
     }
 
     $next = 'draft';
@@ -168,13 +180,17 @@ if ($action === 'prepare') {
         json_response(['ok' => false, 'error' => 'Завершить можно только назначенное задание.'], 409);
     }
 
+    // Browser/PWA shutdown may leave an orphaned in_progress row. Clean stale
+    // heartbeat sessions before deciding whether the assignment can be closed.
+    finalize_stale_attempts($pdo, $assignmentId, null, $schoolId, 120);
+
     $stmt = $pdo->prepare(
         'SELECT COUNT(*) FROM attempts
          WHERE assignment_id = :assignment_id AND status = "in_progress"'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
     if ((int)$stmt->fetchColumn() > 0) {
-        json_response(['ok' => false, 'error' => 'Есть активные попытки учеников. Дождитесь их завершения перед закрытием задания.'], 409);
+        json_response(['ok' => false, 'error' => 'Есть ученики, которые действительно выполняют задание сейчас. Дождитесь их завершения перед закрытием задания.'], 409);
     }
 
     $next = 'completed';
