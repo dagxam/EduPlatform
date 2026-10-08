@@ -6,6 +6,8 @@
   const RELOAD_KEY = 'uvoria-sw-reloading';
   let deferredInstallPrompt = null;
   let registration = null;
+  let assessmentActive = false;
+  let updatePending = false;
 
   const modes = ['standalone'];
   const isStandalone = () =>
@@ -136,7 +138,7 @@
     update.id = 'pwaUpdateToast';
     update.className = 'pwa-update-toast hidden';
     update.innerHTML = '<div><b>Доступно обновление UROVIA</b><span>Новая версия готова к установке.</span></div>' +
-      '<button type="button" id="pwaUpdateButton">Обновить</button>';
+      '<button type="button" id="pwaUpdateButton">Обновить UROVIA</button>';
 
     const guide = document.createElement('div');
     guide.id = 'pwaInstallGuide';
@@ -191,14 +193,49 @@
       if (event.key === 'Escape' && !guide.classList.contains('hidden')) closeGuide();
     });
     document.getElementById('pwaUpdateButton')?.addEventListener('click', () => {
+      if (assessmentActive || assessmentUiVisible()) {
+        updatePending = true;
+        hideUpdateReady();
+        return;
+      }
       if (!registration?.waiting) return;
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     });
   }
 
+  function assessmentUiVisible() {
+    const quizModal = document.getElementById('quizModal');
+    if (!quizModal || quizModal.classList.contains('hidden')) return false;
+    return Boolean(
+      quizModal.querySelector('#realQuizForm')
+      || quizModal.querySelector('.student-finish-result')
+    );
+  }
+
+  function hideUpdateReady() {
+    document.getElementById('pwaUpdateToast')?.classList.add('hidden');
+  }
+
   function showUpdateReady() {
+    if (assessmentActive || assessmentUiVisible()) {
+      updatePending = true;
+      hideUpdateReady();
+      return;
+    }
+    updatePending = false;
     document.getElementById('pwaUpdateToast')?.classList.remove('hidden');
   }
+
+  window.addEventListener('urovia:assessment-state', event => {
+    assessmentActive = Boolean(event.detail?.active);
+    if (assessmentActive) {
+      hideUpdateReady();
+      return;
+    }
+    if (updatePending && registration?.waiting && navigator.serviceWorker.controller) {
+      window.setTimeout(showUpdateReady, 700);
+    }
+  });
 
   function watchRegistration(reg) {
     registration = reg;
