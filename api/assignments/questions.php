@@ -69,8 +69,21 @@ foreach ($attemptRows as $attemptRow) {
         $staleAttemptsCount++;
     }
 }
+$targetStmt = $pdo->prepare(
+    'SELECT
+       (SELECT COUNT(*) FROM assignment_classes WHERE assignment_id = :assignment_class_id)
+       +
+       (SELECT COUNT(*) FROM assignment_students WHERE assignment_id = :assignment_student_id)'
+);
+$targetStmt->execute([
+    'assignment_class_id' => $assignmentId,
+    'assignment_student_id' => $assignmentId,
+]);
+$targetsCount = (int)$targetStmt->fetchColumn();
+
 $editable =
-    (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+    $targetsCount === 0
+    && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
     && (string)$assignment['status'] !== 'closed';
 
 $stmt = $pdo->prepare(
@@ -128,6 +141,8 @@ json_response([
         'attempts_count' => $attemptsCount,
         'active_attempts_count' => $activeAttemptsCount,
         'stale_attempts_count' => $staleAttemptsCount,
+        'targets_count' => $targetsCount,
+        'is_assigned' => $targetsCount > 0,
         'max_attempts' => (int)($assignment['max_attempts'] ?? 1),
         'time_limit_minutes' => $assignment['time_limit_minutes'] !== null
             ? (int)$assignment['time_limit_minutes']
