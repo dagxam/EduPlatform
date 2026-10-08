@@ -37,7 +37,7 @@ $checks = [
     ['app', "openAssignmentEditor", 'existing assignment edit action opens the editor'],
     ['helper', "'editable'] =", 'assignment helper exposes editable state'],
     ['helper', "'ASSIGNMENT_ASSIGNED_LOCKED'", 'assigned tasks are locked from editing'],
-    ['helper', "'targets_count' => \$targetsCount", 'assignment helper exposes target count'],
+    ['helper', "\$assignment['targets_count'] = \$targetsCount", 'assignment helper exposes target count'],
     ['questions', "'targets_count' => \$targetsCount", 'overview exposes target count'],
     ['questions', "'is_assigned' => \$targetsCount > 0", 'overview exposes assigned state'],
     ['helper', "question_editor_fork_revision", 'question revisions preserve historical attempts'],
