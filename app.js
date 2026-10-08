@@ -4424,7 +4424,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-footer">
           <div class="subject-assignment-actions">
             <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
-            <button class="secondary-btn compact-btn assignment-edit-btn" type="button" data-edit-assignment="${item.id}">✎ Редактировать</button>
+            ${assignmentEditAction(item, 'subject')}
             <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
             ${libraryAssignmentAction(item)}
             ${assignmentDeleteButton(item)}
@@ -4831,6 +4831,15 @@ async function openAssignmentEditor(assignmentId, button = null) {
   const id = Number(assignmentId || 0);
   if (!id) return;
 
+  const cachedAssignment = assignmentsCache.find(item => Number(item.id) === id);
+  if (cachedAssignment && assignmentHasTargets(cachedAssignment)) {
+    await appAlert('Редактировать можно только неназначенное задание. Сначала отмените все назначения классам и отдельным ученикам.', {
+      title:'Задание назначено',
+      tone:'danger'
+    });
+    return;
+  }
+
   const originalTitle = button?.getAttribute('title') || '';
   const originalLabel = button?.getAttribute('aria-label') || '';
   if (button) {
@@ -4926,6 +4935,25 @@ function assignmentTableIconButton(type, label, attrs = '', tone = '') {
     '" type="button" ' + attrs + ' data-tooltip="' + escapeHtml(label) +
     '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
     assignmentTableActionIcon(type) + '</button>';
+}
+
+function assignmentHasTargets(item) {
+  return (Array.isArray(item?.class_assignments) && item.class_assignments.length > 0)
+    || (Array.isArray(item?.student_assignments) && item.student_assignments.length > 0)
+    || normalizedAssignmentWorkflowStatus(item) === 'assigned';
+}
+
+function assignmentEditAction(item, mode = 'table') {
+  const locked = assignmentHasTargets(item);
+  if (mode === 'subject') {
+    return locked
+      ? '<button class="secondary-btn compact-btn assignment-edit-btn" type="button" disabled title="Сначала отмените все назначения">✎ Редактировать</button>'
+      : '<button class="secondary-btn compact-btn assignment-edit-btn" type="button" data-edit-assignment="' + Number(item.id) + '">✎ Редактировать</button>';
+  }
+
+  return locked
+    ? assignmentTableIconButton('builder', 'Редактирование недоступно: сначала отмените все назначения', 'disabled')
+    : assignmentTableIconButton('builder', 'Редактировать задание', 'data-edit-assignment="' + Number(item.id) + '"');
 }
 
 function assignmentTableDeleteButton(item) {
@@ -5060,7 +5088,7 @@ function renderAssignments() {
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
-            ${assignmentTableIconButton('builder', 'Редактировать задание', 'data-edit-assignment="' + Number(item.id) + '"')}
+            ${assignmentEditAction(item)}
             ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
             ${assignmentTableLibraryAction(item)}
             ${assignmentTableDeleteButton(item)}
