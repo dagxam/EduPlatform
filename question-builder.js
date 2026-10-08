@@ -723,18 +723,15 @@
       lock.classList.toggle('hidden', editable);
       lock.textContent = 'Только просмотр';
     }
-    var activeCount = Number(assignment && assignment.active_attempts_count || 0);
-    var staleCount = Number(assignment && assignment.stale_attempts_count || 0);
+    var targetsCount = Number(assignment && assignment.targets_count || 0);
     var historyCount = Number(assignment && assignment.attempts_count || 0);
     setOverviewState('assignmentOverviewSettingsState', editable
-      ? (activeCount > 0
-          ? 'Редактирование доступно. Уже открытые попытки сохраняют свою версию задания, а изменения применяются к следующим попыткам.'
-          : (staleCount > 0
-              ? 'Найдены старые незавершённые сессии. Они больше не блокируют редактирование и будут закрыты автоматически.'
-              : (historyCount > 0
-                  ? 'Можно редактировать. Прошлые попытки и оценки сохраняют свои версии задания.'
-                  : '')))
-      : 'Задание завершено. Для редактирования его нужно снова сделать активным.', false);
+      ? (historyCount > 0
+          ? 'Назначений сейчас нет. Можно редактировать; сохранённые результаты прошлых попыток не изменятся.'
+          : '')
+      : (targetsCount > 0
+          ? 'Редактирование заблокировано: задание назначено ученикам. Сначала отмените все назначения.'
+          : 'Задание завершено и доступно только для просмотра.'), false);
   }
 
   function renderOverviewGrading() {
@@ -768,11 +765,14 @@
       save.disabled = !editable;
       save.classList.toggle('hidden', !editable);
     }
+    var targetsCount = Number(assignment && assignment.targets_count || 0);
     setOverviewState('assignmentOverviewGradingState', editable
       ? (Number(assignment && assignment.attempts_count || 0) > 0
-          ? 'Баллы можно менять. Уже начатые и завершённые попытки сохраняют прежнюю версию оценивания.'
+          ? 'Назначений сейчас нет. Баллы можно изменить; прошлые результаты сохранят прежнюю версию.'
           : '')
-      : 'Оценивание завершённого задания доступно только для просмотра.', false);
+      : (targetsCount > 0
+          ? 'Оценивание заблокировано, пока задание назначено ученикам.'
+          : 'Оценивание завершённого задания доступно только для просмотра.'), false);
     updateGradingTotal();
   }
 
@@ -922,10 +922,10 @@
     if (addButton) addButton.classList.toggle('hidden', !editable);
     if (help) {
       help.textContent = editable
-        ? (Number(assignment && assignment.active_attempts_count || 0) > 0
-            ? 'Уже открытые попытки защищены своей версией. Вопросы можно редактировать — изменения применятся только к следующим попыткам.'
-            : 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.')
-        : 'Задание завершено. Вопросы доступны только для просмотра.';
+        ? 'Одна работа может содержать разные типы заданий. Перетаскивайте карточки, чтобы менять их порядок.'
+        : (Number(assignment && assignment.targets_count || 0) > 0
+            ? 'Вопросы доступны только для просмотра. Чтобы редактировать, сначала отмените все назначения задания.'
+            : 'Задание завершено. Вопросы доступны только для просмотра.');
     }
 
     renderOverviewPanels();
@@ -970,10 +970,10 @@
       var hint = document.getElementById('questionBuilderHint');
       if (hint) {
         hint.textContent = editable
-          ? (Number(assignment && assignment.active_attempts_count || 0) > 0
-              ? 'Редактор доступен. Уже открытые попытки закреплены за своей версией вопросов и не изменятся.'
-              : 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.')
-          : 'Задание завершено. Вопросы доступны только для просмотра.';
+          ? 'Соберите одну работу из разных типов: тестов, соответствий, перетаскивания, коротких ответов и вопросов с изображениями.'
+          : (Number(assignment && assignment.targets_count || 0) > 0
+              ? 'Редактирование вопросов недоступно, пока задание назначено хотя бы одному классу или ученику.'
+              : 'Задание завершено. Вопросы доступны только для просмотра.');
       }
 
       render();
