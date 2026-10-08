@@ -83,7 +83,7 @@ $targetsCount = (int)$targetStmt->fetchColumn();
 
 $editable =
     $targetsCount === 0
-    && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+    && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
     && (string)$assignment['status'] !== 'closed';
 
 $stmt = $pdo->prepare(
