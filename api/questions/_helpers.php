@@ -66,18 +66,34 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
     $assignment['active_attempts_count'] = $activeAttemptsCount;
     $assignment['stale_attempts_count'] = $staleAttemptsCount;
 
-    // Question revisions pin every already-started attempt to its own question IDs.
-    // Therefore even a genuinely active attempt must not block editing: changes
-    // become a new revision for future attempts and cannot alter the open one.
+    $targetStmt = $pdo->prepare(
+        'SELECT
+           (SELECT COUNT(*) FROM assignment_classes WHERE assignment_id = :assignment_class_id)
+           +
+           (SELECT COUNT(*) FROM assignment_students WHERE assignment_id = :assignment_student_id)'
+    );
+    $targetStmt->execute([
+        'assignment_class_id' => $assignmentId,
+        'assignment_student_id' => $assignmentId,
+    ]);
+    $targetsCount = (int)$targetStmt->fetchColumn();
+    $assignment['targets_count'] = $targetsCount;
+    $assignment['is_assigned'] = $targetsCount > 0;
+
     $assignment['editable'] =
-        (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+        $targetsCount === 0
+        && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
         && (string)$assignment['status'] !== 'closed';
 
     if ($requireEditable && !$assignment['editable']) {
+        $assigned = $targetsCount > 0;
         json_response([
             'ok' => false,
-            'error' => 'Завершённое задание нельзя редактировать. Сначала верните его в активное состояние.',
-            'code' => 'ASSIGNMENT_NOT_EDITABLE',
+            'error' => $assigned
+                ? 'Задание уже назначено ученикам. Сначала отмените все назначения, затем его можно будет редактировать.'
+                : 'Завершённое задание нельзя редактировать.',
+            'code' => $assigned ? 'ASSIGNMENT_ASSIGNED_LOCKED' : 'ASSIGNMENT_NOT_EDITABLE',
+            'targets_count' => $targetsCount,
             'active_attempts_count' => $activeAttemptsCount,
             'stale_attempts_count' => $staleAttemptsCount,
         ], 409);
