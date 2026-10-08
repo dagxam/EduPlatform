@@ -8,6 +8,7 @@
   let registration = null;
   let assessmentActive = false;
   let updatePending = false;
+  let reloadPending = false;
 
   const modes = ['standalone'];
   const isStandalone = () =>
@@ -232,6 +233,16 @@
       hideUpdateReady();
       return;
     }
+
+    if (reloadPending) {
+      reloadPending = false;
+      if (sessionStorage.getItem(RELOAD_KEY) !== '1') {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+      }
+      return;
+    }
+
     if (updatePending && registration?.waiting && navigator.serviceWorker.controller) {
       window.setTimeout(showUpdateReady, 700);
     }
@@ -281,6 +292,11 @@
       watchRegistration(reg);
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (sessionStorage.getItem(RELOAD_KEY) === '1') return;
+        if (assessmentActive || assessmentUiVisible()) {
+          reloadPending = true;
+          hideUpdateReady();
+          return;
+        }
         sessionStorage.setItem(RELOAD_KEY, '1');
         window.location.reload();
       });
