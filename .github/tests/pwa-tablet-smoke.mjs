@@ -35,4 +35,7 @@ assert(pwa.includes("window.addEventListener('appinstalled', markInstalled)"));
 assert(pwa.includes('pwaInstallConfirmed'));
 assert(pwa.includes('urovia-pwa-installed-v1'));
 assert(pwa.includes('clearInstalledFlag()'));
+assert(pwa.includes('Обновить UROVIA'), 'PWA update action must be clearly distinguished from assignment completion');
+assert(pwa.includes('urovia:assessment-state'), 'PWA updates must listen to assessment state');
+assert(pwa.includes('assessmentUiVisible'), 'PWA update toast must be deferred while a student assessment is visible');
 console.log('Tablet layout and cross-browser PWA regression checks OK');
