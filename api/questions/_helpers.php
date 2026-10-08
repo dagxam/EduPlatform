@@ -82,7 +82,7 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
 
     $assignment['editable'] =
         $targetsCount === 0
-        && (string)($assignment['workflow_status'] ?? 'draft') !== 'completed'
+        && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
         && (string)$assignment['status'] !== 'closed';
 
     if ($requireEditable && !$assignment['editable']) {
