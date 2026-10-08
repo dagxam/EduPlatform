@@ -4278,6 +4278,7 @@ async function requestModalClose(modal) {
     return;
   }
   closeModal(modal);
+  if (modal === quizModal) notifyAssessmentState(false);
 }
 
 ['createTaskBtn', 'createTaskBtn2', 'heroCreateBtn'].forEach(id => {
@@ -6514,6 +6515,12 @@ let quizTimeoutHandled = false;
 let quizSubmitting = false;
 let quizExitBeaconSent = false;
 
+function notifyAssessmentState(active) {
+  window.dispatchEvent(new CustomEvent('urovia:assessment-state', {
+    detail: { active: Boolean(active) }
+  }));
+}
+
 function stopQuizCountdown() {
   if (quizCountdownTimer) {
     window.clearInterval(quizCountdownTimer);
@@ -6996,6 +7003,7 @@ function wireRealStudentQuestionControls() {
 }
 
 function renderRealAttemptResult(result, note = '') {
+  notifyAssessmentState(true);
   AttemptSecurity.stop();
   stopQuizCountdown();
   activeStudentAttempt = null;
@@ -7031,11 +7039,13 @@ function renderRealAttemptResult(result, note = '') {
       </div>
     </div>`;
   document.getElementById('finishOpenGradesBtn')?.addEventListener('click', async () => {
+    notifyAssessmentState(false);
     closeModal(quizModal);
     await Promise.all([loadStudentAssignments(), loadStudentResults()]);
     showView('student-results');
   });
   document.getElementById('finishRealResultBtn')?.addEventListener('click', async () => {
+    notifyAssessmentState(false);
     closeModal(quizModal);
     await Promise.all([loadStudentAssignments(), loadStudentResults()]);
     showView('student-tasks');
@@ -7100,6 +7110,7 @@ async function startRealStudentAssignment(assignmentId) {
 
     wireRealStudentQuestionControls();
     openModal(quizModal);
+    notifyAssessmentState(true);
     startQuizCountdown(questionData.attempt.started_at, questionData.attempt.time_limit_minutes);
 
     AttemptSecurity.start({
@@ -7275,6 +7286,7 @@ async function submitActiveStudentAttempt(reason = 'student_submit', renderResul
       quizExitBeaconSent = true;
       quizModal.dataset.locked = '0';
       quizModal.querySelector('.modal-close')?.classList.remove('hidden');
+      notifyAssessmentState(false);
       closeModal(quizModal);
       await Promise.all([
         loadStudentAssignments().catch(() => {}),
