@@ -89,6 +89,9 @@ jobs:
       - name: Validate UROVIA library UX
         run: php .github/tests/library-ux-smoke.php
 
+      - name: Validate teacher and student UX stage 2
+        run: php .github/tests/teacher-student-ux-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 

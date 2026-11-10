@@ -9799,3 +9799,270 @@ body.student-session .assignment-author-only {
     width: 100%;
   }
 }
+
+
+/* Teacher/student workflow UX — stage 2 */
+.teacher-home-hero .hero-action{
+  min-width:190px;
+  text-align:center;
+}
+.class-work-card{
+  display:grid;
+  gap:14px;
+}
+.class-work-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+}
+.class-work-head h3{
+  margin:8px 0 5px;
+  font-size:24px;
+}
+.class-subjects-line{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.class-subjects-line span{
+  background:var(--brand-soft);
+  color:var(--brand);
+  border-radius:999px;
+  padding:6px 9px;
+  font-size:11px;
+  font-weight:800;
+}
+.class-work-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.class-work-metrics div{
+  border:1px solid #e6ebf1;
+  border-radius:12px;
+  padding:10px;
+  background:#fafbfd;
+}
+.class-work-metrics span,
+.class-work-metrics strong{
+  display:block;
+}
+.class-work-metrics span{
+  color:#7c8895;
+  font-size:10px;
+  line-height:1.35;
+}
+.class-work-metrics strong{
+  margin-top:4px;
+  font-size:18px;
+  color:#2f3b48;
+}
+
+.student-progress-section{
+  margin-top:24px;
+}
+.student-progress-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.student-progress-card{
+  background:#fff;
+  border:1px solid #e4eaf0;
+  border-radius:15px;
+  padding:15px;
+}
+.student-progress-card>div:first-child{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+}
+.student-progress-card b{
+  font-size:14px;
+}
+.student-progress-card strong{
+  color:var(--brand);
+  font-size:20px;
+}
+.student-progress-card small{
+  display:block;
+  color:#84909c;
+  margin-top:8px;
+}
+.student-progress-track{
+  height:8px;
+  border-radius:999px;
+  background:#edf1f5;
+  overflow:hidden;
+  margin-top:11px;
+}
+.student-progress-track span{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:var(--brand);
+}
+.student-progress-trend{
+  font-size:12px;
+  font-weight:800;
+  color:#6f7c89;
+}
+.student-progress-trend.positive{color:#19834a}
+.student-progress-trend.negative{color:#b24848}
+
+.library-author-button{
+  border:0;
+  background:transparent;
+  padding:0;
+  text-align:left;
+  cursor:pointer;
+  display:grid;
+  gap:3px;
+  color:inherit;
+}
+.library-author-button:hover b{
+  color:var(--brand);
+}
+.library-author-button:disabled{
+  cursor:default;
+}
+.library-social-stats{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.library-like-btn,
+.library-rating-btn,
+.library-usage-stat{
+  min-height:32px;
+  border:1px solid #e1e7ee;
+  background:#fff;
+  border-radius:999px;
+  padding:6px 9px;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  color:#667482;
+  font-size:12px;
+}
+.library-like-btn,
+.library-rating-btn{
+  cursor:pointer;
+}
+.library-like-btn.active{
+  color:#c73f59;
+  border-color:#f0c5ce;
+  background:#fff7f9;
+}
+.library-rating-btn{
+  color:#9b7715;
+}
+.library-rating-btn small{
+  color:#929da7;
+  margin-left:2px;
+}
+.library-author-profile{
+  display:flex;
+  gap:15px;
+  align-items:center;
+}
+.library-author-profile h2{
+  margin:3px 0;
+}
+.library-author-profile p{
+  margin:0;
+  color:#7e8995;
+}
+.library-author-avatar{
+  width:62px;
+  height:62px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  background:var(--brand);
+  color:#fff;
+  font-size:22px;
+  font-weight:900;
+  flex:none;
+}
+.library-author-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+  margin:18px 0;
+}
+.library-author-summary div{
+  background:#fafbfd;
+  border:1px solid #e5eaf0;
+  border-radius:13px;
+  padding:12px;
+}
+.library-author-summary span,
+.library-author-summary strong{
+  display:block;
+}
+.library-author-summary span{
+  color:#7d8995;
+  font-size:10px;
+}
+.library-author-summary strong{
+  margin-top:5px;
+  font-size:18px;
+}
+.library-author-subjects{
+  margin-bottom:16px;
+}
+.library-author-materials{
+  display:grid;
+  gap:8px;
+  max-height:360px;
+  overflow:auto;
+}
+.library-author-material{
+  width:100%;
+  border:1px solid #e4e9ef;
+  background:#fff;
+  border-radius:13px;
+  padding:12px;
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:center;
+  text-align:left;
+  cursor:pointer;
+}
+.library-author-material:hover{
+  border-color:color-mix(in srgb,var(--brand) 38%,white);
+  background:color-mix(in srgb,var(--brand) 3%,white);
+}
+.library-author-material b,
+.library-author-material small{
+  display:block;
+}
+.library-author-material small{
+  margin-top:4px;
+  color:#87929d;
+}
+.library-author-material>span:last-child{
+  color:#76838f;
+  white-space:nowrap;
+  font-size:12px;
+}
+
+@media(max-width:900px){
+  .class-work-metrics{grid-template-columns:1fr 1fr}
+  .student-progress-grid{grid-template-columns:1fr 1fr}
+  .library-author-summary{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .class-work-head{flex-direction:column}
+  .class-code-mini{text-align:left}
+  .class-work-metrics{grid-template-columns:1fr 1fr}
+  .student-progress-grid{grid-template-columns:1fr}
+  .library-author-line{align-items:flex-start;gap:12px;flex-direction:column}
+  .library-author-material{align-items:flex-start;flex-direction:column}
+  .library-author-material>span:last-child{white-space:normal}
+}

@@ -8,7 +8,11 @@ $pdo = app_db();
 
 $q = trim((string)($_GET['q'] ?? ''));
 $subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
-$params = ['school_id' => $schoolId];
+$params = [
+    'school_id' => $schoolId,
+    'current_user_like_id' => (int)$user['id'],
+    'current_user_rating_id' => (int)$user['id'],
+];
 $where = ['li.status = "published"'];
 
 if ($q !== '') {
@@ -26,6 +30,7 @@ $stmt = $pdo->prepare(
             li.published_at, li.created_at,
             sch.name AS school_name, sch.city AS school_city,
             s.name AS subject_name,
+            u.id AS author_id,
             u.first_name AS author_first_name, u.last_name AS author_last_name,
             a.time_limit_minutes,
             COALESCE((
@@ -45,6 +50,33 @@ $stmt = $pdo->prepare(
                 WHERE author_rows.submitted_by = li.submitted_by
                   AND author_rows.status = "published"
             ) AS author_materials_count,
+            (
+                SELECT COUNT(*)
+                FROM library_reactions lr
+                WHERE lr.library_item_id = li.id AND lr.liked = 1
+            ) AS likes_count,
+            (
+                SELECT ROUND(AVG(lr.rating), 1)
+                FROM library_reactions lr
+                WHERE lr.library_item_id = li.id AND lr.rating IS NOT NULL
+            ) AS rating_average,
+            (
+                SELECT COUNT(*)
+                FROM library_reactions lr
+                WHERE lr.library_item_id = li.id AND lr.rating IS NOT NULL
+            ) AS ratings_count,
+            (
+                SELECT lr.liked
+                FROM library_reactions lr
+                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_like_id
+                LIMIT 1
+            ) AS user_liked,
+            (
+                SELECT lr.rating
+                FROM library_reactions lr
+                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_rating_id
+                LIMIT 1
+            ) AS user_rating,
             CASE WHEN imp.id IS NULL THEN 0 ELSE 1 END AS imported,
             imp.target_assignment_id
      FROM library_items li

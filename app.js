@@ -12,6 +12,7 @@ const taskModal = document.getElementById('taskModal');
 const quizModal = document.getElementById('quizModal');
 const questionPreviewModal = document.getElementById('questionPreviewModal');
 const libraryPreviewModal = document.getElementById('libraryPreviewModal');
+const libraryAuthorModal = document.getElementById('libraryAuthorModal');
 const resultEditModal = document.getElementById('resultEditModal');
 const attemptReviewModal = document.getElementById('attemptReviewModal');
 const duplicateAssignmentModal = document.getElementById('duplicateAssignmentModal');
@@ -696,27 +697,55 @@ async function loadClasses() {
       return;
     }
 
-    grid.innerHTML = classesCache.map(item => `
-      <article class="panel class-detail real-class-card">
-        <div>
-          <span class="class-badge">${escapeHtml(item.name)}</span>
-          <h3>${escapeHtml(item.name)}</h3>
-          <p>${Number(item.students_count)} учеников${item.academic_year ? ' · ' + escapeHtml(item.academic_year) : ''}</p>
+    grid.innerHTML = classesCache.map(item => {
+      const subjects = Array.isArray(item.subject_names) ? item.subject_names : [];
+      const avgGrade = item.average_grade === null || item.average_grade === undefined ? '—' : Number(item.average_grade).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+      const avgPercent = item.average_percent === null || item.average_percent === undefined ? '—' : Math.round(Number(item.average_percent)) + '%';
+      return `
+      <article class="panel class-detail real-class-card class-work-card">
+        <div class="class-work-head">
+          <div>
+            <span class="class-badge">${escapeHtml(item.name)}</span>
+            <h3>${escapeHtml(item.name)}</h3>
+            <p>${Number(item.students_count)} учеников${item.academic_year ? ' · ' + escapeHtml(item.academic_year) : ''}</p>
+          </div>
+          <div class="class-code-mini">
+            <span>Код</span>
+            <strong>${escapeHtml(item.join_code || '—')}</strong>
+          </div>
         </div>
-        <div class="class-code-mini">
-          <span>Код</span>
-          <strong>${escapeHtml(item.join_code || '—')}</strong>
+        <div class="class-subjects-line">${subjects.length ? subjects.map(subject => '<span>' + escapeHtml(subject) + '</span>').join('') : '<span>Предметы не указаны</span>'}</div>
+        <div class="class-work-metrics">
+          <div><span>Сегодня сдали</span><strong>${Number(item.submitted_today || 0)}</strong></div>
+          <div><span>Активные задания</span><strong>${Number(item.active_assignments || 0)}</strong></div>
+          <div><span>Средняя оценка</span><strong>${escapeHtml(avgGrade)}</strong></div>
+          <div><span>Средний результат</span><strong>${escapeHtml(avgPercent)}</strong></div>
         </div>
         <div class="class-card-actions">
           <button type="button" data-open-class="${item.id}">Открыть класс</button>
+          <button type="button" class="secondary-btn" data-class-journal="${item.id}">Оценки</button>
+          <button type="button" class="secondary-btn" data-class-results="${item.id}">Аналитика</button>
           ${currentUser?.role === 'admin' ? `<button type="button" class="secondary-btn" data-edit-class="${item.id}">✎ Редактировать</button>` : ''}
         </div>
-      </article>
-    `).join('');
+      </article>`;
+    }).join('');
 
     grid.querySelectorAll('[data-open-class]').forEach(button => button.addEventListener('click', () => {
       const item = classesCache.find(x => Number(x.id) === Number(button.dataset.openClass));
       if (item) openClassDetails(item);
+    }));
+    grid.querySelectorAll('[data-class-journal]').forEach(button => button.addEventListener('click', () => {
+      showView('journal');
+      loadTeacherOptions().then(() => {
+        const select = document.getElementById('journalClassFilter');
+        if (select) select.value = String(Number(button.dataset.classJournal));
+        populateJournalSubjectFilter();
+        loadJournal().catch(() => {});
+      }).catch(() => {});
+    }));
+    grid.querySelectorAll('[data-class-results]').forEach(button => button.addEventListener('click', () => {
+      showView('results');
+      loadResults().catch(() => {});
     }));
     grid.querySelectorAll('[data-edit-class]').forEach(button => button.addEventListener('click', () => {
       const item = classesCache.find(x => Number(x.id) === Number(button.dataset.editClass));
@@ -2245,9 +2274,14 @@ function renderLibrary() {
           <span>Использовали <b>${usage}</b> раз</span>
         </div>
         <div class="library-author-line">
-          <div>
+          <button class="library-author-button" type="button" data-library-author="${Number(item.author_id || 0)}" ${Number(item.author_id || 0) ? '' : 'disabled'}>
             ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
             <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' материалов' : ''}</span>
+          </button>
+          <div class="library-social-stats">
+            <button type="button" class="library-like-btn ${Number(item.user_liked || 0) === 1 ? 'active' : ''}" data-library-like="${item.id}" aria-label="Нравится">♥ <b>${Number(item.likes_count || 0)}</b></button>
+            <button type="button" class="library-rating-btn" data-library-rate="${item.id}" title="Поставить оценку">★ <b>${item.rating_average === null || item.rating_average === undefined ? '—' : Number(item.rating_average).toFixed(1)}</b><small>${Number(item.ratings_count || 0)}</small></button>
+            <span class="library-usage-stat">↓ <b>${usage}</b></span>
           </div>
         </div>
         <div class="library-card-actions">
@@ -2283,6 +2317,15 @@ function renderLibrary() {
   });
   grid.querySelectorAll('[data-library-import]').forEach(button => {
     button.addEventListener('click', () => importLibraryItem(Number(button.dataset.libraryImport)));
+  });
+  grid.querySelectorAll('[data-library-author]').forEach(button => {
+    button.addEventListener('click', () => openLibraryAuthor(Number(button.dataset.libraryAuthor)));
+  });
+  grid.querySelectorAll('[data-library-like]').forEach(button => {
+    button.addEventListener('click', () => toggleLibraryLike(Number(button.dataset.libraryLike)));
+  });
+  grid.querySelectorAll('[data-library-rate]').forEach(button => {
+    button.addEventListener('click', () => rateLibraryItem(Number(button.dataset.libraryRate)));
   });
   grid.querySelectorAll('[data-library-open-copy]').forEach(button => {
     button.addEventListener('click', () => openLibraryCopiedAssignment(Number(button.dataset.libraryOpenCopy), 'edit'));
@@ -2336,6 +2379,113 @@ async function loadLibrary() {
   }
 
   renderLibrary();
+}
+
+async function updateLibraryReaction(itemId, patch) {
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  if (!item) return;
+
+  const response = await fetch('./api/library/react.php', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_id: itemId, ...patch })
+  });
+  const data = await readJsonResponse(response, 'Не удалось сохранить оценку материала.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить оценку материала.');
+
+  item.user_liked = Number(data.liked || 0);
+  item.user_rating = data.rating === null ? null : Number(data.rating);
+  item.likes_count = Number(data.likes_count || 0);
+  item.rating_average = data.rating_average === null ? null : Number(data.rating_average);
+  item.ratings_count = Number(data.ratings_count || 0);
+  renderLibrary();
+}
+
+async function toggleLibraryLike(itemId) {
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  if (!item) return;
+  try {
+    await updateLibraryReaction(itemId, { liked: Number(item.user_liked || 0) !== 1 });
+  } catch (error) {
+    await appAlert(error.message, { title: 'Библиотека UROVIA', tone: 'danger' });
+  }
+}
+
+async function rateLibraryItem(itemId) {
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  if (!item) return;
+
+  const current = Number(item.user_rating || 0);
+  const value = window.prompt('Оцените материал от 1 до 5' + (current ? ' (сейчас: ' + current + ')' : '') + ':', current || '5');
+  if (value === null) return;
+  const rating = Number(value);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    await appAlert('Введите целое число от 1 до 5.', { title: 'Оценка материала' });
+    return;
+  }
+  try {
+    await updateLibraryReaction(itemId, { rating });
+  } catch (error) {
+    await appAlert(error.message, { title: 'Библиотека UROVIA', tone: 'danger' });
+  }
+}
+
+async function openLibraryAuthor(authorId) {
+  if (!authorId || !libraryAuthorModal) return;
+  const target = document.getElementById('libraryAuthorContent');
+  if (target) target.innerHTML = '<div class="dashboard-empty">Загрузка профиля автора...</div>';
+  openModal(libraryAuthorModal);
+
+  try {
+    const response = await fetch('./api/library/author.php?author_id=' + encodeURIComponent(authorId), {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить профиль автора.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить профиль автора.');
+
+    const author = data.author || {};
+    const stats = data.stats || {};
+    const name = [author.last_name, author.first_name, author.middle_name].filter(Boolean).join(' ');
+    const initials = ((author.first_name || 'У').charAt(0) + (author.last_name || '').charAt(0)).toUpperCase();
+    const subjects = (data.subjects || []).map(row =>
+      '<span class="subject-pill">' + escapeHtml(row.name || 'Без предмета') + ' · ' + Number(row.materials_count || 0) + '</span>'
+    ).join('');
+    const materials = (data.materials || []).map(row => `
+      <button class="library-author-material" type="button" data-author-material="${Number(row.id)}">
+        <span><b>${escapeHtml(row.title_snapshot)}</b><small>${escapeHtml(row.subject_name || 'Без предмета')} · ${Number(row.questions_count_snapshot || 0)} вопросов</small></span>
+        <span>♥ ${Number(row.likes_count || 0)} · ★ ${row.rating_average === null ? '—' : Number(row.rating_average).toFixed(1)} · ↓ ${Number(row.usage_count || 0)}</span>
+      </button>`).join('');
+
+    if (target) {
+      target.innerHTML = `
+        <div class="library-author-profile">
+          <div class="library-author-avatar">${escapeHtml(initials)}</div>
+          <div>
+            <span class="section-kicker">Автор UROVIA</span>
+            <h2>${escapeHtml(name || 'Учитель')}</h2>
+            <p>${Number(stats.materials_count || 0)} опубликованных материалов</p>
+          </div>
+        </div>
+        <div class="library-author-summary">
+          <div><span>Материалы</span><strong>${Number(stats.materials_count || 0)}</strong></div>
+          <div><span>Нравится</span><strong>♥ ${Number(stats.likes_count || 0)}</strong></div>
+          <div><span>Рейтинг</span><strong>★ ${stats.rating_average === null ? '—' : Number(stats.rating_average).toFixed(1)}</strong></div>
+          <div><span>Использования</span><strong>↓ ${Number(stats.usage_count || 0)}</strong></div>
+        </div>
+        <div class="profile-chip-list library-author-subjects">${subjects || '<span class="status">Предметы пока не указаны</span>'}</div>
+        <div class="library-author-materials">${materials || '<div class="dashboard-empty">Опубликованных материалов пока нет.</div>'}</div>`;
+      target.querySelectorAll('[data-author-material]').forEach(button => {
+        button.addEventListener('click', () => {
+          closeModal(libraryAuthorModal);
+          openLibraryPreview(Number(button.dataset.authorMaterial));
+        });
+      });
+    }
+  } catch (error) {
+    if (target) target.innerHTML = '<div class="dashboard-empty">' + escapeHtml(error.message) + '</div>';
+  }
 }
 
 async function openLibraryPreview(itemId) {
@@ -2852,9 +3002,11 @@ async function loadTeacherDashboard() {
       }).join('') : '<div class="dashboard-empty"><b>Классов пока нет</b><span>Создайте класс или назначьте его учителю.</span></div>';
 
       classes.querySelectorAll('[data-dashboard-class]').forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
           showView('classes');
-          loadClasses();
+          await loadClasses();
+          const item = classesCache.find(row => Number(row.id) === Number(button.dataset.dashboardClass));
+          if (item) openClassDetails(item);
         });
       });
     }
@@ -4072,6 +4224,29 @@ async function loadStudentResults() {
           <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)} · ${Math.round(Number(item.percent || 0))}%</span></div>
           <span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
+    }
+
+    const progressGrid = document.getElementById('studentProgressGrid');
+    const trendNode = document.getElementById('studentProgressTrend');
+    const progressRows = Array.isArray(data.subject_progress) ? data.subject_progress : [];
+    if (progressGrid) {
+      progressGrid.innerHTML = progressRows.length ? progressRows.map(row => {
+        const percent = Math.max(0, Math.min(100, Math.round(Number(row.average_percent || 0))));
+        return `
+          <article class="student-progress-card">
+            <div><b>${escapeHtml(row.subject_name || 'Предмет')}</b><strong>${percent}%</strong></div>
+            <div class="student-progress-track"><span style="width:${percent}%"></span></div>
+            <small>${Number(row.works_count || 0)} выполненных работ</small>
+          </article>`;
+      }).join('') : '<div class="dashboard-empty">Выполни первую работу — здесь появится прогресс по предметам.</div>';
+    }
+    if (trendNode) {
+      const trend = data.trend_30_days;
+      trendNode.textContent = trend === null || trend === undefined
+        ? 'Нужно больше результатов для сравнения'
+        : (Number(trend) > 0 ? '↑ +' : Number(trend) < 0 ? '↓ ' : '') + Number(trend).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '% за 30 дней';
+      trendNode.classList.toggle('positive', Number(trend) > 0);
+      trendNode.classList.toggle('negative', Number(trend) < 0);
     }
 
   } catch (error) {

@@ -99,13 +99,13 @@
       </header>
 
       <section class="view active" id="teacher-dashboard">
-        <div class="hero-card">
+        <div class="hero-card teacher-home-hero">
           <div>
             <span class="pill" id="dashboardAcademicYear">Учебный год</span>
-            <h2>Всё необходимое для заданий и контроля знаний</h2>
-            <p>Создавайте тесты, назначайте их классам и получайте результаты без ручных подсчётов.</p>
+            <h2>Сегодня в ваших классах</h2>
+            <p>Сразу видно, что задано, сколько учеников уже выполнили работы и где нужен ваш контроль.</p>
           </div>
-          <button class="hero-action assignment-author-only hidden" id="heroCreateBtn">Создать новое задание →</button>
+          <button class="hero-action assignment-author-only hidden" id="heroCreateBtn">＋ Создать задание</button>
         </div>
 
         <div class="stats-grid">
@@ -118,7 +118,7 @@
         <div class="content-grid">
           <article class="panel">
             <div class="panel-head">
-              <div><span class="section-kicker">Сейчас</span><h3>Активные задания</h3></div>
+              <div><span class="section-kicker">Сегодня</span><h3>Что происходит сейчас</h3></div>
               <button class="text-btn" data-view-jump="assignments">Все задания</button>
             </div>
             <div class="task-list" id="teacherDashboardTasks">
@@ -128,7 +128,7 @@
 
           <article class="panel">
             <div class="panel-head">
-              <div><span class="section-kicker">Классы</span><h3>Быстрый доступ</h3></div>
+              <div><span class="section-kicker">Мои классы</span><h3>Быстрый доступ к классу</h3></div>
             </div>
             <div class="class-grid" id="teacherDashboardClasses">
               <div class="dashboard-empty">Загрузка классов...</div>
@@ -478,7 +478,7 @@
 
       <section class="view" id="classes">
         <div class="section-toolbar">
-          <div><span class="section-kicker">Ученики</span><h2>Классы</h2><p>Администратор создаёт классы, а учитель ведёт и загружает список учеников в назначенных ему классах.</p></div>
+          <div><span class="section-kicker">Ученики</span><h2>Мои классы</h2><p>Откройте класс, чтобы быстро перейти к ученикам, заданиям, оценкам и аналитике.</p></div>
           <button class="primary-btn admin-only hidden" id="createClassBtn">＋ Добавить класс</button>
         </div>
         <div class="large-class-grid" id="classesGrid">
@@ -863,7 +863,7 @@
         </div>
         <div class="student-layout">
           <div>
-            <div class="panel-head standalone"><div><span class="section-kicker">На очереди</span><h3>Мои задания</h3></div></div>
+            <div class="panel-head standalone"><div><span class="section-kicker">На очереди</span><h3>Нужно выполнить</h3></div></div>
             <div class="student-task-cards" id="studentDashboardTasks">
               <article class="student-task"><p>Загрузка заданий...</p></article>
             </div>
@@ -873,6 +873,16 @@
             <div id="studentRecentGrades"><div class="dashboard-empty">Загрузка оценок...</div></div>
           </aside>
         </div>
+
+        <section class="student-progress-section">
+          <div class="panel-head standalone">
+            <div><span class="section-kicker">Прогресс</span><h3>Мои результаты по предметам</h3></div>
+            <span class="student-progress-trend" id="studentProgressTrend">Загрузка...</span>
+          </div>
+          <div class="student-progress-grid" id="studentProgressGrid">
+            <div class="dashboard-empty">Загрузка прогресса...</div>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="student-tasks">
@@ -974,6 +984,15 @@
       <p id="libraryPreviewMeta"></p>
       <div id="libraryPreviewQuestions" class="library-preview-questions"></div>
       <div class="modal-actions" id="libraryPreviewActions"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="libraryAuthorModal">
+    <div class="modal class-details-modal library-author-modal">
+      <button class="modal-close" data-close-modal="libraryAuthorModal">×</button>
+      <div id="libraryAuthorContent">
+        <div class="dashboard-empty">Загрузка профиля автора...</div>
+      </div>
     </div>
   </div>
 
