@@ -38,6 +38,18 @@ $studentSql =
             u.last_name,
             COALESCE(c.display_name, c.name) AS class_name,
             COUNT(*) AS works_count,
+            SUM((
+                SELECT COUNT(*)
+                FROM answers ans
+                WHERE ans.attempt_id = at.id
+                  AND ans.is_correct = 1
+            )) AS correct_answers_count,
+            SUM((
+                SELECT COUNT(*)
+                FROM answers ans_all
+                WHERE ans_all.attempt_id = at.id
+                  AND ans_all.is_correct IS NOT NULL
+            )) AS checked_answers_count,
             SUM({$effectiveScoreSql}) AS total_score,
             SUM(COALESCE(at.max_score, 0)) AS total_max_score,
             CASE
@@ -63,7 +75,7 @@ if (!$manager) {
 $studentSql .=
     " GROUP BY u.id, u.first_name, u.last_name, c.id, c.display_name, c.name
       HAVING COUNT(*) >= 1
-      ORDER BY final_percent DESC, works_count DESC, u.last_name, u.first_name
+      ORDER BY works_count DESC, correct_answers_count DESC, final_percent DESC, u.last_name, u.first_name
       LIMIT 5";
 $stmt = $pdo->prepare($studentSql);
 $stmt->execute($studentParams);
@@ -86,6 +98,8 @@ $studentLeaders = array_map(static function(array $row) use ($studentScale): arr
         'name' => trim((string)$row['last_name'] . ' ' . (string)$row['first_name']),
         'class_name' => (string)($row['class_name'] ?? ''),
         'works_count' => (int)$row['works_count'],
+        'correct_answers_count' => (int)($row['correct_answers_count'] ?? 0),
+        'checked_answers_count' => (int)($row['checked_answers_count'] ?? 0),
         'total_score' => $totalScore,
         'total_max_score' => $totalMaxScore,
         'final_percent' => $finalPercent,
@@ -261,7 +275,7 @@ json_response([
         'class_min_completed' => 1,
         'school_min_completed' => 1,
         'leaders_limit' => 5,
-        'rating_formula' => 'Итоговый процент по сумме баллов всех выполненных работ; оценка по шкале школы',
+        'rating_formula' => 'Сначала количество выполненных работ, затем количество правильных ответов, затем итоговый процент',
     ],
     'students' => $studentLeaders,
     'classes' => $classLeaders,
