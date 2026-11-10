@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=91">
+  <link rel="stylesheet" href="styles.css?v=92">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -1001,6 +1001,13 @@
                 <small>Оставьте включённым до проверки тестового платежа и webhook.</small>
               </span>
             </label>
+            <label class="school-setting-toggle">
+              <input type="checkbox" id="yookassaRecurringEnabled" name="recurring_enabled">
+              <span>
+                <b>ЮKassa разрешила автоплатежи</b>
+                <small>Включайте только после отдельного подтверждения ЮKassa. Пока этот флаг выключен, все покупки проходят как разовые платежи без сохранения способа оплаты.</small>
+              </span>
+            </label>
             <div class="yookassa-endpoints">
               <div><span>Webhook</span><code id="yookassaWebhookUrl">https://urovia.ru/api/subscription/yookassa-webhook.php</code></div>
               <div><span>Возврат после оплаты</span><code id="yookassaReturnUrl">https://urovia.ru/payment-return.html</code></div>
@@ -1253,9 +1260,9 @@
           <span>К оплате</span>
           <strong id="subscriptionPaymentTotal">—</strong>
         </div>
-        <label class="privacy-checkbox">
+        <label class="privacy-checkbox" id="subscriptionRecurringConsentWrap">
           <input type="checkbox" id="subscriptionRecurringConsent">
-          <span>Разрешить автоматическое продление. Перед подключением автосписаний условия и периодичность будут показаны отдельно.</span>
+          <span id="subscriptionRecurringConsentText">Разрешить автоматическое продление. Перед подключением автосписаний условия и периодичность будут показаны отдельно.</span>
         </label>
         <div class="form-error hidden" id="subscriptionPaymentError"></div>
         <button class="primary-btn full" type="submit">Продолжить к защищённой оплате</button>
@@ -1765,7 +1772,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=90"></script>
+  <script src="app.js?v=91"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=47"></script>
 </body>
