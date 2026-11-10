@@ -4522,6 +4522,36 @@ function renderSubscriptionPage(data) {
   if (currentPlanNode) currentPlanNode.textContent = currentPlan.name || 'Базовый';
   if (currentStatusNode) currentStatusNode.textContent = subscriptionStatusText(data);
 
+  const currentActions = document.getElementById('subscriptionCurrentActions');
+  if (currentActions) {
+    currentActions.innerHTML = current.auto_renew
+      ? '<button class="secondary-btn compact-btn" type="button" data-cancel-auto-renew>Отключить автопродление</button>'
+      : '';
+    currentActions.querySelector('[data-cancel-auto-renew]')?.addEventListener('click', async () => {
+      if (!(await appConfirm('Отключить автоматическое продление подписки? Текущий оплаченный период останется активным до даты окончания.', {
+        title: 'Автопродление',
+        okText: 'Отключить'
+      }))) return;
+      try {
+        const response = await fetch('./api/subscription/cancel-auto-renew.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        const result = await readJsonResponse(response, 'Не удалось отключить автопродление.');
+        if (!response.ok || result.ok === false) throw new Error(result.error || 'Не удалось отключить автопродление.');
+        await loadSubscriptionPage();
+        await appAlert(result.message || 'Автопродление отключено.', {
+          title: 'Автопродление',
+          tone: 'success'
+        });
+      } catch (error) {
+        await appAlert(error.message, { title: 'Автопродление', tone: 'danger' });
+      }
+    });
+  }
+
   const usage = data?.usage || {};
   const usageNode = document.getElementById('subscriptionUsage');
   if (usageNode) {
