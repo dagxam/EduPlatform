@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/library-ux-stage1
   workflow_dispatch:
 
 jobs:
@@ -106,6 +107,7 @@ jobs:
         run: php .github/tests/mysql-concurrency-smoke.php
 
       - name: Upload site over FTP
+        if: github.ref == 'refs/heads/main'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: 188.127.241.85
