@@ -1009,6 +1009,23 @@
             <button class="primary-btn" type="submit">Сохранить подключение ЮKassa</button>
           </form>
         </article>
+
+        <article class="panel platform-admin-only hidden yookassa-payments-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ЮKassa · контроль</span>
+              <h3>Платежи и чеки НПД</h3>
+            </div>
+            <button class="secondary-btn compact-btn" id="refreshYooKassaPaymentsBtn" type="button">↻ Обновить</button>
+          </div>
+          <p class="panel-note">Для самозанятого успешный платёж нужно зарегистрировать в «Мой налог» и передать чек покупателю. Здесь сохраняется email плательщика и можно отметить выданный чек.</p>
+          <div class="table-wrap">
+            <table class="yookassa-payments-table">
+              <thead><tr><th>Платёж</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th><th>Статус</th><th>Чек</th><th></th></tr></thead>
+              <tbody id="yookassaPaymentsBody"><tr><td colspan="7">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </article>
       </section>
 
       <section class="view" id="student-dashboard">
@@ -1151,6 +1168,30 @@
     </div>
   </div>
 
+
+  <div class="modal-backdrop hidden" id="paymentReceiptModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="paymentReceiptModal">×</button>
+      <span class="section-kicker">ЮKassa · самозанятый</span>
+      <h2>Статус чека НПД</h2>
+      <p id="paymentReceiptMeta">Платёж</p>
+      <form id="paymentReceiptForm">
+        <input type="hidden" id="paymentReceiptOrderId">
+        <label>Статус
+          <select id="paymentReceiptStatus">
+            <option value="pending">Ожидает формирования</option>
+            <option value="issued">Чек сформирован и передан</option>
+            <option value="not_required">Не требуется / другой режим</option>
+          </select>
+        </label>
+        <label>Ссылка или номер чека
+          <input id="paymentReceiptReference" maxlength="500" placeholder="Ссылка из «Мой налог» или номер чека">
+        </label>
+        <div class="form-error hidden" id="paymentReceiptError"></div>
+        <button class="primary-btn full" type="submit">Сохранить статус чека</button>
+      </form>
+    </div>
+  </div>
 
   <div class="modal-backdrop hidden" id="adminSubscriptionModal">
     <div class="modal">
