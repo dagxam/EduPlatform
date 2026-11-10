@@ -51,4 +51,51 @@ foreach ($stmt->fetchAll() as $row) {
     ];
 }
 
-json_response(['ok' => true, 'items' => $items]);
+$subjectProgress = [];
+$subjectBuckets = [];
+foreach ($items as $item) {
+    $subject = trim((string)($item['subject_name'] ?? ''));
+    if ($subject === '') $subject = 'Без предмета';
+    $subjectBuckets[$subject][] = (float)$item['percent'];
+}
+foreach ($subjectBuckets as $subject => $values) {
+    $subjectProgress[] = [
+        'subject_name' => $subject,
+        'average_percent' => round(array_sum($values) / max(1, count($values)), 1),
+        'works_count' => count($values),
+    ];
+}
+usort($subjectProgress, static fn(array $a, array $b): int => strcmp($a['subject_name'], $b['subject_name']));
+
+$now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+$currentStart = $now->modify('-30 days');
+$previousStart = $now->modify('-60 days');
+$current = [];
+$previous = [];
+foreach ($items as $item) {
+    $raw = (string)($item['submitted_at'] ?? '');
+    if ($raw === '') continue;
+    try {
+        $date = new DateTimeImmutable($raw, new DateTimeZone('UTC'));
+    } catch (Throwable) {
+        continue;
+    }
+    if ($date >= $currentStart) {
+        $current[] = (float)$item['percent'];
+    } elseif ($date >= $previousStart) {
+        $previous[] = (float)$item['percent'];
+    }
+}
+$currentAverage = $current ? array_sum($current) / count($current) : null;
+$previousAverage = $previous ? array_sum($previous) / count($previous) : null;
+$trend = ($currentAverage !== null && $previousAverage !== null)
+    ? round($currentAverage - $previousAverage, 1)
+    : null;
+
+json_response([
+    'ok' => true,
+    'items' => $items,
+    'subject_progress' => $subjectProgress,
+    'trend_30_days' => $trend,
+    'current_30_days_average' => $currentAverage !== null ? round($currentAverage, 1) : null,
+]);
