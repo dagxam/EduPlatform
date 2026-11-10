@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/yookassa-recurring-fallback
   workflow_dispatch:
 
 jobs:
