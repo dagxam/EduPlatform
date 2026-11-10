@@ -530,8 +530,9 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
     );
 
     mysql_add_column_if_missing($pdo, 'payment_orders', 'customer_email', 'VARCHAR(191) NULL');
-    mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_status', "VARCHAR(32) NOT NULL DEFAULT 'pending'");
+    mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_status', 'VARCHAR(32) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_reference', 'VARCHAR(500) NULL');
+    $pdo->exec("UPDATE payment_orders SET receipt_status = 'pending' WHERE receipt_status IS NULL OR receipt_status = ''");
 }
 
 function automatic_backup_allowed_for_request(): bool
