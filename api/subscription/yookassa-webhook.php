@@ -5,6 +5,8 @@ if($_SERVER['REQUEST_METHOD']!=='POST') json_response(['ok'=>false],405);
 $raw=file_get_contents('php://input');
 $event=json_decode((string)$raw,true);
 if(!is_array($event) || empty($event['object']['id'])) json_response(['ok'=>true]);
+$eventName=(string)($event['event']??'');
+if(!in_array($eventName,['payment.succeeded','payment.canceled'],true)) json_response(['ok'=>true]);
 $paymentId=(string)$event['object']['id'];
 try{$payment=yookassa_request('GET','payments/'.rawurlencode($paymentId));}catch(Throwable $e){error_log('[UROVIA] YooKassa webhook verify failed: '.$e->getMessage());json_response(['ok'=>false],503);}
 $metadata=$payment['metadata']??[];
