@@ -12,7 +12,9 @@ $data = read_json_body();
 $planCode = (string)($data['plan_code'] ?? '');
 $period = (string)($data['billing_period'] ?? '');
 $receiptEmail = trim((string)($data['receipt_email'] ?? ''));
-$autoRenew = privacy_truthy($data['auto_renew'] ?? false);
+$autoRenewRequested = privacy_truthy($data['auto_renew'] ?? false);
+$config = yookassa_config();
+$autoRenew = $autoRenewRequested && (bool)($config['recurring_enabled'] ?? false);
 $plans = subscription_plan_catalog();
 
 if (!in_array($planCode, ['pro', 'premium'], true) || !isset($plans[$planCode])) {
@@ -76,11 +78,36 @@ $payload = [
     ],
 ];
 
+$recurringFallback = false;
 try {
     $payment = yookassa_request('POST', 'payments', $payload, $idempotenceKey);
 } catch (Throwable $error) {
-    $pdo->prepare('UPDATE payment_orders SET status = "failed" WHERE id = :id')->execute(['id' => $orderId]);
-    json_response(['ok' => false, 'error' => $error->getMessage()], 502);
+    $message = $error->getMessage();
+    $recurringRejected = $autoRenew
+        && preg_match('/recurr|повторн|автоплат|automatic|save.{0,20}payment|make recurring payments/i', $message);
+
+    if ($recurringRejected) {
+        $recurringFallback = true;
+        $autoRenew = false;
+        $payload['save_payment_method'] = false;
+        $fallbackKey = bin2hex(random_bytes(24));
+        $pdo->prepare(
+            'UPDATE payment_orders SET idempotence_key = :idempotence_key WHERE id = :id'
+        )->execute([
+            'idempotence_key' => $fallbackKey,
+            'id' => $orderId,
+        ]);
+
+        try {
+            $payment = yookassa_request('POST', 'payments', $payload, $fallbackKey);
+        } catch (Throwable $fallbackError) {
+            $pdo->prepare('UPDATE payment_orders SET status = "failed" WHERE id = :id')->execute(['id' => $orderId]);
+            json_response(['ok' => false, 'error' => $fallbackError->getMessage()], 502);
+        }
+    } else {
+        $pdo->prepare('UPDATE payment_orders SET status = "failed" WHERE id = :id')->execute(['id' => $orderId]);
+        json_response(['ok' => false, 'error' => $message], 502);
+    }
 }
 
 $paymentId = trim((string)($payment['id'] ?? ''));
@@ -107,7 +134,9 @@ audit_event('subscription_checkout_created', 'payment_order', $orderId, [
     'plan_code' => $planCode,
     'billing_period' => $period,
     'amount_minor' => $amountMinor,
-    'auto_renew_requested' => $autoRenew,
+    'auto_renew_requested' => $autoRenewRequested,
+    'auto_renew_effective' => $autoRenew,
+    'recurring_fallback' => $recurringFallback,
 ], current_school_id(), (int)$user['id']);
 
 json_response([
@@ -115,4 +144,6 @@ json_response([
     'order_id' => $orderId,
     'checkout_url' => $checkoutUrl,
     'provider' => 'yookassa',
+    'auto_renew_enabled' => $autoRenew,
+    'recurring_fallback' => $recurringFallback,
 ]);

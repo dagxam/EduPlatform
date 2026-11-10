@@ -17,6 +17,14 @@ if (!$allowed) {
 if (!yookassa_is_configured()) {
     json_response(['ok'=>false,'error'=>'ЮKassa не настроена.'],503);
 }
+if (empty($config['recurring_enabled'])) {
+    json_response([
+        'ok'=>true,
+        'processed'=>0,
+        'results'=>[],
+        'message'=>'Автоплатежи отключены до отдельного разрешения ЮKassa.',
+    ]);
+}
 
 $pdo=app_db();
 $now=time();

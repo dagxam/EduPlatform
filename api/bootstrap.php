@@ -1385,6 +1385,9 @@ function yookassa_config(): array
         'test_mode' => array_key_exists('test_mode', $stored)
             ? (bool)$stored['test_mode']
             : filter_var($envTestMode, FILTER_VALIDATE_BOOLEAN),
+        'recurring_enabled' => array_key_exists('recurring_enabled', $stored)
+            ? (bool)$stored['recurring_enabled']
+            : false,
         'cron_secret' => trim((string)($stored['cron_secret'] ?? getenv('SUBSCRIPTION_CRON_SECRET') ?: '')),
     ];
 }
