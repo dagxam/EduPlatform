@@ -4574,6 +4574,84 @@ function renderSubscriptionPage(data) {
   });
 }
 
+async function loadLegalProfile() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return null;
+  const response = await fetch('./api/admin/legal/get.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить реквизиты.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить реквизиты.');
+
+  const profile = data.profile || {};
+  const values = {
+    legalEntityType: profile.entity_type || 'self_employed',
+    legalName: profile.legal_name || '',
+    legalInn: profile.inn || '',
+    legalOgrn: profile.ogrn || '',
+    legalAddress: profile.legal_address || '',
+    legalPostalAddress: profile.postal_address || '',
+    legalPhone: profile.phone || '',
+    legalEmail: profile.email || 'info@urovia.ru',
+    legalSupportEmail: profile.support_email || 'info@urovia.ru',
+    legalTaxNote: profile.tax_note || ''
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const node = document.getElementById(id);
+    if (node) node.value = String(value);
+  });
+  return profile;
+}
+
+document.getElementById('legalProfileForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('legalProfileError');
+  const result = document.getElementById('legalProfileResult');
+  if (error) error.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const payload = {
+      entity_type: document.getElementById('legalEntityType').value,
+      legal_name: document.getElementById('legalName').value,
+      inn: document.getElementById('legalInn').value,
+      ogrn: document.getElementById('legalOgrn').value,
+      legal_address: document.getElementById('legalAddress').value,
+      postal_address: document.getElementById('legalPostalAddress').value,
+      phone: document.getElementById('legalPhone').value,
+      email: document.getElementById('legalEmail').value,
+      support_email: document.getElementById('legalSupportEmail').value,
+      tax_note: document.getElementById('legalTaxNote').value
+    };
+    const response = await fetch('./api/admin/legal/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить реквизиты.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить реквизиты.');
+    if (result) {
+      result.textContent = data.message || 'Реквизиты сохранены.';
+      result.classList.remove('hidden');
+    }
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить реквизиты';
+  }
+});
+
 async function loadSubscriptionPage() {
   const response = await fetch('./api/subscription/status.php', {
     credentials: 'same-origin',
@@ -4582,6 +4660,22 @@ async function loadSubscriptionPage() {
   const data = await readJsonResponse(response, 'Не удалось загрузить тарифы.');
   if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить тарифы.');
   renderSubscriptionPage(data);
+
+  const badge = document.getElementById('yookassaConnectionBadge');
+  const hint = document.getElementById('yookassaWebhookHint');
+  if (badge) {
+    badge.textContent = data?.payment?.configured
+      ? (data?.payment?.test_mode ? 'ЮKassa · тестовый режим' : 'ЮKassa · подключена')
+      : 'ЮKassa · ждём shopId';
+    badge.classList.toggle('green', Boolean(data?.payment?.configured));
+    badge.classList.toggle('blue', !data?.payment?.configured);
+  }
+  if (hint && data?.payment?.webhook_url) {
+    hint.textContent = 'Webhook ЮKassa: ' + data.payment.webhook_url;
+  }
+  if (Number(currentUser?.is_platform_admin) === 1) {
+    await loadLegalProfile().catch(() => {});
+  }
   return data;
 }
 
@@ -4616,6 +4710,12 @@ function openSubscriptionPayment(planCode) {
   const plans = Array.isArray(data?.plans) ? data.plans : [];
   const plan = plans.find(item => String(item.code) === String(planCode));
   if (!plan || !subscriptionPaymentModal) return;
+  if (!data?.payment?.configured) {
+    void appAlert('ЮKassa ещё не подключена. Главному администратору нужно завершить регистрацию магазина и добавить shopId и секретный ключ на сервер.', {
+      title: 'Оплата через ЮKassa'
+    });
+    return;
+  }
 
   document.getElementById('subscriptionPaymentPlan').value = String(plan.code);
   document.getElementById('subscriptionPaymentPlanName').textContent = String(plan.name || plan.code);
