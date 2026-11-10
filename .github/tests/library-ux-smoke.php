@@ -43,3 +43,4 @@ must_contain('app.js', [
 ]);
 
 echo "Library UX stage 1 wiring OK\n";
+
