@@ -509,6 +509,8 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     provider TEXT NOT NULL,
     provider_payment_id TEXT,
     customer_email TEXT,
+    receipt_status TEXT NOT NULL DEFAULT 'pending' CHECK (receipt_status IN ('pending','issued','not_required')),
+    receipt_reference TEXT,
     status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'pending', 'succeeded', 'cancelled', 'refunded', 'failed')),
     idempotence_key TEXT NOT NULL,
     checkout_url TEXT,
