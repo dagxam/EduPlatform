@@ -25,6 +25,7 @@ json_response([
         'configured' => $providerConfigured,
         'live_checkout_enabled' => $providerConfigured,
         'test_mode' => (bool)$config['test_mode'],
+        'recurring_enabled' => (bool)($config['recurring_enabled'] ?? false),
         'webhook_url' => uvoria_app_url() . '/api/subscription/yookassa-webhook.php',
         'message' => $providerConfigured
             ? ((bool)$config['test_mode'] ? 'ЮKassa подключена в тестовом режиме.' : 'ЮKassa подключена.')
