@@ -536,3 +536,24 @@ CREATE TABLE IF NOT EXISTS subscription_admin_grants (
 
 CREATE INDEX IF NOT EXISTS idx_subscription_admin_grants_end
     ON subscription_admin_grants(ends_at);
+
+
+CREATE TABLE IF NOT EXISTS site_legal_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    entity_type TEXT NOT NULL DEFAULT 'self_employed' CHECK (entity_type IN ('self_employed','ip','company')),
+    legal_name TEXT,
+    inn TEXT,
+    ogrn TEXT,
+    legal_address TEXT,
+    postal_address TEXT,
+    phone TEXT,
+    email TEXT,
+    support_email TEXT,
+    tax_note TEXT,
+    updated_by INTEGER,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT OR IGNORE INTO site_legal_profile (id, entity_type, email, support_email)
+VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru');
