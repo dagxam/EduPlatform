@@ -20,6 +20,15 @@ $latestAttemptSql =
 
 $effectivePercentSql = 'COALESCE(at.published_percent, at.percent)';
 $effectiveScoreSql = 'COALESCE(at.published_score, at.score, 0)';
+$ratingWorkPointsSql =
+    "COALESCE(
+        {$effectivePercentSql},
+        CASE
+          WHEN COALESCE(at.max_score, 0) > 0
+          THEN ({$effectiveScoreSql} * 100.0) / at.max_score
+          ELSE 0
+        END
+      )";
 $effectiveGradeSql =
     "COALESCE(
         NULLIF(at.published_grade, ''),
@@ -38,6 +47,7 @@ $studentSql =
             u.last_name,
             COALESCE(c.display_name, c.name) AS class_name,
             COUNT(*) AS works_count,
+            SUM({$ratingWorkPointsSql}) AS rating_points,
             SUM((
                 SELECT COUNT(*)
                 FROM answers ans
@@ -75,7 +85,7 @@ if (!$manager) {
 $studentSql .=
     " GROUP BY u.id, u.first_name, u.last_name, c.id, c.display_name, c.name
       HAVING COUNT(*) >= 1
-      ORDER BY works_count DESC, correct_answers_count DESC, final_percent DESC, u.last_name, u.first_name
+      ORDER BY rating_points DESC, works_count DESC, correct_answers_count DESC, final_percent DESC, u.last_name, u.first_name
       LIMIT 5";
 $stmt = $pdo->prepare($studentSql);
 $stmt->execute($studentParams);
@@ -83,6 +93,7 @@ $studentRows = $stmt->fetchAll();
 
 $studentScale = school_grade_scale($pdo, $schoolId);
 $studentLeaders = array_map(static function(array $row) use ($studentScale): array {
+    $ratingPoints = round((float)($row['rating_points'] ?? 0), 1);
     $averagePercent = round((float)($row['average_percent'] ?? 0), 1);
     $averageGrade = round((float)($row['average_grade'] ?? 0), 2);
     $totalScore = round((float)($row['total_score'] ?? 0), 2);
@@ -98,6 +109,7 @@ $studentLeaders = array_map(static function(array $row) use ($studentScale): arr
         'name' => trim((string)$row['last_name'] . ' ' . (string)$row['first_name']),
         'class_name' => (string)($row['class_name'] ?? ''),
         'works_count' => (int)$row['works_count'],
+        'rating_points' => $ratingPoints,
         'correct_answers_count' => (int)($row['correct_answers_count'] ?? 0),
         'checked_answers_count' => (int)($row['checked_answers_count'] ?? 0),
         'total_score' => $totalScore,
@@ -275,7 +287,7 @@ json_response([
         'class_min_completed' => 1,
         'school_min_completed' => 1,
         'leaders_limit' => 5,
-        'rating_formula' => 'Сначала количество выполненных работ, затем количество правильных ответов, затем итоговый процент',
+        'rating_formula' => 'Каждая завершённая работа даёт до 100 рейтинговых баллов по проценту результата; места определяются по сумме этих баллов, затем по количеству работ, правильных ответов и итоговому проценту',
     ],
     'students' => $studentLeaders,
     'classes' => $classLeaders,
