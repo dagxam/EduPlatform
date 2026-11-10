@@ -63,7 +63,7 @@ $checks = [
     [$files['login'], 'href="offer.php"', 'public offer link'],
     [$files['login'], 'href="requisites.php"', 'public requisites link'],
     [$files['requisites'], 'Реквизиты и контакты', 'public requisites page'],
-    [$files['pricing'], 'Тарифы UROVIA', 'public pricing page'],
+    [$files['pricing'], 'Тарифы и цены UROVIA', 'public pricing page'],
     [$files['offer'], 'Публичная оферта', 'public offer page'],
     [$files['offer'], 'Порядок оформления заказа', 'offer order flow'],
     [$files['offer'], 'Порядок получения услуги', 'offer digital delivery flow'],
