@@ -83,6 +83,9 @@ jobs:
       - name: Validate active assignment question revisions
         run: php .github/tests/active-assignment-revision-smoke.php
 
+      - name: Validate per-student shuffled variants
+        run: php .github/tests/student-variant-shuffle-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 
