@@ -86,6 +86,9 @@ jobs:
       - name: Validate per-student shuffled variants
         run: php .github/tests/student-variant-shuffle-smoke.php
 
+      - name: Validate UROVIA library UX
+        run: php .github/tests/library-ux-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 
