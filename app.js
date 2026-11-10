@@ -3912,10 +3912,14 @@ function renderResultsLeaderList(targetId, items, type) {
     if (isStudent) {
       const totalScore = Number(item.total_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
       const totalMax = Number(item.total_max_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
+      const correctAnswers = Number(item.correct_answers_count || 0);
+      const checkedAnswers = Number(item.checked_answers_count || 0);
       const classText = item.class_name ? escapeHtml(item.class_name) + ' · ' : '';
       metaHtml =
         '<small class="leader-student-meta">' +
-          '<span>' + classText + 'выполнено работ: ' + works + '</span>' +
+          '<span>' + classText + 'выполнено работ: <b>' + works + '</b></span>' +
+          '<span>Правильных ответов: <b>' + correctAnswers + '</b>' +
+            (checkedAnswers > 0 ? ' из ' + checkedAnswers : '') + '</span>' +
           '<span class="leader-student-total">Итого: <b>' + escapeHtml(totalScore) + ' / ' + escapeHtml(totalMax) +
           ' балл.</b> · ' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</span>' +
         '</small>';
