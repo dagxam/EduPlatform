@@ -4574,6 +4574,78 @@ function renderSubscriptionPage(data) {
   });
 }
 
+async function loadYooKassaAdminConfig() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return null;
+  const response = await fetch('./api/admin/yookassa/get.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить настройки ЮKassa.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки ЮKassa.');
+
+  const config = data.config || {};
+  const shop = document.getElementById('yookassaShopId');
+  const secret = document.getElementById('yookassaSecretKey');
+  const test = document.getElementById('yookassaTestMode');
+  const webhook = document.getElementById('yookassaWebhookUrl');
+  const returnUrl = document.getElementById('yookassaReturnUrl');
+
+  if (shop) shop.value = config.shop_id || '';
+  if (secret) {
+    secret.value = '';
+    secret.placeholder = config.secret_configured
+      ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
+      : 'Вставьте секретный ключ ЮKassa';
+  }
+  if (test) test.checked = Boolean(config.test_mode);
+  if (webhook) webhook.textContent = config.webhook_url || 'https://urovia.ru/api/subscription/yookassa-webhook.php';
+  if (returnUrl) returnUrl.textContent = config.return_url || 'https://urovia.ru/payment-return.html';
+  return config;
+}
+
+document.getElementById('yookassaConfigForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('yookassaConfigError');
+  const result = document.getElementById('yookassaConfigResult');
+  if (error) error.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/admin/yookassa/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shop_id: document.getElementById('yookassaShopId').value,
+        secret_key: document.getElementById('yookassaSecretKey').value,
+        test_mode: Boolean(document.getElementById('yookassaTestMode').checked)
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить подключение ЮKassa.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить подключение ЮKassa.');
+    if (result) {
+      result.textContent = data.message || 'ЮKassa настроена.';
+      result.classList.remove('hidden');
+    }
+    await loadYooKassaAdminConfig();
+    await loadSubscriptionPage();
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить подключение ЮKassa';
+  }
+});
+
 async function loadLegalProfile() {
   if (Number(currentUser?.is_platform_admin) !== 1) return null;
   const response = await fetch('./api/admin/legal/get.php', {
@@ -4674,7 +4746,10 @@ async function loadSubscriptionPage() {
     hint.textContent = 'Webhook ЮKassa: ' + data.payment.webhook_url;
   }
   if (Number(currentUser?.is_platform_admin) === 1) {
-    await loadLegalProfile().catch(() => {});
+    await Promise.all([
+      loadLegalProfile().catch(() => null),
+      loadYooKassaAdminConfig().catch(() => null)
+    ]);
   }
   return data;
 }
