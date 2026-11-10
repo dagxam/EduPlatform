@@ -4604,6 +4604,131 @@ function renderSubscriptionPage(data) {
   });
 }
 
+let yookassaPaymentsCache = [];
+
+function yookassaPaymentStatusLabel(status) {
+  const map = {
+    created: ['Создан', 'blue'],
+    pending: ['Ожидает', 'blue'],
+    succeeded: ['Оплачен', 'green'],
+    cancelled: ['Отменён', 'gray'],
+    refunded: ['Возвращён', 'gray'],
+    failed: ['Ошибка', 'red']
+  };
+  return map[String(status || '')] || [String(status || '—'), 'gray'];
+}
+
+function yookassaReceiptStatusLabel(status) {
+  const map = {
+    pending: ['Ожидает чека', 'blue'],
+    issued: ['Чек выдан', 'green'],
+    not_required: ['Не требуется', 'gray']
+  };
+  return map[String(status || '')] || ['Ожидает чека', 'blue'];
+}
+
+async function loadYooKassaPayments() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return [];
+  const body = document.getElementById('yookassaPaymentsBody');
+  if (!body) return [];
+  body.innerHTML = '<tr><td colspan="7">Загрузка...</td></tr>';
+
+  try {
+    const response = await fetch('./api/admin/payments/list.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить платежи.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить платежи.');
+    yookassaPaymentsCache = Array.isArray(data.payments) ? data.payments : [];
+
+    body.innerHTML = yookassaPaymentsCache.length ? yookassaPaymentsCache.map(item => {
+      const [statusText, statusClass] = yookassaPaymentStatusLabel(item.status);
+      const [receiptText, receiptClass] = yookassaReceiptStatusLabel(item.receipt_status);
+      const name = [item.last_name, item.first_name].filter(Boolean).join(' ');
+      const paidAt = item.paid_at || item.created_at;
+      const email = item.customer_email || item.account_email || '';
+      return `
+        <tr>
+          <td><b>#${Number(item.id)}</b><small>${escapeHtml(historyDateTime(paidAt))}</small></td>
+          <td><b>${escapeHtml(name || 'Пользователь')}</b><small>${escapeHtml(email)}</small></td>
+          <td>${escapeHtml(String(item.plan_code || '').toUpperCase())}<small>${item.billing_period === 'year' ? 'год' : 'месяц'}</small></td>
+          <td><b>${escapeHtml(subscriptionMoney(Number(item.amount_minor || 0)))}</b></td>
+          <td><span class="status ${statusClass}">${escapeHtml(statusText)}</span></td>
+          <td><span class="status ${receiptClass}">${escapeHtml(receiptText)}</span>${item.receipt_reference ? '<small>' + escapeHtml(item.receipt_reference) + '</small>' : ''}</td>
+          <td class="row-actions-cell"><button class="secondary-btn compact-btn" type="button" data-edit-payment-receipt="${Number(item.id)}">Чек</button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="7">Платежей пока нет.</td></tr>';
+
+    body.querySelectorAll('[data-edit-payment-receipt]').forEach(button => {
+      button.addEventListener('click', () => openPaymentReceiptEditor(Number(button.dataset.editPaymentReceipt)));
+    });
+    return yookassaPaymentsCache;
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
+    return [];
+  }
+}
+
+function openPaymentReceiptEditor(orderId) {
+  const item = yookassaPaymentsCache.find(row => Number(row.id) === Number(orderId));
+  const modal = document.getElementById('paymentReceiptModal');
+  if (!item || !modal) return;
+
+  document.getElementById('paymentReceiptOrderId').value = String(item.id);
+  document.getElementById('paymentReceiptStatus').value = item.receipt_status || 'pending';
+  document.getElementById('paymentReceiptReference').value = item.receipt_reference || '';
+  document.getElementById('paymentReceiptMeta').textContent =
+    '#' + Number(item.id) + ' · ' + subscriptionMoney(Number(item.amount_minor || 0)) +
+    ' · ' + (item.customer_email || item.account_email || 'email не указан');
+  const error = document.getElementById('paymentReceiptError');
+  if (error) {
+    error.textContent = '';
+    error.classList.add('hidden');
+  }
+  openModal(modal);
+}
+
+document.getElementById('paymentReceiptForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('paymentReceiptError');
+  if (error) error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/admin/payments/mark-receipt.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_order_id: Number(document.getElementById('paymentReceiptOrderId').value || 0),
+        receipt_status: document.getElementById('paymentReceiptStatus').value,
+        receipt_reference: document.getElementById('paymentReceiptReference').value
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить статус чека.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить статус чека.');
+    closeModal(document.getElementById('paymentReceiptModal'));
+    await loadYooKassaPayments();
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить статус чека';
+  }
+});
+
+document.getElementById('refreshYooKassaPaymentsBtn')?.addEventListener('click', () => {
+  loadYooKassaPayments().catch(() => {});
+});
+
 async function loadYooKassaAdminConfig() {
   if (Number(currentUser?.is_platform_admin) !== 1) return null;
   const response = await fetch('./api/admin/yookassa/get.php', {
@@ -4778,7 +4903,8 @@ async function loadSubscriptionPage() {
   if (Number(currentUser?.is_platform_admin) === 1) {
     await Promise.all([
       loadLegalProfile().catch(() => null),
-      loadYooKassaAdminConfig().catch(() => null)
+      loadYooKassaAdminConfig().catch(() => null),
+      loadYooKassaPayments().catch(() => [])
     ]);
   }
   return data;
