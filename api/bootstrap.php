@@ -504,6 +504,31 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );}
 
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS site_legal_profile (
+            id TINYINT UNSIGNED NOT NULL,
+            entity_type VARCHAR(32) NOT NULL DEFAULT 'self_employed',
+            legal_name VARCHAR(255) NULL,
+            inn VARCHAR(32) NULL,
+            ogrn VARCHAR(32) NULL,
+            legal_address VARCHAR(500) NULL,
+            postal_address VARCHAR(500) NULL,
+            phone VARCHAR(64) NULL,
+            email VARCHAR(191) NULL,
+            support_email VARCHAR(191) NULL,
+            tax_note VARCHAR(500) NULL,
+            updated_by BIGINT UNSIGNED NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            CONSTRAINT fk_site_legal_profile_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+    $pdo->exec(
+        "INSERT INTO site_legal_profile (id, entity_type, email, support_email)
+         VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru')
+         ON DUPLICATE KEY UPDATE id = VALUES(id)"
+    );
+
 function automatic_backup_allowed_for_request(): bool
 {
     if (PHP_SAPI === 'cli') {
@@ -1297,6 +1322,170 @@ function school_grade_scale(PDO $pdo, ?int $schoolId): array
     } catch (Throwable) {
         return $cache[$schoolId] = default_grade_scale();
     }
+}
+
+function site_legal_profile(PDO $pdo): array
+{
+    $stmt = $pdo->query(
+        'SELECT entity_type, legal_name, inn, ogrn, legal_address, postal_address,
+                phone, email, support_email, tax_note, updated_at
+         FROM site_legal_profile
+         WHERE id = 1
+         LIMIT 1'
+    );
+    $row = $stmt->fetch();
+    if (!is_array($row)) {
+        return [
+            'entity_type' => 'self_employed',
+            'legal_name' => null,
+            'inn' => null,
+            'ogrn' => null,
+            'legal_address' => null,
+            'postal_address' => null,
+            'phone' => null,
+            'email' => 'info@urovia.ru',
+            'support_email' => 'info@urovia.ru',
+            'tax_note' => null,
+            'updated_at' => null,
+        ];
+    }
+    return $row;
+}
+
+function yookassa_config(): array
+{
+    return [
+        'shop_id' => trim((string)(getenv('YOO_KASSA_SHOP_ID') ?: '')),
+        'secret_key' => trim((string)(getenv('YOO_KASSA_SECRET_KEY') ?: '')),
+        'api_base' => rtrim((string)(getenv('YOO_KASSA_API_BASE') ?: 'https://api.yookassa.ru/v3'), '/'),
+        'test_mode' => filter_var((string)(getenv('YOO_KASSA_TEST_MODE') ?: '1'), FILTER_VALIDATE_BOOLEAN),
+        'cron_secret' => trim((string)(getenv('SUBSCRIPTION_CRON_SECRET') ?: '')),
+    ];
+}
+
+function yookassa_is_configured(): bool
+{
+    $config = yookassa_config();
+    return $config['shop_id'] !== '' && $config['secret_key'] !== '';
+}
+
+function yookassa_request(string $method, string $path, ?array $payload = null, ?string $idempotenceKey = null): array
+{
+    $config = yookassa_config();
+    if ($config['shop_id'] === '' || $config['secret_key'] === '') {
+        throw new RuntimeException('ЮKassa не настроена: отсутствует shopId или секретный ключ.');
+    }
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException('На сервере не включён cURL, необходимый для ЮKassa.');
+    }
+
+    $url = $config['api_base'] . '/' . ltrim($path, '/');
+    $curl = curl_init($url);
+    if ($curl === false) {
+        throw new RuntimeException('Не удалось инициализировать соединение с ЮKassa.');
+    }
+
+    $headers = ['Accept: application/json'];
+    if ($payload !== null) {
+        $headers[] = 'Content-Type: application/json';
+    }
+    if ($idempotenceKey !== null && $idempotenceKey !== '') {
+        $headers[] = 'Idempotence-Key: ' . $idempotenceKey;
+    }
+
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => strtoupper($method),
+        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+        CURLOPT_USERPWD => $config['shop_id'] . ':' . $config['secret_key'],
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30,
+    ]);
+    if ($payload !== null) {
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    $raw = curl_exec($curl);
+    $httpCode = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+
+    if ($raw === false || $curlError !== '') {
+        throw new RuntimeException('Не удалось связаться с ЮKassa.');
+    }
+
+    $data = json_decode((string)$raw, true);
+    if (!is_array($data)) {
+        throw new RuntimeException('ЮKassa вернула некорректный ответ.');
+    }
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+        $description = trim((string)($data['description'] ?? $data['message'] ?? ''));
+        throw new RuntimeException($description !== '' ? 'ЮKassa: ' . $description : 'ЮKassa отклонила запрос.');
+    }
+
+    return $data;
+}
+
+function subscription_activate_from_payment(PDO $pdo, array $order, array $payment): void
+{
+    $userId = (int)$order['user_id'];
+    $planCode = (string)$order['plan_code'];
+    $period = (string)$order['billing_period'];
+    $now = time();
+    $startsAt = gmdate('Y-m-d H:i:s', $now);
+
+    $existingStmt = $pdo->prepare(
+        'SELECT ends_at FROM user_subscriptions WHERE user_id = :user_id LIMIT 1'
+    );
+    $existingStmt->execute(['user_id' => $userId]);
+    $existingEnds = $existingStmt->fetchColumn();
+    $baseTs = $now;
+    if (is_string($existingEnds) && $existingEnds !== '') {
+        $existingTs = strtotime($existingEnds);
+        if ($existingTs !== false && $existingTs > $baseTs) {
+            $baseTs = $existingTs;
+        }
+    }
+
+    $endsTs = $period === 'year'
+        ? strtotime('+1 year', $baseTs)
+        : strtotime('+1 month', $baseTs);
+    if ($endsTs === false) {
+        throw new RuntimeException('Не удалось рассчитать срок подписки.');
+    }
+    $endsAt = gmdate('Y-m-d H:i:s', $endsTs);
+
+    $savedMethod = null;
+    if (!empty($payment['payment_method']['saved']) && !empty($payment['payment_method']['id'])) {
+        $savedMethod = (string)$payment['payment_method']['id'];
+    }
+
+    $autoRenew = $savedMethod !== null ? 1 : 0;
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO user_subscriptions
+         (user_id, plan_code, status, starts_at, ends_at, trial_ends_at, auto_renew, billing_period,
+          payment_provider, provider_payment_method_id, created_at, updated_at)
+         VALUES (:user_id, :plan_code, "active", :starts_at, :ends_at, NULL, :auto_renew, :billing_period,
+                 "yookassa", :provider_payment_method_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+        . db_upsert_clause(
+            $pdo,
+            ['user_id'],
+            ['plan_code', 'status', 'starts_at', 'ends_at', 'trial_ends_at', 'auto_renew', 'billing_period',
+             'payment_provider', 'provider_payment_method_id', 'updated_at']
+        )
+    );
+    $stmt->execute([
+        'user_id' => $userId,
+        'plan_code' => $planCode,
+        'starts_at' => $startsAt,
+        'ends_at' => $endsAt,
+        'auto_renew' => $autoRenew,
+        'billing_period' => $period,
+        'provider_payment_method_id' => $savedMethod,
+    ]);
 }
 
 function subscription_plan_catalog(): array
