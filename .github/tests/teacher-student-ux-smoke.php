@@ -34,7 +34,7 @@ must_contain('api/library/list.php', [
     'likes_count',
     'rating_average',
     'user_liked',
-    ':current_user_id',
+    ':current_user_like_id',
 ]);
 
 must_contain('api/library/react.php', [
