@@ -30,7 +30,7 @@ $checks = [
     [$files['bootstrap'], "'premium' => [", 'Premium plan'],
     [$files['bootstrap'], "'enforcement_enabled' => false", 'safe non-enforcement stage'],
     [$files['trial'], '14 * 86400', '14 day PRO trial'],
-    [$files['checkout'], 'PAYMENT_CHECKOUT_PREVIEW_ONLY', 'checkout preview guard'],
+    [$files['checkout'], 'yookassa_is_configured()', 'YooKassa checkout configuration guard'],
     [$files['index'], 'id="subscription"', 'subscription view'],
     [$files['index'], 'id="subscriptionPaymentModal"', 'payment form modal'],
     [$files['app'], 'async function loadSubscriptionPage()', 'subscription page loader'],
@@ -56,4 +56,4 @@ foreach (['user_subscriptions', 'subscription_usage_monthly', 'payment_orders'] 
     }
 }
 
-echo "Subscription stage 1 smoke OK\n";
+echo "Subscription foundation smoke OK\n";
