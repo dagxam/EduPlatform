@@ -18,6 +18,7 @@ $expected=number_format(((int)$order['amount_minor'])/100,2,'.','');
 if((string)($payment['amount']['value']??'')!==$expected || (string)($payment['amount']['currency']??'')!=='RUB') json_response(['ok'=>false],400);
 $status=(string)($payment['status']??'');
 if($status==='succeeded'){
+ if((string)($order['status']??'')==='succeeded') json_response(['ok'=>true]);
  $pdo->beginTransaction();
  try{
   $pdo->prepare('UPDATE payment_orders SET status="succeeded", paid_at=CURRENT_TIMESTAMP WHERE id=:id')->execute(['id'=>$orderId]);
