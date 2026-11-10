@@ -501,4 +501,55 @@ CREATE TABLE IF NOT EXISTS library_reactions (
   CONSTRAINT fk_library_reactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_code VARCHAR(32) NOT NULL DEFAULT 'basic',
+  status VARCHAR(32) NOT NULL DEFAULT 'inactive',
+  starts_at DATETIME NULL,
+  ends_at DATETIME NULL,
+  trial_ends_at DATETIME NULL,
+  auto_renew TINYINT NOT NULL DEFAULT 0,
+  billing_period VARCHAR(16) NULL,
+  payment_provider VARCHAR(64) NULL,
+  provider_customer_id VARCHAR(191) NULL,
+  provider_payment_method_id VARCHAR(191) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_user_subscriptions_user (user_id),
+  CONSTRAINT fk_user_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS subscription_usage_monthly (
+  user_id BIGINT UNSIGNED NOT NULL,
+  period_key CHAR(7) NOT NULL,
+  ai_generations INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, period_key),
+  CONSTRAINT fk_subscription_usage_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payment_orders (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_code VARCHAR(32) NOT NULL,
+  billing_period VARCHAR(16) NOT NULL,
+  amount_minor BIGINT NOT NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'RUB',
+  provider VARCHAR(64) NOT NULL,
+  provider_payment_id VARCHAR(191) NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'created',
+  idempotence_key CHAR(64) NOT NULL,
+  checkout_url TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  paid_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_payment_orders_idempotence (idempotence_key),
+  KEY idx_payment_orders_user (user_id, created_at),
+  CONSTRAINT fk_payment_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS=1;

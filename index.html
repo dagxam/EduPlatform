@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=87">
+  <link rel="stylesheet" href="styles.css?v=88">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -50,6 +50,7 @@
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
         <button class="nav-item live-execution-nav" data-view="live-execution"><span>◉</span> Выполнение <b class="nav-count hidden" id="liveExecutionBadge">0</b></button>
         <button class="nav-item" data-view="staff-profile"><span>●</span> Профиль</button>
+        <button class="nav-item" data-view="subscription"><span>◆</span> Тариф и подписка</button>
       </nav>
 
       <nav class="nav student-nav hidden">
@@ -856,6 +857,44 @@
         </div>
       </section>
 
+      <section class="view" id="subscription">
+        <div class="section-toolbar">
+          <div>
+            <span class="section-kicker">UROVIA</span>
+            <h2>Тариф и подписка</h2>
+            <p>Выберите возможности для своей работы. На первом этапе тарифы работают в режиме предпросмотра и не ограничивают существующие функции.</p>
+          </div>
+          <span class="subscription-stage-badge">Безопасный запуск · ограничения пока выключены</span>
+        </div>
+
+        <div class="subscription-current panel">
+          <div>
+            <span class="section-kicker">Текущий доступ</span>
+            <h3 id="subscriptionCurrentPlan">Загрузка...</h3>
+            <p id="subscriptionCurrentStatus">Проверяем состояние подписки.</p>
+          </div>
+          <div class="subscription-usage" id="subscriptionUsage"></div>
+        </div>
+
+        <div class="subscription-plans" id="subscriptionPlans">
+          <div class="dashboard-empty">Загрузка тарифов...</div>
+        </div>
+
+        <div class="panel subscription-payment-info">
+          <div>
+            <span class="section-kicker">Оплата</span>
+            <h3>Защищённая платёжная форма</h3>
+            <p>UROVIA не будет принимать и хранить номер банковской карты. После выбора тарифа пользователь переходит на защищённую форму платёжного провайдера, а подписка включается только после подтверждённого webhook.</p>
+          </div>
+          <div class="subscription-payment-points">
+            <span>Банковские карты</span>
+            <span>СБП</span>
+            <span>Мир / доступные способы провайдера</span>
+            <span>Чек на email</span>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="student-dashboard">
         <div class="student-welcome">
           <div><span class="pill" id="studentClassBadge">Класс</span><h2 id="studentWelcomeTitle">Мои задания</h2><p id="studentWelcomeText">Загрузка назначенных работ...</p></div>
@@ -993,6 +1032,42 @@
       <div id="libraryAuthorContent">
         <div class="dashboard-empty">Загрузка профиля автора...</div>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="subscriptionPaymentModal">
+    <div class="modal subscription-payment-modal">
+      <button class="modal-close" data-close-modal="subscriptionPaymentModal">×</button>
+      <span class="section-kicker">UROVIA</span>
+      <h2>Оформление подписки</h2>
+      <p>Выберите период. Банковские данные вводятся только на защищённой странице платёжного провайдера.</p>
+      <form id="subscriptionPaymentForm">
+        <input type="hidden" name="plan_code" id="subscriptionPaymentPlan" value="pro">
+        <div class="subscription-checkout-plan">
+          <span>Тариф</span>
+          <strong id="subscriptionPaymentPlanName">PRO</strong>
+        </div>
+        <label>Период
+          <select name="billing_period" id="subscriptionPaymentPeriod">
+            <option value="month">1 месяц</option>
+            <option value="year">1 год</option>
+          </select>
+        </label>
+        <label>Email для чека
+          <input type="email" id="subscriptionReceiptEmail" autocomplete="email" required>
+        </label>
+        <div class="subscription-checkout-total">
+          <span>К оплате</span>
+          <strong id="subscriptionPaymentTotal">—</strong>
+        </div>
+        <label class="privacy-checkbox">
+          <input type="checkbox" id="subscriptionRecurringConsent">
+          <span>Разрешить автоматическое продление. Перед подключением автосписаний условия и периодичность будут показаны отдельно.</span>
+        </label>
+        <div class="form-error hidden" id="subscriptionPaymentError"></div>
+        <button class="primary-btn full" type="submit">Продолжить к защищённой оплате</button>
+        <small class="subscription-payment-note">На этапе 1 реальные списания отключены. Форма используется для проверки тарифного сценария и интерфейса.</small>
+      </form>
     </div>
   </div>
 
@@ -1497,7 +1572,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=86"></script>
+  <script src="app.js?v=87"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=47"></script>
 </body>
