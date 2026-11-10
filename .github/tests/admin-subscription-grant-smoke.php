@@ -21,7 +21,7 @@ foreach ($files as $name => $content) {
 $checks = [
     [$files['sqlite'], 'CREATE TABLE IF NOT EXISTS subscription_admin_grants', 'SQLite admin grant table'],
     [$files['mysql'], 'CREATE TABLE IF NOT EXISTS subscription_admin_grants', 'MySQL admin grant table'],
-    [$files['bootstrap'], 'status' . " => 'admin_grant'", 'effective admin grant status'],
+    [$files['bootstrap'], "'status' => 'admin_grant'", 'effective admin grant status'],
     [$files['bootstrap'], "payment_provider' => 'manual_admin'", 'manual provider marker'],
     [$files['list'], 'is_platform_admin', 'platform admin list protection'],
     [$files['set'], 'subscription_admin_grant_set', 'grant audit event'],
