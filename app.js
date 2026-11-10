@@ -1844,6 +1844,7 @@ let activeProfileUserId = null;
 let libraryItemsCache = [];
 let libraryOwnCache = [];
 let libraryCanManage = false;
+let libraryCanImport = false;
 let libraryActiveSchoolId = 0;
 
 function profileRoleText(data) {
@@ -2183,6 +2184,13 @@ async function submitAssignmentToLibrary(assignmentId) {
   }
 }
 
+function libraryClassNames(item) {
+  return String(item?.class_names || '')
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
 function renderLibrary() {
   const grid = document.getElementById('libraryGrid');
   const own = document.getElementById('libraryOwnList');
@@ -2190,37 +2198,69 @@ function renderLibrary() {
 
   const query = (document.getElementById('librarySearch')?.value || '').trim().toLowerCase();
   const subjectId = Number(document.getElementById('librarySubjectFilter')?.value || 0);
+  const className = String(document.getElementById('libraryClassFilter')?.value || '');
+  const sort = String(document.getElementById('librarySort')?.value || 'newest');
+
   const items = libraryItemsCache.filter(item => {
-    const haystack = [item.title_snapshot, item.description_snapshot, item.subject_name, item.school_name].join(' ').toLowerCase();
-    return (!query || haystack.includes(query)) && (!subjectId || Number(item.subject_id) === subjectId);
+    const classes = libraryClassNames(item);
+    const author = [item.author_last_name, item.author_first_name].filter(Boolean).join(' ');
+    const haystack = [
+      item.title_snapshot,
+      item.description_snapshot,
+      item.subject_name,
+      item.school_name,
+      author,
+      classes.join(' ')
+    ].join(' ').toLowerCase();
+    return (!query || haystack.includes(query))
+      && (!subjectId || Number(item.subject_id) === subjectId)
+      && (!className || classes.includes(className));
+  }).sort((a, b) => {
+    if (sort === 'popular') return Number(b.usage_count || 0) - Number(a.usage_count || 0);
+    if (sort === 'questions') return Number(b.questions_count_snapshot || 0) - Number(a.questions_count_snapshot || 0);
+    return String(b.published_at || b.created_at || '').localeCompare(String(a.published_at || a.created_at || ''));
   });
 
   grid.innerHTML = items.length ? items.map(item => {
     const ownSchool = Number(item.source_school_id) === Number(libraryActiveSchoolId);
     const author = [item.author_last_name, item.author_first_name].filter(Boolean).join(' ');
+    const classes = libraryClassNames(item);
+    const usage = Number(item.usage_count || 0);
+    const duration = Number(item.time_limit_minutes || 0);
+    const imported = Number(item.imported) === 1;
+    const targetAssignmentId = Number(item.target_assignment_id || 0);
+
     return `
       <article class="panel library-card">
         <div class="library-card-head">
           <span class="status blue">${escapeHtml(item.subject_name || 'Без предмета')}</span>
+          ${classes.length ? `<span class="status">${escapeHtml(classes.join(', '))}</span>` : ''}
           ${ownSchool ? '<span class="status green">Наша школа</span>' : ''}
         </div>
         <h3>${escapeHtml(item.title_snapshot)}</h3>
         <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
-        <div class="library-card-meta">
+        <div class="library-card-meta library-card-meta-rich">
           <span><b>${Number(item.questions_count_snapshot || 0)}</b> вопросов</span>
-          <span>${escapeHtml(item.school_name || '')}</span>
-          ${author ? `<span>${escapeHtml(author)}</span>` : ''}
+          ${duration > 0 ? `<span><b>${duration}</b> мин</span>` : '<span>Без лимита времени</span>'}
+          <span>Использовали <b>${usage}</b> раз</span>
+        </div>
+        <div class="library-author-line">
+          <div>
+            ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
+            <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' материалов' : ''}</span>
+          </div>
         </div>
         <div class="library-card-actions">
-          <button class="secondary-btn compact-btn" type="button" data-library-preview="${item.id}">Посмотреть</button>
-          ${!ownSchool && libraryCanManage
-            ? (Number(item.imported) === 1
-              ? '<span class="status green">Уже импортировано</span>'
-              : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ В нашу школу</button>`)
+          <button class="secondary-btn compact-btn" type="button" data-library-preview="${item.id}">Просмотреть</button>
+          ${!ownSchool && libraryCanImport
+            ? (imported && targetAssignmentId
+              ? `<button class="secondary-btn compact-btn" type="button" data-library-open-copy="${item.id}">Изменить копию</button>
+                 <button class="primary-btn compact-btn" type="button" data-library-assign-copy="${item.id}">Назначить</button>`
+              : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ Добавить себе</button>`)
             : ''}
         </div>
       </article>`;
-  }).join('') : '<div class="history-empty"><b>Материалы не найдены</b><span>Измените поиск или фильтр предмета.</span></div>';
+  }).join('') : '<div class="history-empty"><b>Материалы не найдены</b><span>Измените поиск или фильтры.</span></div>';
 
   own.innerHTML = libraryOwnCache.length ? libraryOwnCache.map(item => {
     const [cls, label] = libraryStatusLabel(item.status);
@@ -2244,6 +2284,12 @@ function renderLibrary() {
   grid.querySelectorAll('[data-library-import]').forEach(button => {
     button.addEventListener('click', () => importLibraryItem(Number(button.dataset.libraryImport)));
   });
+  grid.querySelectorAll('[data-library-open-copy]').forEach(button => {
+    button.addEventListener('click', () => openLibraryCopiedAssignment(Number(button.dataset.libraryOpenCopy), 'edit'));
+  });
+  grid.querySelectorAll('[data-library-assign-copy]').forEach(button => {
+    button.addEventListener('click', () => openLibraryCopiedAssignment(Number(button.dataset.libraryAssignCopy), 'assign'));
+  });
   own.querySelectorAll('[data-library-moderate]').forEach(button => {
     button.addEventListener('click', () => moderateLibraryItem(
       Number(button.dataset.libraryModerate),
@@ -2263,20 +2309,32 @@ async function loadLibrary() {
   libraryItemsCache = data.items || [];
   libraryOwnCache = data.own_items || [];
   libraryCanManage = Boolean(data.can_manage);
+  libraryCanImport = Boolean(data.can_import);
   libraryActiveSchoolId = Number(data.active_school_id || 0);
 
-  const select = document.getElementById('librarySubjectFilter');
-  if (select) {
-    const current = select.value;
+  const subjectSelect = document.getElementById('librarySubjectFilter');
+  if (subjectSelect) {
+    const current = subjectSelect.value;
     const subjectMap = new Map();
     [...libraryItemsCache, ...libraryOwnCache].forEach(item => {
       if (item.subject_id && item.subject_name) subjectMap.set(Number(item.subject_id), item.subject_name);
     });
-    select.innerHTML = '<option value="">Все предметы</option>' + [...subjectMap.entries()]
+    subjectSelect.innerHTML = '<option value="">Все предметы</option>' + [...subjectMap.entries()]
       .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ru'))
       .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`).join('');
-    if ([...subjectMap.keys()].includes(Number(current))) select.value = current;
+    if ([...subjectMap.keys()].includes(Number(current))) subjectSelect.value = current;
   }
+
+  const classSelect = document.getElementById('libraryClassFilter');
+  if (classSelect) {
+    const current = classSelect.value;
+    const names = [...new Set(libraryItemsCache.flatMap(libraryClassNames))]
+      .sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
+    classSelect.innerHTML = '<option value="">Все классы</option>' + names
+      .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    if (names.includes(current)) classSelect.value = current;
+  }
+
   renderLibrary();
 }
 
@@ -2291,9 +2349,17 @@ async function openLibraryPreview(itemId) {
     return;
   }
 
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  const classes = libraryClassNames(item);
+  const duration = Number(item?.time_limit_minutes || 0);
   document.getElementById('libraryPreviewTitle').textContent = data.item.title;
-  document.getElementById('libraryPreviewMeta').textContent =
-    [data.item.subject_name, data.item.school_name, data.item.questions_count + ' вопросов'].filter(Boolean).join(' · ');
+  document.getElementById('libraryPreviewMeta').textContent = [
+    data.item.subject_name,
+    classes.join(', '),
+    data.item.school_name,
+    data.item.questions_count + ' вопросов',
+    duration > 0 ? duration + ' мин' : ''
+  ].filter(Boolean).join(' · ');
 
   const list = document.getElementById('libraryPreviewQuestions');
   list.innerHTML = (data.questions || []).length ? data.questions.map((q, index) => `
@@ -2305,19 +2371,28 @@ async function openLibraryPreview(itemId) {
       </div>
     </article>`).join('') : '<div class="history-empty">Вопросы не распознаны. Материал может содержаться в исходном файле.</div>';
 
-  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
   const actions = document.getElementById('libraryPreviewActions');
   const ownSchool = Number(item?.source_school_id) === Number(libraryActiveSchoolId);
-  actions.innerHTML = !ownSchool && libraryCanManage && Number(item?.imported) !== 1
-    ? `<button class="primary-btn" type="button" id="libraryPreviewImportBtn">＋ Добавить в нашу школу</button>`
+  const imported = Number(item?.imported) === 1;
+  actions.innerHTML = !ownSchool && libraryCanImport
+    ? (imported
+      ? `<button class="secondary-btn" type="button" id="libraryPreviewEditCopyBtn">Изменить копию</button>
+         <button class="primary-btn" type="button" id="libraryPreviewAssignCopyBtn">Назначить</button>`
+      : `<button class="primary-btn" type="button" id="libraryPreviewImportBtn">＋ Добавить себе</button>`)
     : '';
+
   document.getElementById('libraryPreviewImportBtn')?.addEventListener('click', () => importLibraryItem(itemId));
+  document.getElementById('libraryPreviewEditCopyBtn')?.addEventListener('click', () => openLibraryCopiedAssignment(itemId, 'edit'));
+  document.getElementById('libraryPreviewAssignCopyBtn')?.addEventListener('click', () => openLibraryCopiedAssignment(itemId, 'assign'));
   openModal(libraryPreviewModal);
 }
 
 async function importLibraryItem(itemId) {
-  if (!libraryCanManage) return;
-  if (!(await appConfirm('Импортировать материал в выбранную школу? Будет создан независимый черновик без классов, учеников и результатов.'))) return;
+  if (!libraryCanImport) return;
+  if (!(await appConfirm('Добавить этот материал себе? UROVIA создаст независимый черновик без классов, учеников и результатов. Исходная работа автора не изменится.', {
+    title: 'Добавить материал',
+    okText: 'Добавить себе'
+  }))) return;
 
   try {
     const response = await fetch('./api/library/import.php', {
@@ -2327,13 +2402,36 @@ async function importLibraryItem(itemId) {
       body: JSON.stringify({ item_id: itemId })
     });
     const data = await response.json();
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось импортировать материал.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось добавить материал.');
     closeModal(libraryPreviewModal);
-    alert(data.message || 'Материал импортирован.');
     await Promise.all([loadLibrary(), loadAssignments(), loadSubjects()]);
+    await appAlert(data.message || 'Материал добавлен как независимый черновик.', {
+      title: 'Материал добавлен',
+      tone: 'success',
+      okText: 'Готово'
+    });
   } catch (error) {
-    alert(error.message);
+    await appAlert(error.message, { title: 'Не удалось добавить материал', tone: 'danger' });
   }
+}
+
+async function openLibraryCopiedAssignment(itemId, action = 'edit') {
+  const item = libraryItemsCache.find(row => Number(row.id) === Number(itemId));
+  const assignmentId = Number(item?.target_assignment_id || 0);
+  if (!assignmentId) {
+    await appAlert('Сначала добавьте материал себе.', { title: 'Копия не найдена' });
+    return;
+  }
+
+  closeModal(libraryPreviewModal);
+  await loadAssignments();
+  showView('assignments');
+
+  if (action === 'assign') {
+    openAssignToClass(assignmentId);
+    return;
+  }
+  await openAssignmentEditor(assignmentId);
 }
 
 async function moderateLibraryItem(itemId, action) {
@@ -2356,6 +2454,8 @@ async function moderateLibraryItem(itemId, action) {
 
 document.getElementById('librarySearch')?.addEventListener('input', renderLibrary);
 document.getElementById('librarySubjectFilter')?.addEventListener('change', renderLibrary);
+document.getElementById('libraryClassFilter')?.addEventListener('change', renderLibrary);
+document.getElementById('librarySort')?.addEventListener('change', renderLibrary);
 document.getElementById('refreshLibraryBtn')?.addEventListener('click', () => loadLibrary().catch(error => alert(error.message)));
 
 const historyEventLabels = {
