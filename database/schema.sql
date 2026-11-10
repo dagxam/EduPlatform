@@ -466,3 +466,56 @@ CREATE TABLE IF NOT EXISTS library_reactions (
 
 CREATE INDEX IF NOT EXISTS idx_library_reactions_item
     ON library_reactions(library_item_id, liked, rating);
+
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    plan_code TEXT NOT NULL DEFAULT 'basic' CHECK (plan_code IN ('basic', 'pro', 'premium')),
+    status TEXT NOT NULL DEFAULT 'inactive' CHECK (status IN ('inactive', 'trial', 'active', 'past_due', 'cancelled', 'expired')),
+    starts_at TEXT,
+    ends_at TEXT,
+    trial_ends_at TEXT,
+    auto_renew INTEGER NOT NULL DEFAULT 0,
+    billing_period TEXT CHECK (billing_period IS NULL OR billing_period IN ('month', 'year')),
+    payment_provider TEXT,
+    provider_customer_id TEXT,
+    provider_payment_method_id TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_subscriptions_user
+    ON user_subscriptions(user_id);
+
+CREATE TABLE IF NOT EXISTS subscription_usage_monthly (
+    user_id INTEGER NOT NULL,
+    period_key TEXT NOT NULL,
+    ai_generations INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, period_key),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payment_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    plan_code TEXT NOT NULL CHECK (plan_code IN ('pro', 'premium')),
+    billing_period TEXT NOT NULL CHECK (billing_period IN ('month', 'year')),
+    amount_minor INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'RUB',
+    provider TEXT NOT NULL,
+    provider_payment_id TEXT,
+    status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'pending', 'succeeded', 'cancelled', 'refunded', 'failed')),
+    idempotence_key TEXT NOT NULL,
+    checkout_url TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    paid_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (idempotence_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_orders_user
+    ON payment_orders(user_id, created_at);
