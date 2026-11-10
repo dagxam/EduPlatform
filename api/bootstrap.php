@@ -412,6 +412,23 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
         'idx_audit_log_entity_event',
         'entity_type, entity_id, event_type, id'
     );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS library_reactions (
+            library_item_id BIGINT UNSIGNED NOT NULL,
+            user_id BIGINT UNSIGNED NOT NULL,
+            liked TINYINT NOT NULL DEFAULT 0,
+            rating TINYINT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (library_item_id, user_id),
+            KEY idx_library_reactions_item (library_item_id, liked, rating),
+            CONSTRAINT fk_library_reactions_item
+                FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+            CONSTRAINT fk_library_reactions_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
 }
 
 function automatic_backup_allowed_for_request(): bool
@@ -834,6 +851,19 @@ function apply_schema_migrations(PDO $pdo): void
         ON library_items(source_school_id, status)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_library_imports_target
         ON library_imports(target_school_id, created_at)");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS library_reactions (
+        library_item_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        liked INTEGER NOT NULL DEFAULT 0,
+        rating INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (library_item_id, user_id),
+        FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_library_reactions_item
+        ON library_reactions(library_item_id, liked, rating)");
 }
 
 function audit_event(string $eventType, ?string $entityType = null, ?int $entityId = null, array $metadata = [], ?int $schoolId = null, ?int $userId = null): void
