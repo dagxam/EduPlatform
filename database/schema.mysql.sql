@@ -488,4 +488,17 @@ CREATE TABLE IF NOT EXISTS library_imports (
   CONSTRAINT fk_library_import_user FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS library_reactions (
+  library_item_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  liked TINYINT NOT NULL DEFAULT 0,
+  rating TINYINT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (library_item_id, user_id),
+  KEY idx_library_reactions_item (library_item_id, liked, rating),
+  CONSTRAINT fk_library_reactions_item FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+  CONSTRAINT fk_library_reactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS=1;
