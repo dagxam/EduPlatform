@@ -450,3 +450,19 @@ CREATE INDEX IF NOT EXISTS idx_library_items_school
     ON library_items(source_school_id, status);
 CREATE INDEX IF NOT EXISTS idx_library_imports_target
     ON library_imports(target_school_id, created_at);
+
+CREATE TABLE IF NOT EXISTS library_reactions (
+    library_item_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    liked INTEGER NOT NULL DEFAULT 0,
+    rating INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (library_item_id, user_id),
+    FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+
+CREATE INDEX IF NOT EXISTS idx_library_reactions_item
+    ON library_reactions(library_item_id, liked, rating);
