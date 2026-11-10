@@ -10322,3 +10322,43 @@ body.student-session .assignment-author-only {
   .legal-profile-actions{display:grid}
   .legal-profile-actions>*{width:100%;justify-content:center}
 }
+
+
+/* YooKassa protected config */
+.yookassa-config-divider{
+  height:1px;
+  background:#e7ebf0;
+  margin:24px 0;
+}
+.yookassa-config-form{
+  display:grid;
+  gap:12px;
+}
+.yookassa-endpoints{
+  display:grid;
+  gap:8px;
+}
+.yookassa-endpoints>div{
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+  padding:10px 12px;
+  border:1px solid #e5eaf0;
+  border-radius:12px;
+  background:#fafbfd;
+}
+.yookassa-endpoints span{
+  color:#7a8793;
+  font-size:11px;
+  font-weight:750;
+}
+.yookassa-endpoints code{
+  overflow-wrap:anywhere;
+  white-space:normal;
+  font-size:11px;
+}
+.panel-head.compact{margin-bottom:0}
+@media(max-width:640px){
+  .yookassa-endpoints>div{grid-template-columns:1fr}
+}
