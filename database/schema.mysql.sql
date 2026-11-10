@@ -541,6 +541,7 @@ CREATE TABLE IF NOT EXISTS payment_orders (
   currency CHAR(3) NOT NULL DEFAULT 'RUB',
   provider VARCHAR(64) NOT NULL,
   provider_payment_id VARCHAR(191) NULL,
+  customer_email VARCHAR(191) NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'created',
   idempotence_key CHAR(64) NOT NULL,
   checkout_url TEXT NULL,
