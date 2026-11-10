@@ -92,6 +92,9 @@ jobs:
       - name: Validate teacher and student UX stage 2
         run: php .github/tests/teacher-student-ux-smoke.php
 
+      - name: Validate subscription stage 1
+        run: php .github/tests/subscription-stage1-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 
