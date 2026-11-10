@@ -21,6 +21,8 @@ $files = [
     'requisites' => file_get_contents($root . '/requisites.php'),
     'pricing' => file_get_contents($root . '/pricing.php'),
     'offer' => file_get_contents($root . '/offer.php'),
+    'payments_list' => file_get_contents($root . '/api/admin/payments/list.php'),
+    'receipt_mark' => file_get_contents($root . '/api/admin/payments/mark-receipt.php'),
 ];
 
 foreach ($files as $name => $content) {
@@ -36,10 +38,10 @@ $checks = [
     [$files['bootstrap'], 'Idempotence-Key:', 'idempotence header'],
     [$files['bootstrap'], 'function yookassa_config_path()', 'protected config path'],
     [$files['bootstrap'], 'function subscription_activate_from_payment(', 'payment activation helper'],
-    [$files['checkout'], "'save_payment_method' => $autoRenew", 'explicit recurring consent'],
+    [$files['checkout'], "'save_payment_method' => \$autoRenew", 'explicit recurring consent'],
     [$files['checkout'], "'type' => 'redirect'", 'redirect checkout'],
     [$files['checkout'], "'return_url' => uvoria_app_url()", 'return URL'],
-    [$files['checkout'], "'customer_email' => $receiptEmail", 'payer email persistence'],
+    [$files['checkout'], "'customer_email' => \$receiptEmail", 'payer email persistence'],
     [$files['webhook'], "yookassa_request('GET'", 'webhook provider verification'],
     [$files['webhook'], "==='succeeded') json_response(['ok'=>true])", 'duplicate succeeded webhook guard'],
     [$files['renew'], "'payment_method_id'", 'recurring payment method'],
@@ -49,6 +51,10 @@ $checks = [
     [$files['sqlite'], 'customer_email TEXT', 'SQLite payer email'],
     [$files['mysql'], 'CREATE TABLE IF NOT EXISTS site_legal_profile', 'MySQL legal profile'],
     [$files['mysql'], 'customer_email VARCHAR(191)', 'MySQL payer email'],
+    [$files['sqlite'], 'receipt_status TEXT', 'SQLite receipt tracking'],
+    [$files['mysql'], 'receipt_status VARCHAR(32)', 'MySQL receipt tracking'],
+    [$files['payments_list'], 'receipt_status', 'payment journal receipt status'],
+    [$files['receipt_mark'], 'payment_receipt_status_updated', 'receipt audit event'],
     [$files['index'], 'id="legalProfileForm"', 'legal profile UI'],
     [$files['index'], 'id="yookassaConfigForm"', 'YooKassa config UI'],
     [$files['app'], 'async function loadYooKassaAdminConfig()', 'YooKassa config frontend'],
@@ -82,9 +88,11 @@ foreach (['user_subscriptions', 'payment_orders', 'site_legal_profile', 'subscri
 
 $columns = $pdo->query('PRAGMA table_info(payment_orders)')->fetchAll(PDO::FETCH_ASSOC);
 $columnNames = array_column($columns, 'name');
-if (!in_array('customer_email', $columnNames, true)) {
-    fwrite(STDERR, "YooKassa smoke failed: payment_orders.customer_email missing.\n");
-    exit(1);
+foreach (['customer_email','receipt_status','receipt_reference'] as $requiredColumn) {
+    if (!in_array($requiredColumn, $columnNames, true)) {
+        fwrite(STDERR, "YooKassa smoke failed: payment_orders.{$requiredColumn} missing.\n");
+        exit(1);
+    }
 }
 
 echo "YooKassa integration smoke OK\n";
