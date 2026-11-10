@@ -42,14 +42,15 @@ $pdo = app_db();
 $idempotenceKey = bin2hex(random_bytes(24));
 $stmt = $pdo->prepare(
     'INSERT INTO payment_orders
-     (user_id, plan_code, billing_period, amount_minor, currency, provider, status, idempotence_key, created_at)
-     VALUES (:user_id, :plan_code, :billing_period, :amount_minor, "RUB", "yookassa", "created", :idempotence_key, CURRENT_TIMESTAMP)'
+     (user_id, plan_code, billing_period, amount_minor, currency, provider, customer_email, status, idempotence_key, created_at)
+     VALUES (:user_id, :plan_code, :billing_period, :amount_minor, "RUB", "yookassa", :customer_email, "created", :idempotence_key, CURRENT_TIMESTAMP)'
 );
 $stmt->execute([
     'user_id' => (int)$user['id'],
     'plan_code' => $planCode,
     'billing_period' => $period,
     'amount_minor' => $amountMinor,
+    'customer_email' => $receiptEmail,
     'idempotence_key' => $idempotenceKey,
 ]);
 $orderId = (int)$pdo->lastInsertId();
