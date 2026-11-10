@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=88">
+  <link rel="stylesheet" href="styles.css?v=89">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -714,7 +714,26 @@
             </div>
           </article>
         </div>
-      </section>
+      
+        <article class="panel platform-admin-only hidden admin-subscription-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">Монетизация</span>
+              <h3>Подписки сотрудников</h3>
+            </div>
+            <button class="secondary-btn compact-btn" id="refreshAdminSubscriptionsBtn" type="button">↻ Обновить</button>
+          </div>
+          <p class="panel-note">Главный администратор UROVIA может вручную выдать PRO или Premium сотруднику выбранной школы. Ручной доступ не удаляет платёжную историю и в будущем не будет конфликтовать с оплатой через эквайринг.</p>
+          <div class="table-wrap">
+            <table class="admin-subscriptions-table">
+              <thead>
+                <tr><th>Сотрудник</th><th>Роль</th><th>Текущий тариф</th><th>Ручной доступ</th><th></th></tr>
+              </thead>
+              <tbody id="adminSubscriptionsBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </article>
+</section>
 
       <section class="view" id="journal">
         <div class="section-toolbar">
@@ -1032,6 +1051,41 @@
       <div id="libraryAuthorContent">
         <div class="dashboard-empty">Загрузка профиля автора...</div>
       </div>
+    </div>
+  </div>
+
+
+  <div class="modal-backdrop hidden" id="adminSubscriptionModal">
+    <div class="modal">
+      <button class="modal-close" data-close-modal="adminSubscriptionModal">×</button>
+      <span class="section-kicker">Главный администратор UROVIA</span>
+      <h2>Назначить подписку</h2>
+      <p id="adminSubscriptionPerson">Сотрудник</p>
+      <form id="adminSubscriptionForm">
+        <input type="hidden" id="adminSubscriptionUserId" name="user_id">
+        <label>Тариф
+          <select id="adminSubscriptionPlan" name="plan_code" required>
+            <option value="pro">PRO</option>
+            <option value="premium">Premium</option>
+            <option value="basic">Базовый — снять ручной доступ</option>
+          </select>
+        </label>
+        <label>Срок
+          <select id="adminSubscriptionDuration" name="duration" required>
+            <option value="30">30 дней</option>
+            <option value="90">90 дней</option>
+            <option value="180">180 дней</option>
+            <option value="365">1 год</option>
+            <option value="unlimited">Бессрочно</option>
+          </select>
+        </label>
+        <label>Комментарий
+          <textarea id="adminSubscriptionNote" name="note" rows="3" maxlength="500" placeholder="Например: методист школы, тестовый доступ, договор №..."></textarea>
+        </label>
+        <div class="form-error hidden" id="adminSubscriptionError"></div>
+        <button class="primary-btn full" type="submit">Сохранить подписку</button>
+        <small class="field-help">При выборе «Базовый» снимается только ручной PRO/Premium-доступ. Будущая оплаченная подписка пользователя не удаляется.</small>
+      </form>
     </div>
   </div>
 
@@ -1572,7 +1626,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=47"></script>
 </body>
