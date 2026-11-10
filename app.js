@@ -4743,6 +4743,7 @@ async function loadYooKassaAdminConfig() {
   const shop = document.getElementById('yookassaShopId');
   const secret = document.getElementById('yookassaSecretKey');
   const test = document.getElementById('yookassaTestMode');
+  const recurring = document.getElementById('yookassaRecurringEnabled');
   const webhook = document.getElementById('yookassaWebhookUrl');
   const returnUrl = document.getElementById('yookassaReturnUrl');
 
@@ -4754,6 +4755,7 @@ async function loadYooKassaAdminConfig() {
       : 'Вставьте секретный ключ ЮKassa';
   }
   if (test) test.checked = Boolean(config.test_mode);
+  if (recurring) recurring.checked = Boolean(config.recurring_enabled);
   if (webhook) webhook.textContent = config.webhook_url || 'https://urovia.ru/api/subscription/yookassa-webhook.php';
   if (returnUrl) returnUrl.textContent = config.return_url || 'https://urovia.ru/payment-return.html';
   return config;
@@ -4780,7 +4782,8 @@ document.getElementById('yookassaConfigForm')?.addEventListener('submit', async 
       body: JSON.stringify({
         shop_id: document.getElementById('yookassaShopId').value,
         secret_key: document.getElementById('yookassaSecretKey').value,
-        test_mode: Boolean(document.getElementById('yookassaTestMode').checked)
+        test_mode: Boolean(document.getElementById('yookassaTestMode').checked),
+        recurring_enabled: Boolean(document.getElementById('yookassaRecurringEnabled').checked)
       })
     });
     const data = await readJsonResponse(response, 'Не удалось сохранить подключение ЮKassa.');
@@ -4954,7 +4957,18 @@ function openSubscriptionPayment(planCode) {
   const email = document.getElementById('subscriptionReceiptEmail');
   if (email && !email.value) email.value = currentUser?.email || '';
   document.getElementById('subscriptionPaymentPeriod').value = 'month';
-  document.getElementById('subscriptionRecurringConsent').checked = false;
+  const recurringConsent = document.getElementById('subscriptionRecurringConsent');
+  const recurringText = document.getElementById('subscriptionRecurringConsentText');
+  const recurringAvailable = Boolean(data?.payment?.recurring_enabled);
+  if (recurringConsent) {
+    recurringConsent.checked = false;
+    recurringConsent.disabled = !recurringAvailable;
+  }
+  if (recurringText) {
+    recurringText.textContent = recurringAvailable
+      ? 'Разрешить автоматическое продление. Платёжный способ будет сохранён у ЮKassa только после вашего согласия.'
+      : 'Автопродление пока недоступно: ЮKassa должна отдельно разрешить автоплатежи для магазина. Текущая покупка пройдёт как обычный разовый платёж.';
+  }
   const error = document.getElementById('subscriptionPaymentError');
   if (error) {
     error.textContent = '';
@@ -4995,10 +5009,15 @@ document.getElementById('subscriptionPaymentForm')?.addEventListener('submit', a
         billing_period: document.getElementById('subscriptionPaymentPeriod').value,
         receipt_email: document.getElementById('subscriptionReceiptEmail').value,
         auto_renew: Boolean(document.getElementById('subscriptionRecurringConsent').checked)
+          && Boolean(subscriptionDataCache?.payment?.recurring_enabled)
       })
     });
     const data = await readJsonResponse(response, 'Не удалось подготовить оплату.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось подготовить оплату.');
+    if (data.recurring_fallback && error) {
+      error.textContent = 'Автоплатежи ещё не разрешены ЮKassa. Переходим к обычной разовой оплате без автопродления.';
+      error.classList.remove('hidden');
+    }
     if (data.checkout_url) window.location.assign(data.checkout_url);
   } catch (err) {
     if (error) {
