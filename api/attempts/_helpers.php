@@ -989,7 +989,8 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
         foreach ($optionOrder as $questionId => $optionIds) {
             $optionOrder[$questionId] = variant_scrambled_order(
                 $optionIds,
-                $seed . '|options:' . $questionId
+                $seed . '|options:' . $questionId,
+                count($optionIds) > 1
             );
         }
     }
@@ -1013,7 +1014,7 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
             $left = is_array($settings['left'] ?? null) ? array_map('strval', array_keys($settings['left'])) : [];
             $right = is_array($settings['right'] ?? null) ? array_map('strval', array_keys($settings['right'])) : [];
             $structuredOrder[$key] = [
-                'left' => variant_scrambled_order($left, $seed . '|matching-left:' . $questionId),
+                'left' => variant_scrambled_order($left, $seed . '|matching-left:' . $questionId, count($left) > 1),
                 'right' => variant_scrambled_order($right, $seed . '|matching-right:' . $questionId, count($right) > 1),
             ];
         }
