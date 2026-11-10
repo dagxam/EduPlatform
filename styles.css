@@ -10259,3 +10259,54 @@ body.student-session .assignment-author-only {
   .subscription-usage{grid-template-columns:1fr 1fr}
   .subscription-plan-card{padding:16px}
 }
+
+
+/* Super-admin subscription grants */
+.admin-subscription-panel{
+  margin-top:20px;
+}
+.admin-subscriptions-table td{
+  vertical-align:top;
+}
+.admin-subscriptions-table td:first-child b,
+.admin-subscriptions-table td:first-child small,
+.admin-subscriptions-table td:nth-child(3) b,
+.admin-subscriptions-table td:nth-child(3) small,
+.admin-subscriptions-table td:nth-child(4) small{
+  display:block;
+}
+.admin-subscriptions-table td:first-child small,
+.admin-subscriptions-table td:nth-child(3) small,
+.admin-subscriptions-table td:nth-child(4) small{
+  margin-top:4px;
+  color:#7f8a95;
+}
+.admin-subscription-plan{
+  font-size:15px;
+}
+#adminSubscriptionModal .field-help{
+  display:block;
+  margin-top:12px;
+  color:#7c8792;
+  line-height:1.45;
+}
+@media(max-width:760px){
+  .admin-subscriptions-table thead{display:none}
+  .admin-subscriptions-table,
+  .admin-subscriptions-table tbody,
+  .admin-subscriptions-table tr,
+  .admin-subscriptions-table td{
+    display:block;
+    width:100%;
+  }
+  .admin-subscriptions-table tr{
+    border:1px solid #e5eaf0;
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+  .admin-subscriptions-table td{
+    border:0;
+    padding:7px 0;
+  }
+}
