@@ -10066,3 +10066,196 @@ body.student-session .assignment-author-only {
   .library-author-material{align-items:flex-start;flex-direction:column}
   .library-author-material>span:last-child{white-space:normal}
 }
+
+
+/* Subscription plans — safe preview stage */
+.subscription-stage-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 11px;
+  border-radius:999px;
+  background:#fff7df;
+  color:#8a6814;
+  border:1px solid #f0df9d;
+  font-size:11px;
+  font-weight:800;
+}
+.subscription-current{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:center;
+  margin-bottom:20px;
+}
+.subscription-current h3{
+  margin:4px 0 6px;
+  font-size:26px;
+}
+.subscription-current p{
+  margin:0;
+  color:#74808c;
+}
+.subscription-usage{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(110px,1fr));
+  gap:8px;
+  min-width:min(100%,520px);
+}
+.subscription-usage div{
+  border:1px solid #e6ebf0;
+  background:#fafbfd;
+  border-radius:13px;
+  padding:11px;
+}
+.subscription-usage span,
+.subscription-usage strong{
+  display:block;
+}
+.subscription-usage span{
+  color:#7f8a95;
+  font-size:10px;
+}
+.subscription-usage strong{
+  margin-top:4px;
+  font-size:17px;
+}
+.subscription-plans{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:20px;
+}
+.subscription-plan-card{
+  position:relative;
+  background:#fff;
+  border:1px solid #e3e8ee;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 8px 28px rgba(31,45,61,.05);
+}
+.subscription-plan-card.featured{
+  border-color:color-mix(in srgb,var(--brand) 42%,#dfe5ec);
+  box-shadow:0 14px 36px color-mix(in srgb,var(--brand) 12%,transparent);
+}
+.subscription-plan-card.current{
+  background:color-mix(in srgb,var(--brand) 2.5%,#fff);
+}
+.subscription-plan-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+}
+.subscription-plan-head h3{
+  margin:4px 0 0;
+  font-size:24px;
+}
+.subscription-price{
+  margin:18px 0;
+  display:grid;
+  gap:4px;
+}
+.subscription-price strong{
+  font-size:29px;
+  line-height:1;
+}
+.subscription-price strong small{
+  font-size:12px;
+  font-weight:700;
+  color:#84909b;
+  margin-left:4px;
+}
+.subscription-price>span{
+  color:#7d8994;
+  font-size:12px;
+}
+.subscription-feature-list{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:grid;
+  gap:8px;
+}
+.subscription-feature-list li{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  padding:8px 0;
+  border-bottom:1px solid #eef1f4;
+  font-size:12px;
+}
+.subscription-feature-list li span{
+  color:#75818d;
+}
+.subscription-feature-list li b{
+  text-align:right;
+}
+.subscription-plan-actions{
+  display:grid;
+  gap:8px;
+  margin-top:18px;
+}
+.subscription-payment-info{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr);
+  gap:24px;
+  align-items:center;
+}
+.subscription-payment-info h3{
+  margin:4px 0 7px;
+}
+.subscription-payment-info p{
+  margin:0;
+  color:#75818c;
+}
+.subscription-payment-points{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+.subscription-payment-points span{
+  padding:7px 9px;
+  border-radius:999px;
+  background:#f5f7fa;
+  border:1px solid #e4e9ef;
+  font-size:11px;
+  font-weight:700;
+}
+.subscription-checkout-plan,
+.subscription-checkout-total{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  border:1px solid #e5eaf0;
+  border-radius:13px;
+  padding:12px 13px;
+  margin:12px 0;
+  background:#fafbfd;
+}
+.subscription-checkout-plan span,
+.subscription-checkout-total span{
+  color:#77838e;
+  font-size:12px;
+}
+.subscription-checkout-plan strong,
+.subscription-checkout-total strong{
+  font-size:18px;
+}
+.subscription-payment-note{
+  display:block;
+  margin-top:10px;
+  color:#7c8893;
+  line-height:1.45;
+}
+@media(max-width:980px){
+  .subscription-plans{grid-template-columns:1fr}
+  .subscription-current{align-items:flex-start;flex-direction:column}
+  .subscription-usage{width:100%;grid-template-columns:1fr 1fr}
+  .subscription-payment-info{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .subscription-usage{grid-template-columns:1fr 1fr}
+  .subscription-plan-card{padding:16px}
+}
