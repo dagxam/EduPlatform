@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/yookassa-integration
   workflow_dispatch:
 
 jobs:
@@ -30,10 +31,14 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo_sqlite, pdo_mysql, zip
+          extensions: pdo_sqlite, pdo_mysql, zip, curl
 
       - name: Validate PHP
-        run: find api -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: |
+          find api -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l requisites.php
+          php -l pricing.php
+          php -l offer.php
 
       - name: Validate JavaScript
         run: |
@@ -92,6 +97,15 @@ jobs:
       - name: Validate teacher and student UX stage 2
         run: php .github/tests/teacher-student-ux-smoke.php
 
+      - name: Validate subscription stage 1
+        run: php .github/tests/subscription-stage1-smoke.php
+
+      - name: Validate admin subscription grants
+        run: php .github/tests/admin-subscription-grant-smoke.php
+
+      - name: Validate YooKassa integration
+        run: php .github/tests/yookassa-integration-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 
@@ -137,6 +151,8 @@ jobs:
             storage/backups/**
             storage/db-config.php
             storage/db-config.php.tmp
+            storage/yookassa-config.php
+            storage/yookassa-config.php.tmp
             storage/maintenance.flag
             storage/.mysql-migration.lock
             storage/mysql-migration.json
