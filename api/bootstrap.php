@@ -502,7 +502,7 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
             CONSTRAINT fk_subscription_admin_grants_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             CONSTRAINT fk_subscription_admin_grants_admin FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );}
+    );
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS site_legal_profile (
@@ -528,6 +528,9 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
          VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru')
          ON DUPLICATE KEY UPDATE id = VALUES(id)"
     );
+
+    mysql_add_column_if_missing($pdo, 'payment_orders', 'customer_email', 'VARCHAR(191) NULL');
+}
 
 function automatic_backup_allowed_for_request(): bool
 {
