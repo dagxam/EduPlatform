@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=90">
+  <link rel="stylesheet" href="styles.css?v=91">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -922,7 +922,7 @@
             </div>
             <span class="status blue" id="yookassaConnectionBadge">Проверяем подключение</span>
           </div>
-          <p class="panel-note">Эти данные публикуются на странице <b>urovia.ru/requisites.php</b> и используются для проверки сайта ЮKassa. Указывайте только реальные сведения владельца сервиса.</p>
+          <p class="panel-note">Эти данные публикуются на странице <b>urovia.ru/requisites.php</b> и используются для проверки сайта ЮKassa. Для самозанятого обязательны Ф.И.О., ИНН, телефон, почтовый адрес и email. Указывайте только реальные сведения владельца сервиса.</p>
           <form id="legalProfileForm" class="profile-form legal-profile-form">
             <label>Статус
               <select id="legalEntityType" name="entity_type">
@@ -944,18 +944,18 @@
                 <input id="legalOgrn" name="ogrn" placeholder="Для ИП/организации, если применимо">
               </label>
               <label>Телефон
-                <input id="legalPhone" name="phone" type="tel" placeholder="+7 ...">
+                <input id="legalPhone" name="phone" type="tel" autocomplete="tel" placeholder="+7 ..." required>
               </label>
             </div>
             <label>Юридический / фактический адрес
               <input id="legalAddress" name="legal_address" placeholder="Адрес для публикации">
             </label>
             <label>Почтовый адрес
-              <input id="legalPostalAddress" name="postal_address" placeholder="Если отличается">
+              <input id="legalPostalAddress" name="postal_address" autocomplete="street-address" placeholder="Индекс, регион, населённый пункт, улица, дом" required>
             </label>
             <div class="form-row">
               <label>Email
-                <input id="legalEmail" name="email" type="email" value="info@urovia.ru">
+                <input id="legalEmail" name="email" type="email" autocomplete="email" value="info@urovia.ru" required>
               </label>
               <label>Email поддержки
                 <input id="legalSupportEmail" name="support_email" type="email" value="info@urovia.ru">
@@ -971,6 +971,7 @@
               <a class="secondary-btn" href="requisites.php" target="_blank" rel="noopener">Открыть реквизиты</a>
               <a class="secondary-btn" href="offer.php" target="_blank" rel="noopener">Открыть оферту</a>
               <a class="secondary-btn" href="pricing.php" target="_blank" rel="noopener">Открыть тарифы</a>
+              <a class="secondary-btn" href="payment-info.php" target="_blank" rel="noopener">Оплата и получение услуги</a>
             </div>
             <small class="field-help" id="yookassaWebhookHint">Webhook: https://urovia.ru/api/subscription/yookassa-webhook.php</small>
           </form>
@@ -1764,7 +1765,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=89"></script>
+  <script src="app.js?v=90"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=47"></script>
 </body>
