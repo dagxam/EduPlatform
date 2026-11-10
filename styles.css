@@ -10362,3 +10362,18 @@ body.student-session .assignment-author-only {
 @media(max-width:640px){
   .yookassa-endpoints>div{grid-template-columns:1fr}
 }
+
+
+/* YooKassa payment journal */
+.yookassa-payments-panel{margin-top:20px}
+.yookassa-payments-table td{vertical-align:top}
+.yookassa-payments-table td b,
+.yookassa-payments-table td small{display:block}
+.yookassa-payments-table td small{margin-top:4px;color:#7f8a95;max-width:240px;overflow-wrap:anywhere}
+.subscription-current-actions{margin-top:10px}
+@media(max-width:820px){
+  .yookassa-payments-table thead{display:none}
+  .yookassa-payments-table,.yookassa-payments-table tbody,.yookassa-payments-table tr,.yookassa-payments-table td{display:block;width:100%}
+  .yookassa-payments-table tr{border:1px solid #e5eaf0;border-radius:14px;padding:12px;margin-bottom:10px}
+  .yookassa-payments-table td{border:0;padding:6px 0}
+}
