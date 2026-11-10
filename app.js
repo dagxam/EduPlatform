@@ -3002,9 +3002,11 @@ async function loadTeacherDashboard() {
       }).join('') : '<div class="dashboard-empty"><b>Классов пока нет</b><span>Создайте класс или назначьте его учителю.</span></div>';
 
       classes.querySelectorAll('[data-dashboard-class]').forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
           showView('classes');
-          loadClasses();
+          await loadClasses();
+          const item = classesCache.find(row => Number(row.id) === Number(button.dataset.dashboardClass));
+          if (item) openClassDetails(item);
         });
       });
     }
