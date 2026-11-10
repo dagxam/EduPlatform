@@ -308,3 +308,70 @@ body{min-height:100vh;min-height:100dvh;-webkit-text-size-adjust:100%}
 .auth-panel>footer a{
   color:inherit;
 }
+
+
+/* Public commercial information for YooKassa moderation */
+.public-commerce{
+  position:relative;
+  z-index:1;
+  margin-top:22px;
+  padding:16px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:16px;
+  background:rgba(8,27,55,.22);
+  backdrop-filter:blur(4px);
+}
+.public-commerce>span{
+  display:block;
+  margin-bottom:6px;
+  color:#fff;
+  font-size:12px;
+  font-weight:850;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+}
+.public-commerce p{
+  margin:0 0 12px;
+  color:#d5e2f3;
+  font-size:13px;
+  line-height:1.5;
+}
+.public-commerce-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.public-commerce-links a{
+  display:inline-flex;
+  align-items:center;
+  min-height:36px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:10px;
+  color:#fff;
+  background:rgba(255,255,255,.08);
+  text-decoration:none;
+  font-size:12px;
+  font-weight:800;
+}
+.public-commerce-links a:hover{
+  background:rgba(255,255,255,.16);
+}
+.auth-panel footer{
+  max-width:560px;
+  line-height:1.6;
+  text-align:center;
+}
+.auth-panel footer a{
+  color:#6f7e8e;
+  text-underline-offset:2px;
+}
+@media(max-width:900px){
+  .public-commerce{margin-top:18px}
+}
+@media(max-width:600px){
+  .public-commerce{margin-top:14px;padding:13px}
+  .public-commerce p{font-size:12px}
+  .public-commerce-links{display:grid;grid-template-columns:1fr 1fr}
+  .public-commerce-links a{justify-content:center;text-align:center}
+}

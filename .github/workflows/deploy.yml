@@ -38,6 +38,7 @@ jobs:
           php -l requisites.php
           php -l pricing.php
           php -l offer.php
+          php -l payment-info.php
 
       - name: Validate JavaScript
         run: |
