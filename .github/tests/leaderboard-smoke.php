@@ -15,7 +15,9 @@ $checks = [
     'student leaderboard returns five places' => "LIMIT 5",
     'class leaderboard returns five places' => "array_slice(\$classLeaders, 0, 5)",
     'school leaderboard returns five places' => "array_slice(\$schoolLeaders, 0, 5)",
-    'student ranking uses cumulative final percent' => "ORDER BY final_percent DESC",
+    'student ranking prioritizes completed works and correct answers' => "ORDER BY works_count DESC, correct_answers_count DESC, final_percent DESC",
+    'student leaderboard counts correct answers' => 'AS correct_answers_count',
+    'student leaderboard counts checked answers' => 'AS checked_answers_count',
     'student leaderboard sums earned points' => 'SUM({$effectiveScoreSql}) AS total_score',
     'student leaderboard sums maximum points' => "SUM(COALESCE(at.max_score, 0)) AS total_max_score",
     'student leaderboard exposes final percent' => "'final_percent' => \$finalPercent",
@@ -40,14 +42,17 @@ if (!str_contains($app, 'items.slice(0,5)')) {
 
 if (!str_contains($app, 'item.final_percent')
     || !str_contains($app, 'item.final_grade')
+    || !str_contains($app, 'item.correct_answers_count')
+    || !str_contains($app, 'item.checked_answers_count')
     || !str_contains($app, 'item.total_score')
     || !str_contains($app, 'item.total_max_score')
+    || !str_contains($app, 'Правильных ответов:')
     || !str_contains($app, 'Итого:')) {
     fwrite(STDERR, "Leaderboard smoke failed: cumulative student result is not rendered.\n");
     exit(1);
 }
 
-if (!str_contains($index, 'суммарные баллы переводятся в общий процент и итоговую оценку')) {
+if (!str_contains($index, 'сначала больше выполненных работ, затем больше правильных ответов')) {
     fwrite(STDERR, "Leaderboard smoke failed: cumulative student leaderboard explanation is missing.\n");
     exit(1);
 }
