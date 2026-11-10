@@ -24,3 +24,6 @@ storage/.mysql-migration.lock
 storage/mysql-migration.json
 storage/mysql-migration-private.pem
 storage/mysql-machine-migration.done
+
+storage/yookassa-config.php
+storage/yookassa-config.php.tmp

@@ -541,6 +541,9 @@ CREATE TABLE IF NOT EXISTS payment_orders (
   currency CHAR(3) NOT NULL DEFAULT 'RUB',
   provider VARCHAR(64) NOT NULL,
   provider_payment_id VARCHAR(191) NULL,
+  customer_email VARCHAR(191) NULL,
+  receipt_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+  receipt_reference VARCHAR(500) NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'created',
   idempotence_key CHAR(64) NOT NULL,
   checkout_url TEXT NULL,
@@ -567,5 +570,28 @@ CREATE TABLE IF NOT EXISTS subscription_admin_grants (
   CONSTRAINT fk_subscription_admin_grants_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_subscription_admin_grants_admin FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS site_legal_profile (
+  id TINYINT UNSIGNED NOT NULL,
+  entity_type VARCHAR(32) NOT NULL DEFAULT 'self_employed',
+  legal_name VARCHAR(255) NULL,
+  inn VARCHAR(32) NULL,
+  ogrn VARCHAR(32) NULL,
+  legal_address VARCHAR(500) NULL,
+  postal_address VARCHAR(500) NULL,
+  phone VARCHAR(64) NULL,
+  email VARCHAR(191) NULL,
+  support_email VARCHAR(191) NULL,
+  tax_note VARCHAR(500) NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_site_legal_profile_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO site_legal_profile (id, entity_type, email, support_email)
+VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru')
+ON DUPLICATE KEY UPDATE id = VALUES(id);
 
 SET FOREIGN_KEY_CHECKS=1;

@@ -4522,6 +4522,36 @@ function renderSubscriptionPage(data) {
   if (currentPlanNode) currentPlanNode.textContent = currentPlan.name || 'Базовый';
   if (currentStatusNode) currentStatusNode.textContent = subscriptionStatusText(data);
 
+  const currentActions = document.getElementById('subscriptionCurrentActions');
+  if (currentActions) {
+    currentActions.innerHTML = current.auto_renew
+      ? '<button class="secondary-btn compact-btn" type="button" data-cancel-auto-renew>Отключить автопродление</button>'
+      : '';
+    currentActions.querySelector('[data-cancel-auto-renew]')?.addEventListener('click', async () => {
+      if (!(await appConfirm('Отключить автоматическое продление подписки? Текущий оплаченный период останется активным до даты окончания.', {
+        title: 'Автопродление',
+        okText: 'Отключить'
+      }))) return;
+      try {
+        const response = await fetch('./api/subscription/cancel-auto-renew.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        const result = await readJsonResponse(response, 'Не удалось отключить автопродление.');
+        if (!response.ok || result.ok === false) throw new Error(result.error || 'Не удалось отключить автопродление.');
+        await loadSubscriptionPage();
+        await appAlert(result.message || 'Автопродление отключено.', {
+          title: 'Автопродление',
+          tone: 'success'
+        });
+      } catch (error) {
+        await appAlert(error.message, { title: 'Автопродление', tone: 'danger' });
+      }
+    });
+  }
+
   const usage = data?.usage || {};
   const usageNode = document.getElementById('subscriptionUsage');
   if (usageNode) {
@@ -4574,6 +4604,281 @@ function renderSubscriptionPage(data) {
   });
 }
 
+let yookassaPaymentsCache = [];
+
+function yookassaPaymentStatusLabel(status) {
+  const map = {
+    created: ['Создан', 'blue'],
+    pending: ['Ожидает', 'blue'],
+    succeeded: ['Оплачен', 'green'],
+    cancelled: ['Отменён', 'gray'],
+    refunded: ['Возвращён', 'gray'],
+    failed: ['Ошибка', 'red']
+  };
+  return map[String(status || '')] || [String(status || '—'), 'gray'];
+}
+
+function yookassaReceiptStatusLabel(status) {
+  const map = {
+    pending: ['Ожидает чека', 'blue'],
+    issued: ['Чек выдан', 'green'],
+    not_required: ['Не требуется', 'gray']
+  };
+  return map[String(status || '')] || ['Ожидает чека', 'blue'];
+}
+
+async function loadYooKassaPayments() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return [];
+  const body = document.getElementById('yookassaPaymentsBody');
+  if (!body) return [];
+  body.innerHTML = '<tr><td colspan="7">Загрузка...</td></tr>';
+
+  try {
+    const response = await fetch('./api/admin/payments/list.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить платежи.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить платежи.');
+    yookassaPaymentsCache = Array.isArray(data.payments) ? data.payments : [];
+
+    body.innerHTML = yookassaPaymentsCache.length ? yookassaPaymentsCache.map(item => {
+      const [statusText, statusClass] = yookassaPaymentStatusLabel(item.status);
+      const [receiptText, receiptClass] = yookassaReceiptStatusLabel(item.receipt_status);
+      const name = [item.last_name, item.first_name].filter(Boolean).join(' ');
+      const paidAt = item.paid_at || item.created_at;
+      const email = item.customer_email || item.account_email || '';
+      return `
+        <tr>
+          <td><b>#${Number(item.id)}</b><small>${escapeHtml(historyDateTime(paidAt))}</small></td>
+          <td><b>${escapeHtml(name || 'Пользователь')}</b><small>${escapeHtml(email)}</small></td>
+          <td>${escapeHtml(String(item.plan_code || '').toUpperCase())}<small>${item.billing_period === 'year' ? 'год' : 'месяц'}</small></td>
+          <td><b>${escapeHtml(subscriptionMoney(Number(item.amount_minor || 0)))}</b></td>
+          <td><span class="status ${statusClass}">${escapeHtml(statusText)}</span></td>
+          <td><span class="status ${receiptClass}">${escapeHtml(receiptText)}</span>${item.receipt_reference ? '<small>' + escapeHtml(item.receipt_reference) + '</small>' : ''}</td>
+          <td class="row-actions-cell"><button class="secondary-btn compact-btn" type="button" data-edit-payment-receipt="${Number(item.id)}">Чек</button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="7">Платежей пока нет.</td></tr>';
+
+    body.querySelectorAll('[data-edit-payment-receipt]').forEach(button => {
+      button.addEventListener('click', () => openPaymentReceiptEditor(Number(button.dataset.editPaymentReceipt)));
+    });
+    return yookassaPaymentsCache;
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
+    return [];
+  }
+}
+
+function openPaymentReceiptEditor(orderId) {
+  const item = yookassaPaymentsCache.find(row => Number(row.id) === Number(orderId));
+  const modal = document.getElementById('paymentReceiptModal');
+  if (!item || !modal) return;
+
+  document.getElementById('paymentReceiptOrderId').value = String(item.id);
+  document.getElementById('paymentReceiptStatus').value = item.receipt_status || 'pending';
+  document.getElementById('paymentReceiptReference').value = item.receipt_reference || '';
+  document.getElementById('paymentReceiptMeta').textContent =
+    '#' + Number(item.id) + ' · ' + subscriptionMoney(Number(item.amount_minor || 0)) +
+    ' · ' + (item.customer_email || item.account_email || 'email не указан');
+  const error = document.getElementById('paymentReceiptError');
+  if (error) {
+    error.textContent = '';
+    error.classList.add('hidden');
+  }
+  openModal(modal);
+}
+
+document.getElementById('paymentReceiptForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('paymentReceiptError');
+  if (error) error.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/admin/payments/mark-receipt.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_order_id: Number(document.getElementById('paymentReceiptOrderId').value || 0),
+        receipt_status: document.getElementById('paymentReceiptStatus').value,
+        receipt_reference: document.getElementById('paymentReceiptReference').value
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить статус чека.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить статус чека.');
+    closeModal(document.getElementById('paymentReceiptModal'));
+    await loadYooKassaPayments();
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить статус чека';
+  }
+});
+
+document.getElementById('refreshYooKassaPaymentsBtn')?.addEventListener('click', () => {
+  loadYooKassaPayments().catch(() => {});
+});
+
+async function loadYooKassaAdminConfig() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return null;
+  const response = await fetch('./api/admin/yookassa/get.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить настройки ЮKassa.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки ЮKassa.');
+
+  const config = data.config || {};
+  const shop = document.getElementById('yookassaShopId');
+  const secret = document.getElementById('yookassaSecretKey');
+  const test = document.getElementById('yookassaTestMode');
+  const webhook = document.getElementById('yookassaWebhookUrl');
+  const returnUrl = document.getElementById('yookassaReturnUrl');
+
+  if (shop) shop.value = config.shop_id || '';
+  if (secret) {
+    secret.value = '';
+    secret.placeholder = config.secret_configured
+      ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
+      : 'Вставьте секретный ключ ЮKassa';
+  }
+  if (test) test.checked = Boolean(config.test_mode);
+  if (webhook) webhook.textContent = config.webhook_url || 'https://urovia.ru/api/subscription/yookassa-webhook.php';
+  if (returnUrl) returnUrl.textContent = config.return_url || 'https://urovia.ru/payment-return.html';
+  return config;
+}
+
+document.getElementById('yookassaConfigForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('yookassaConfigError');
+  const result = document.getElementById('yookassaConfigResult');
+  if (error) error.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/admin/yookassa/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shop_id: document.getElementById('yookassaShopId').value,
+        secret_key: document.getElementById('yookassaSecretKey').value,
+        test_mode: Boolean(document.getElementById('yookassaTestMode').checked)
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить подключение ЮKassa.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить подключение ЮKassa.');
+    if (result) {
+      result.textContent = data.message || 'ЮKassa настроена.';
+      result.classList.remove('hidden');
+    }
+    await loadYooKassaAdminConfig();
+    await loadSubscriptionPage();
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить подключение ЮKassa';
+  }
+});
+
+async function loadLegalProfile() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return null;
+  const response = await fetch('./api/admin/legal/get.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить реквизиты.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить реквизиты.');
+
+  const profile = data.profile || {};
+  const values = {
+    legalEntityType: profile.entity_type || 'self_employed',
+    legalName: profile.legal_name || '',
+    legalInn: profile.inn || '',
+    legalOgrn: profile.ogrn || '',
+    legalAddress: profile.legal_address || '',
+    legalPostalAddress: profile.postal_address || '',
+    legalPhone: profile.phone || '',
+    legalEmail: profile.email || 'info@urovia.ru',
+    legalSupportEmail: profile.support_email || 'info@urovia.ru',
+    legalTaxNote: profile.tax_note || ''
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const node = document.getElementById(id);
+    if (node) node.value = String(value);
+  });
+  return profile;
+}
+
+document.getElementById('legalProfileForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('legalProfileError');
+  const result = document.getElementById('legalProfileResult');
+  if (error) error.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const payload = {
+      entity_type: document.getElementById('legalEntityType').value,
+      legal_name: document.getElementById('legalName').value,
+      inn: document.getElementById('legalInn').value,
+      ogrn: document.getElementById('legalOgrn').value,
+      legal_address: document.getElementById('legalAddress').value,
+      postal_address: document.getElementById('legalPostalAddress').value,
+      phone: document.getElementById('legalPhone').value,
+      email: document.getElementById('legalEmail').value,
+      support_email: document.getElementById('legalSupportEmail').value,
+      tax_note: document.getElementById('legalTaxNote').value
+    };
+    const response = await fetch('./api/admin/legal/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить реквизиты.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить реквизиты.');
+    if (result) {
+      result.textContent = data.message || 'Реквизиты сохранены.';
+      result.classList.remove('hidden');
+    }
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить реквизиты';
+  }
+});
+
 async function loadSubscriptionPage() {
   const response = await fetch('./api/subscription/status.php', {
     credentials: 'same-origin',
@@ -4582,6 +4887,26 @@ async function loadSubscriptionPage() {
   const data = await readJsonResponse(response, 'Не удалось загрузить тарифы.');
   if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить тарифы.');
   renderSubscriptionPage(data);
+
+  const badge = document.getElementById('yookassaConnectionBadge');
+  const hint = document.getElementById('yookassaWebhookHint');
+  if (badge) {
+    badge.textContent = data?.payment?.configured
+      ? (data?.payment?.test_mode ? 'ЮKassa · тестовый режим' : 'ЮKassa · подключена')
+      : 'ЮKassa · ждём shopId';
+    badge.classList.toggle('green', Boolean(data?.payment?.configured));
+    badge.classList.toggle('blue', !data?.payment?.configured);
+  }
+  if (hint && data?.payment?.webhook_url) {
+    hint.textContent = 'Webhook ЮKassa: ' + data.payment.webhook_url;
+  }
+  if (Number(currentUser?.is_platform_admin) === 1) {
+    await Promise.all([
+      loadLegalProfile().catch(() => null),
+      loadYooKassaAdminConfig().catch(() => null),
+      loadYooKassaPayments().catch(() => [])
+    ]);
+  }
   return data;
 }
 
@@ -4616,6 +4941,12 @@ function openSubscriptionPayment(planCode) {
   const plans = Array.isArray(data?.plans) ? data.plans : [];
   const plan = plans.find(item => String(item.code) === String(planCode));
   if (!plan || !subscriptionPaymentModal) return;
+  if (!data?.payment?.configured) {
+    void appAlert('ЮKassa ещё не подключена. Главному администратору нужно завершить регистрацию магазина и добавить shopId и секретный ключ на сервер.', {
+      title: 'Оплата через ЮKassa'
+    });
+    return;
+  }
 
   document.getElementById('subscriptionPaymentPlan').value = String(plan.code);
   document.getElementById('subscriptionPaymentPlanName').textContent = String(plan.name || plan.code);

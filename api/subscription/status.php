@@ -10,8 +10,8 @@ $state = subscription_effective_state($pdo, $user);
 $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
 $plans = subscription_plan_catalog();
 
-$providerConfigured = trim((string)(getenv('YOO_KASSA_SHOP_ID') ?: '')) !== ''
-    && trim((string)(getenv('YOO_KASSA_SECRET_KEY') ?: '')) !== '';
+$providerConfigured = yookassa_is_configured();
+$config = yookassa_config();
 
 json_response([
     'ok' => true,
@@ -23,10 +23,12 @@ json_response([
     'payment' => [
         'provider' => 'yookassa',
         'configured' => $providerConfigured,
-        'live_checkout_enabled' => false,
+        'live_checkout_enabled' => $providerConfigured,
+        'test_mode' => (bool)$config['test_mode'],
+        'webhook_url' => uvoria_app_url() . '/api/subscription/yookassa-webhook.php',
         'message' => $providerConfigured
-            ? 'Платёжный провайдер настроен. Боевой checkout будет включён отдельным этапом после проверки webhook и чеков.'
-            : 'Для приёма оплаты нужно добавить реквизиты ЮKassa в переменные окружения.',
+            ? ((bool)$config['test_mode'] ? 'ЮKassa подключена в тестовом режиме.' : 'ЮKassa подключена.')
+            : 'Для приёма оплаты добавьте shopId и секретный ключ ЮKassa на сервере.',
     ],
-    'stage' => 'preview',
+    'stage' => $providerConfigured ? 'connected' : 'awaiting_credentials',
 ]);
