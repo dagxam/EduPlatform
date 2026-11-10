@@ -379,8 +379,14 @@
 
         <div class="panel library-filter-panel">
           <div class="filters library-filters">
-            <input class="search" id="librarySearch" type="search" placeholder="Название, предмет или школа">
+            <input class="search" id="librarySearch" type="search" placeholder="Название, тема, автор или школа">
             <select id="librarySubjectFilter"><option value="">Все предметы</option></select>
+            <select id="libraryClassFilter"><option value="">Все классы</option></select>
+            <select id="librarySort" aria-label="Сортировка материалов">
+              <option value="newest">Сначала новые</option>
+              <option value="popular">Сначала популярные</option>
+              <option value="questions">Больше вопросов</option>
+            </select>
           </div>
         </div>
 

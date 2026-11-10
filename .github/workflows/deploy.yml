@@ -86,6 +86,9 @@ jobs:
       - name: Validate per-student shuffled variants
         run: php .github/tests/student-variant-shuffle-smoke.php
 
+      - name: Validate UROVIA library UX
+        run: php .github/tests/library-ux-smoke.php
+
       - name: Validate stale attempt recovery
         run: php .github/tests/stale-attempt-recovery-smoke.php
 
@@ -103,6 +106,7 @@ jobs:
         run: php .github/tests/mysql-concurrency-smoke.php
 
       - name: Upload site over FTP
+        if: github.ref == 'refs/heads/main'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: 188.127.241.85

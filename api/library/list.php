@@ -12,7 +12,7 @@ $params = ['school_id' => $schoolId];
 $where = ['li.status = "published"'];
 
 if ($q !== '') {
-    $where[] = '(li.title_snapshot LIKE :q OR COALESCE(li.description_snapshot, "") LIKE :q OR s.name LIKE :q OR sch.name LIKE :q)';
+    $where[] = '(li.title_snapshot LIKE :q OR COALESCE(li.description_snapshot, "") LIKE :q OR s.name LIKE :q OR sch.name LIKE :q OR COALESCE(u.first_name, "") LIKE :q OR COALESCE(u.last_name, "") LIKE :q)';
     $params['q'] = '%' . $q . '%';
 }
 if ($subjectId > 0) {
@@ -27,10 +27,29 @@ $stmt = $pdo->prepare(
             sch.name AS school_name, sch.city AS school_city,
             s.name AS subject_name,
             u.first_name AS author_first_name, u.last_name AS author_last_name,
+            a.time_limit_minutes,
+            COALESCE((
+                SELECT GROUP_CONCAT(DISTINCT COALESCE(c.display_name, c.name))
+                FROM assignment_classes ac
+                JOIN classes c ON c.id = ac.class_id
+                WHERE ac.assignment_id = li.source_assignment_id
+            ), "") AS class_names,
+            (
+                SELECT COUNT(*)
+                FROM library_imports usage_rows
+                WHERE usage_rows.library_item_id = li.id
+            ) AS usage_count,
+            (
+                SELECT COUNT(*)
+                FROM library_items author_rows
+                WHERE author_rows.submitted_by = li.submitted_by
+                  AND author_rows.status = "published"
+            ) AS author_materials_count,
             CASE WHEN imp.id IS NULL THEN 0 ELSE 1 END AS imported,
             imp.target_assignment_id
      FROM library_items li
      JOIN schools sch ON sch.id = li.source_school_id
+     JOIN assignments a ON a.id = li.source_assignment_id
      LEFT JOIN subjects s ON s.id = li.subject_id
      LEFT JOIN users u ON u.id = li.submitted_by
      LEFT JOIN library_imports imp
@@ -60,5 +79,6 @@ json_response([
     'items' => $items,
     'own_items' => $ownStmt->fetchAll(),
     'can_manage' => can_manage_school($user, $schoolId),
+    'can_import' => can_manage_school($user, $schoolId) || can_teach_school($user, $schoolId),
     'active_school_id' => $schoolId,
 ]);

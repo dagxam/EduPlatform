@@ -3,12 +3,15 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/materials/_copy.php';
 
-$user = require_user(['admin']);
+$user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
 
-$targetSchoolId = require_active_school($user, true);
+$targetSchoolId = require_active_school($user, false);
+if (!can_manage_school($user, $targetSchoolId) && !can_teach_school($user, $targetSchoolId)) {
+    json_response(['ok' => false, 'error' => 'Недостаточно прав для добавления материалов в эту школу.'], 403);
+}
 $data = read_json_body();
 $itemId = (int)($data['item_id'] ?? 0);
 if ($itemId < 1) {
@@ -56,7 +59,9 @@ $assignment = $row;
 $assignment['id'] = (int)$row['library_source_assignment_id'];
 $assignment['school_id'] = $sourceSchoolId;
 
-$targetOwnerId = material_target_owner_id($pdo, $targetSchoolId, (int)$user['id']);
+$targetOwnerId = can_manage_school($user, $targetSchoolId)
+    ? material_target_owner_id($pdo, $targetSchoolId, (int)$user['id'])
+    : (int)$user['id'];
 $copiedFiles = [];
 
 $pdo->beginTransaction();
