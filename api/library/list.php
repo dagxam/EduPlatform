@@ -8,7 +8,11 @@ $pdo = app_db();
 
 $q = trim((string)($_GET['q'] ?? ''));
 $subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
-$params = ['school_id' => $schoolId, 'current_user_id' => (int)$user['id']];
+$params = [
+    'school_id' => $schoolId,
+    'current_user_like_id' => (int)$user['id'],
+    'current_user_rating_id' => (int)$user['id'],
+];
 $where = ['li.status = "published"'];
 
 if ($q !== '') {
@@ -64,13 +68,13 @@ $stmt = $pdo->prepare(
             (
                 SELECT lr.liked
                 FROM library_reactions lr
-                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_id
+                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_like_id
                 LIMIT 1
             ) AS user_liked,
             (
                 SELECT lr.rating
                 FROM library_reactions lr
-                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_id
+                WHERE lr.library_item_id = li.id AND lr.user_id = :current_user_rating_id
                 LIMIT 1
             ) AS user_rating,
             CASE WHEN imp.id IS NULL THEN 0 ELSE 1 END AS imported,
