@@ -6420,8 +6420,148 @@ document.getElementById('gradeScaleSettingsForm')?.addEventListener('submit', as
   }
 });
 
+
+let adminSubscriptionStaffCache = [];
+
+function adminSubscriptionRoleLabel(item) {
+  const schoolRole = String(item?.school_role || '');
+  const teaches = Number(item?.can_teach || 0) === 1;
+  if (schoolRole === 'owner') return teaches ? 'Владелец · Учитель' : 'Владелец';
+  if (schoolRole === 'school_admin') return teaches ? 'Администратор · Учитель' : 'Администратор';
+  return teaches ? 'Учитель' : (roleLabels[item?.role] || 'Сотрудник');
+}
+
+function adminSubscriptionEndLabel(value) {
+  if (!value) return 'Бессрочно';
+  return historyDateTime(value);
+}
+
+async function loadAdminSubscriptionGrants() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const body = document.getElementById('adminSubscriptionsBody');
+  if (!body) return;
+  body.innerHTML = '<tr><td colspan="5">Загрузка...</td></tr>';
+
+  try {
+    const response = await fetch('./api/admin/subscriptions/list.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить подписки сотрудников.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить подписки сотрудников.');
+
+    adminSubscriptionStaffCache = Array.isArray(data.staff) ? data.staff : [];
+    body.innerHTML = adminSubscriptionStaffCache.length ? adminSubscriptionStaffCache.map(item => {
+      const hasGrant = Boolean(item.grant_plan_code);
+      const grantName = item.grant_plan_code === 'premium' ? 'Premium' : item.grant_plan_code === 'pro' ? 'PRO' : 'Нет';
+      const effectiveName = item.effective_plan_name || 'Базовый';
+      return `
+        <tr>
+          <td>
+            <b>${escapeHtml(item.last_name || '')} ${escapeHtml(item.first_name || '')}</b>
+            <small>${escapeHtml(item.email || '')}</small>
+          </td>
+          <td><span class="status blue">${escapeHtml(adminSubscriptionRoleLabel(item))}</span></td>
+          <td>
+            <b class="admin-subscription-plan">${escapeHtml(effectiveName)}</b>
+            <small>${item.effective_ends_at ? 'до ' + escapeHtml(adminSubscriptionEndLabel(item.effective_ends_at)) : (item.effective_status === 'admin_grant' ? 'бессрочно' : escapeHtml(item.effective_status || ''))}</small>
+          </td>
+          <td>
+            ${hasGrant
+              ? '<span class="status green">' + escapeHtml(grantName) + '</span><small>' + (item.grant_ends_at ? 'до ' + escapeHtml(adminSubscriptionEndLabel(item.grant_ends_at)) : 'бессрочно') + '</small>'
+              : '<span class="profile-empty-value">Не назначен</span>'}
+          </td>
+          <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-admin-subscription-user="${Number(item.id)}">${hasGrant ? 'Изменить' : 'Назначить'}</button>
+          </td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="5">В выбранной школе нет сотрудников.</td></tr>';
+
+    body.querySelectorAll('[data-admin-subscription-user]').forEach(button => {
+      button.addEventListener('click', () => openAdminSubscriptionGrant(Number(button.dataset.adminSubscriptionUser)));
+    });
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="5">' + escapeHtml(error.message) + '</td></tr>';
+  }
+}
+
+function openAdminSubscriptionGrant(userId) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  const item = adminSubscriptionStaffCache.find(row => Number(row.id) === Number(userId));
+  const modal = document.getElementById('adminSubscriptionModal');
+  if (!item || !modal) return;
+
+  document.getElementById('adminSubscriptionUserId').value = String(item.id);
+  document.getElementById('adminSubscriptionPerson').textContent =
+    [item.last_name, item.first_name].filter(Boolean).join(' ') + ' · ' + adminSubscriptionRoleLabel(item);
+  document.getElementById('adminSubscriptionPlan').value = item.grant_plan_code || 'pro';
+  document.getElementById('adminSubscriptionDuration').value = '30';
+  document.getElementById('adminSubscriptionNote').value = item.grant_note || '';
+  const error = document.getElementById('adminSubscriptionError');
+  if (error) {
+    error.textContent = '';
+    error.classList.add('hidden');
+  }
+  openModal(modal);
+}
+
+document.getElementById('refreshAdminSubscriptionsBtn')?.addEventListener('click', () => {
+  loadAdminSubscriptionGrants().catch(() => {});
+});
+
+document.getElementById('adminSubscriptionForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('adminSubscriptionError');
+  const payload = {
+    user_id: Number(document.getElementById('adminSubscriptionUserId').value || 0),
+    plan_code: document.getElementById('adminSubscriptionPlan').value,
+    duration: document.getElementById('adminSubscriptionDuration').value,
+    note: document.getElementById('adminSubscriptionNote').value
+  };
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  if (error) error.classList.add('hidden');
+
+  try {
+    const response = await fetch('./api/admin/subscriptions/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось назначить подписку.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось назначить подписку.');
+
+    closeModal(document.getElementById('adminSubscriptionModal'));
+    await loadAdminSubscriptionGrants();
+    await appAlert(data.message || 'Подписка обновлена.', {
+      title: 'Подписка сотрудника',
+      tone: 'success'
+    });
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить подписку';
+  }
+});
+
+document.getElementById('adminSubscriptionPlan')?.addEventListener('change', event => {
+  const duration = document.getElementById('adminSubscriptionDuration');
+  if (duration) duration.disabled = event.currentTarget.value === 'basic';
+});
+
 async function loadSchoolManagement() {
   if (currentUser?.role !== 'admin') return;
+  if (Number(currentUser?.is_platform_admin) === 1) loadAdminSubscriptionGrants().catch(() => {});
   loadAssignmentReviewSettings().catch(() => {});
   loadIncomingMaterials().catch(() => {});
   const subjectList = document.getElementById('schoolSubjectsList');

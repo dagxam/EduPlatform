@@ -519,3 +519,20 @@ CREATE TABLE IF NOT EXISTS payment_orders (
 
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user
     ON payment_orders(user_id, created_at);
+
+
+CREATE TABLE IF NOT EXISTS subscription_admin_grants (
+    user_id INTEGER PRIMARY KEY,
+    plan_code TEXT NOT NULL CHECK (plan_code IN ('pro', 'premium')),
+    starts_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ends_at TEXT,
+    note TEXT,
+    assigned_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscription_admin_grants_end
+    ON subscription_admin_grants(ends_at);
