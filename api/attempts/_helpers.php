@@ -912,23 +912,63 @@ function variant_permutation(array $values, string $seed, int $variantIndex): ar
     return array_values($base);
 }
 
+function variant_scrambled_order(array $values, string $seed, bool $avoidOriginal = false): array
+{
+    $original = array_values($values);
+    if (count($original) <= 1) return $original;
+
+    $shuffled = deterministic_variant_order($original, $seed);
+
+    // For chronology/order questions the initial state must never accidentally
+    // equal the correct answer. If the deterministic shuffle lands on the
+    // original order, rotate it by one position.
+    if ($avoidOriginal && $shuffled === $original) {
+        $shuffled = array_merge(array_slice($shuffled, 1), array_slice($shuffled, 0, 1));
+    }
+
+    return array_values($shuffled);
+}
+
 function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
 {
-    // One canonical test per assignment. Load question and option order with
-    // two queries instead of one option query per question; this matters when
-    // hundreds of students start the same work at nearly the same time.
+    // A student's variant is deterministic for the assignment, so reconnects
+    // and retries keep the same order while neighbouring students receive a
+    // different sequence. This reduces copying without making recovery unsafe.
+    $seed = 'assignment:' . $assignmentId . '|student:' . $studentId;
+
     $stmt = $pdo->prepare(
-        'SELECT id
+        'SELECT id, type, interaction_type, settings_json
          FROM questions
          WHERE assignment_id = :assignment_id
            AND is_active = 1
          ORDER BY position, id'
     );
     $stmt->execute(['assignment_id' => $assignmentId]);
-    $questionOrder = array_map('intval', array_column($stmt->fetchAll(), 'id'));
+    $questionRows = $stmt->fetchAll();
+
+    $canonicalQuestionOrder = array_map('intval', array_column($questionRows, 'id'));
+    $questionOrder = variant_scrambled_order(
+        $canonicalQuestionOrder,
+        $seed . '|questions',
+        count($canonicalQuestionOrder) > 1
+    );
+
+    $questionMeta = [];
+    foreach ($questionRows as $row) {
+        $questionId = (int)$row['id'];
+        $interaction = (string)($row['interaction_type'] ?: $row['type']);
+        if ($interaction === 'ordering') $interaction = 'order';
+        if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
+
+        $settings = json_decode((string)($row['settings_json'] ?? ''), true);
+        $questionMeta[$questionId] = [
+            'interaction' => $interaction,
+            'settings' => is_array($settings) ? $settings : [],
+        ];
+    }
 
     $optionOrder = [];
-    if ($questionOrder) {
+    if ($canonicalQuestionOrder) {
         $stmt = $pdo->prepare(
             'SELECT qo.question_id, qo.id
              FROM question_options qo
@@ -945,14 +985,48 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
             }
             $optionOrder[$questionId][] = (int)$row['id'];
         }
+
+        foreach ($optionOrder as $questionId => $optionIds) {
+            $optionOrder[$questionId] = variant_scrambled_order(
+                $optionIds,
+                $seed . '|options:' . $questionId
+            );
+        }
     }
 
+    $structuredOrder = [];
+    foreach ($questionMeta as $questionId => $meta) {
+        $interaction = (string)$meta['interaction'];
+        $settings = (array)$meta['settings'];
+        $key = (string)$questionId;
+
+        if ($interaction === 'order' && is_array($settings['items'] ?? null)) {
+            $itemKeys = array_map('strval', array_keys($settings['items']));
+            $structuredOrder[$key] = [
+                'items' => variant_scrambled_order(
+                    $itemKeys,
+                    $seed . '|order:' . $questionId,
+                    true
+                ),
+            ];
+        } elseif ($interaction === 'matching') {
+            $left = is_array($settings['left'] ?? null) ? array_map('strval', array_keys($settings['left'])) : [];
+            $right = is_array($settings['right'] ?? null) ? array_map('strval', array_keys($settings['right'])) : [];
+            $structuredOrder[$key] = [
+                'left' => variant_scrambled_order($left, $seed . '|matching-left:' . $questionId),
+                'right' => variant_scrambled_order($right, $seed . '|matching-right:' . $questionId, count($right) > 1),
+            ];
+        }
+    }
+
+    $variantIndex = (int)(hexdec(substr(hash('sha256', $seed), 0, 8)) % 4);
+
     return [
-        'variant_index' => 0,
-        'variant_label' => '',
+        'variant_index' => $variantIndex,
+        'variant_label' => variant_label_from_index($variantIndex),
         'question_order_json' => json_encode($questionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'option_order_json' => json_encode($optionOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'structured_order_json' => json_encode([], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'structured_order_json' => json_encode($structuredOrder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ];
 }
 function decoded_json_array(?string $json): array
