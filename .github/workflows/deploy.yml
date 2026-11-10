@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/yookassa-onboarding-readiness-20261110
   workflow_dispatch:
 
 jobs:
