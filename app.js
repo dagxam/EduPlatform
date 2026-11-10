@@ -139,6 +139,7 @@ const titles = {
   assignments: ['Управление обучением', 'Задания'],
   'uvoria-library': ['Обмен опытом', 'Библиотека UROVIA'],
   'staff-profile': ['Учётная запись', 'Профиль сотрудника'],
+  subscription: ['UROVIA', 'Тариф и подписка'],
   'activity-history': ['Контроль изменений', 'История действий'],
   'system-backups': ['Защита данных', 'Резервные копии'],
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
@@ -4467,6 +4468,217 @@ document.getElementById('resultEditForm')?.addEventListener('submit', async even
 });
 document.getElementById('resultPublishBtn')?.addEventListener('click', publishResultRevision);
 
+
+let subscriptionDataCache = null;
+const subscriptionPaymentModal = document.getElementById('subscriptionPaymentModal');
+
+function subscriptionMoney(minor) {
+  const value = Number(minor || 0) / 100;
+  return value.toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
+}
+
+function subscriptionLimitText(value) {
+  return value === null || value === undefined ? 'Без ограничений' : String(Number(value));
+}
+
+function subscriptionFeatureRows(plan) {
+  const features = plan?.features || {};
+  const rows = [
+    ['Классы', subscriptionLimitText(plan.max_classes)],
+    ['Ученики', subscriptionLimitText(plan.max_students)],
+    ['Активные задания', subscriptionLimitText(plan.max_active_assignments)],
+    ['Импорт PDF / DOCX / PPTX', features.file_import ? 'Да' : 'Нет'],
+    ['Расширенная аналитика', features.advanced_analytics ? 'Да' : 'Нет'],
+    ['Экспорт результатов', features.export_results ? 'Да' : 'Нет'],
+    ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет'],
+    ['AI в месяц', Number(plan.ai_monthly_limit || 0) > 0 ? String(Number(plan.ai_monthly_limit)) : 'Нет'],
+    ['Premium AI', features.premium_ai ? 'Да' : 'Нет']
+  ];
+  return rows.map(([label, value]) =>
+    '<li><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value) + '</b></li>'
+  ).join('');
+}
+
+function subscriptionStatusText(data) {
+  const current = data?.current || {};
+  if (current.status === 'trial' && current.trial_ends_at) {
+    return 'Пробный PRO активен до ' + historyDateTime(current.trial_ends_at) + '. Банковская карта не привязана.';
+  }
+  if (current.status === 'active' && current.ends_at) {
+    return 'Подписка активна до ' + historyDateTime(current.ends_at) + (current.auto_renew ? ' · автопродление включено.' : '.');
+  }
+  if (current.status === 'expired') {
+    return 'Платный доступ закончился. Все старые задания, результаты и оценки сохранены.';
+  }
+  return 'Сейчас используется Базовый тариф. На этапе запуска существующие функции не блокируются.';
+}
+
+function renderSubscriptionPage(data) {
+  subscriptionDataCache = data;
+  const current = data?.current || {};
+  const currentPlan = current?.plan || {};
+  const currentPlanNode = document.getElementById('subscriptionCurrentPlan');
+  const currentStatusNode = document.getElementById('subscriptionCurrentStatus');
+  if (currentPlanNode) currentPlanNode.textContent = currentPlan.name || 'Базовый';
+  if (currentStatusNode) currentStatusNode.textContent = subscriptionStatusText(data);
+
+  const usage = data?.usage || {};
+  const usageNode = document.getElementById('subscriptionUsage');
+  if (usageNode) {
+    usageNode.innerHTML = [
+      ['Классы', usage.classes, currentPlan.max_classes],
+      ['Ученики', usage.students, currentPlan.max_students],
+      ['Активные задания', usage.active_assignments, currentPlan.max_active_assignments],
+      ['AI', usage.ai_generations, currentPlan.ai_monthly_limit]
+    ].map(([label, used, limit]) => {
+      const limitText = limit === null || limit === undefined ? '∞' : Number(limit);
+      return '<div><span>' + escapeHtml(label) + '</span><strong>' + Number(used || 0) + ' / ' + limitText + '</strong></div>';
+    }).join('');
+  }
+
+  const plansNode = document.getElementById('subscriptionPlans');
+  if (!plansNode) return;
+  const plans = Array.isArray(data?.plans) ? data.plans : [];
+  plansNode.innerHTML = plans.map(plan => {
+    const currentCode = String(current.plan_code || 'basic');
+    const isCurrent = currentCode === String(plan.code);
+    const monthly = Number(plan.monthly_price_minor || 0);
+    const yearly = Number(plan.yearly_price_minor || 0);
+    const priceHtml = monthly > 0
+      ? '<strong>' + subscriptionMoney(monthly) + '<small>/месяц</small></strong>' +
+        '<span>' + subscriptionMoney(yearly) + ' в год</span>'
+      : '<strong>0 ₽</strong><span>Навсегда</span>';
+
+    let action = '<button class="secondary-btn full" type="button" disabled>Текущий тариф</button>';
+    if (!isCurrent && plan.code === 'pro' && data.trial_available) {
+      action = '<button class="primary-btn full" type="button" data-start-pro-trial>Попробовать PRO 14 дней</button>' +
+        '<button class="secondary-btn full" type="button" data-open-subscription-payment="pro">Выбрать PRO</button>';
+    } else if (!isCurrent && ['pro','premium'].includes(plan.code)) {
+      action = '<button class="primary-btn full" type="button" data-open-subscription-payment="' + escapeHtml(plan.code) + '">Выбрать ' + escapeHtml(plan.name) + '</button>';
+    }
+
+    return '<article class="subscription-plan-card ' + (plan.code === 'pro' ? 'featured' : '') + (isCurrent ? ' current' : '') + '">' +
+      '<div class="subscription-plan-head"><div><span class="section-kicker">' + (plan.code === 'basic' ? 'Старт' : plan.code === 'pro' ? 'Для учителя' : 'Для профессионала') + '</span>' +
+      '<h3>' + escapeHtml(plan.name) + '</h3></div>' +
+      (isCurrent ? '<span class="status green">Текущий</span>' : plan.code === 'pro' ? '<span class="status blue">Рекомендуем</span>' : '') +
+      '</div><div class="subscription-price">' + priceHtml + '</div>' +
+      '<ul class="subscription-feature-list">' + subscriptionFeatureRows(plan) + '</ul>' +
+      '<div class="subscription-plan-actions">' + action + '</div></article>';
+  }).join('');
+
+  plansNode.querySelectorAll('[data-start-pro-trial]').forEach(button => {
+    button.addEventListener('click', startProTrial);
+  });
+  plansNode.querySelectorAll('[data-open-subscription-payment]').forEach(button => {
+    button.addEventListener('click', () => openSubscriptionPayment(String(button.dataset.openSubscriptionPayment || 'pro')));
+  });
+}
+
+async function loadSubscriptionPage() {
+  const response = await fetch('./api/subscription/status.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить тарифы.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить тарифы.');
+  renderSubscriptionPage(data);
+  return data;
+}
+
+async function startProTrial() {
+  if (!(await appConfirm('Активировать PRO на 14 дней бесплатно? Банковская карта не требуется, автоматических списаний не будет.', {
+    title: 'Пробный период PRO',
+    okText: 'Активировать 14 дней'
+  }))) return;
+
+  try {
+    const response = await fetch('./api/subscription/start-trial.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await readJsonResponse(response, 'Не удалось активировать пробный период.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось активировать пробный период.');
+    await loadSubscriptionPage();
+    await appAlert(data.message || 'PRO активирован на 14 дней.', {
+      title: 'PRO активирован',
+      tone: 'success',
+      okText: 'Готово'
+    });
+  } catch (error) {
+    await appAlert(error.message, { title: 'Пробный период', tone: 'danger' });
+  }
+}
+
+function openSubscriptionPayment(planCode) {
+  const data = subscriptionDataCache;
+  const plans = Array.isArray(data?.plans) ? data.plans : [];
+  const plan = plans.find(item => String(item.code) === String(planCode));
+  if (!plan || !subscriptionPaymentModal) return;
+
+  document.getElementById('subscriptionPaymentPlan').value = String(plan.code);
+  document.getElementById('subscriptionPaymentPlanName').textContent = String(plan.name || plan.code);
+  const email = document.getElementById('subscriptionReceiptEmail');
+  if (email && !email.value) email.value = currentUser?.email || '';
+  document.getElementById('subscriptionPaymentPeriod').value = 'month';
+  document.getElementById('subscriptionRecurringConsent').checked = false;
+  const error = document.getElementById('subscriptionPaymentError');
+  if (error) {
+    error.textContent = '';
+    error.classList.add('hidden');
+  }
+  updateSubscriptionPaymentTotal();
+  openModal(subscriptionPaymentModal);
+}
+
+function updateSubscriptionPaymentTotal() {
+  const data = subscriptionDataCache;
+  const planCode = String(document.getElementById('subscriptionPaymentPlan')?.value || 'pro');
+  const period = String(document.getElementById('subscriptionPaymentPeriod')?.value || 'month');
+  const plan = (data?.plans || []).find(item => String(item.code) === planCode);
+  if (!plan) return;
+  const minor = period === 'year' ? plan.yearly_price_minor : plan.monthly_price_minor;
+  const total = document.getElementById('subscriptionPaymentTotal');
+  if (total) total.textContent = subscriptionMoney(minor);
+}
+
+document.getElementById('subscriptionPaymentPeriod')?.addEventListener('change', updateSubscriptionPaymentTotal);
+document.getElementById('subscriptionPaymentForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('subscriptionPaymentError');
+  button.disabled = true;
+  button.textContent = 'Проверяем оплату...';
+  if (error) error.classList.add('hidden');
+
+  try {
+    const response = await fetch('./api/subscription/create-checkout.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_code: document.getElementById('subscriptionPaymentPlan').value,
+        billing_period: document.getElementById('subscriptionPaymentPeriod').value,
+        receipt_email: document.getElementById('subscriptionReceiptEmail').value,
+        auto_renew: Boolean(document.getElementById('subscriptionRecurringConsent').checked)
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось подготовить оплату.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось подготовить оплату.');
+    if (data.checkout_url) window.location.assign(data.checkout_url);
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Продолжить к защищённой оплате';
+  }
+});
+
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
   showView(btn.dataset.view);
   if (btn.dataset.view === 'teacher-dashboard') loadTeacherDashboard().catch(() => {});
@@ -4479,6 +4691,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'student-results') loadStudentResults().catch(() => {});
   if (btn.dataset.view === 'uvoria-library') loadLibrary().catch(() => {});
   if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
+  if (btn.dataset.view === 'subscription') loadSubscriptionPage().catch(error => appAlert(error.message, { title: 'Тариф и подписка', tone: 'danger' }));
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
   if (btn.dataset.view === 'system-backups') {
     loadBackups().catch(() => {});
@@ -7769,7 +7982,7 @@ function requestedInitialView(user) {
   if (!requested) return null;
 
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
-  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'live-execution', 'staff-profile']);
+  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'live-execution', 'staff-profile', 'subscription']);
   if (user?.role === 'student' && studentViews.has(requested)) return requested;
   if (user?.role !== 'student' && staffViews.has(requested)) return requested;
   return null;
@@ -7813,6 +8026,7 @@ loadSession().then(async user => {
       if (requested === 'uvoria-library') await loadLibrary().catch(() => {});
       if (requested === 'activity-history') await loadActivityHistory().catch(() => {});
       if (requested === 'staff-profile') await loadStaffProfile().catch(() => {});
+      if (requested === 'subscription') await loadSubscriptionPage().catch(() => {});
     } else if (user.role === 'admin') {
       await loadSchoolManagement();
       showView('school-management');
