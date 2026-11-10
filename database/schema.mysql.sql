@@ -542,6 +542,8 @@ CREATE TABLE IF NOT EXISTS payment_orders (
   provider VARCHAR(64) NOT NULL,
   provider_payment_id VARCHAR(191) NULL,
   customer_email VARCHAR(191) NULL,
+  receipt_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+  receipt_reference VARCHAR(500) NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'created',
   idempotence_key CHAR(64) NOT NULL,
   checkout_url TEXT NULL,
