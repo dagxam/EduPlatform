@@ -21,6 +21,7 @@ $files = [
     'requisites' => file_get_contents($root . '/requisites.php'),
     'pricing' => file_get_contents($root . '/pricing.php'),
     'offer' => file_get_contents($root . '/offer.php'),
+    'payment_info' => file_get_contents($root . '/payment-info.php'),
     'payments_list' => file_get_contents($root . '/api/admin/payments/list.php'),
     'receipt_mark' => file_get_contents($root . '/api/admin/payments/mark-receipt.php'),
 ];
@@ -64,6 +65,16 @@ $checks = [
     [$files['requisites'], 'Реквизиты и контакты', 'public requisites page'],
     [$files['pricing'], 'Тарифы UROVIA', 'public pricing page'],
     [$files['offer'], 'Публичная оферта', 'public offer page'],
+    [$files['offer'], 'Порядок оформления заказа', 'offer order flow'],
+    [$files['offer'], 'Порядок получения услуги', 'offer digital delivery flow'],
+    [$files['payment_info'], 'Оплата и получение услуги', 'public payment information page'],
+    [$files['payment_info'], 'Как покупатель получает цифровую услугу', 'digital delivery information'],
+    [$files['payment_info'], '449 ₽ / месяц', 'PRO public price'],
+    [$files['payment_info'], '899 ₽ / месяц', 'Premium public price'],
+    [$files['legal_set'], 'Укажите действующий контактный телефон', 'required public phone validation'],
+    [$files['legal_set'], 'Укажите почтовый адрес', 'required public postal address validation'],
+    [$files['requisites'], 'Ф.И.О. самозанятого', 'self-employed public name label'],
+    [$files['requisites'], 'ИНН самозанятого', 'self-employed public INN label'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
