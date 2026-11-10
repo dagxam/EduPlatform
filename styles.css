@@ -10310,3 +10310,15 @@ body.student-session .assignment-author-only {
     padding:7px 0;
   }
 }
+
+
+/* YooKassa legal profile */
+.yookassa-admin-panel{margin-top:20px}
+.legal-profile-form{display:grid;gap:12px}
+.legal-profile-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.legal-profile-actions .secondary-btn{text-decoration:none}
+.yookassa-admin-panel .panel-note b{font-weight:850}
+@media(max-width:640px){
+  .legal-profile-actions{display:grid}
+  .legal-profile-actions>*{width:100%;justify-content:center}
+}
