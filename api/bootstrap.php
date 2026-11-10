@@ -429,6 +429,62 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS user_subscriptions (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT UNSIGNED NOT NULL,
+            plan_code VARCHAR(32) NOT NULL DEFAULT 'basic',
+            status VARCHAR(32) NOT NULL DEFAULT 'inactive',
+            starts_at DATETIME NULL,
+            ends_at DATETIME NULL,
+            trial_ends_at DATETIME NULL,
+            auto_renew TINYINT NOT NULL DEFAULT 0,
+            billing_period VARCHAR(16) NULL,
+            payment_provider VARCHAR(64) NULL,
+            provider_customer_id VARCHAR(191) NULL,
+            provider_payment_method_id VARCHAR(191) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_user_subscriptions_user (user_id),
+            CONSTRAINT fk_user_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS subscription_usage_monthly (
+            user_id BIGINT UNSIGNED NOT NULL,
+            period_key CHAR(7) NOT NULL,
+            ai_generations INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, period_key),
+            CONSTRAINT fk_subscription_usage_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS payment_orders (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT UNSIGNED NOT NULL,
+            plan_code VARCHAR(32) NOT NULL,
+            billing_period VARCHAR(16) NOT NULL,
+            amount_minor BIGINT NOT NULL,
+            currency CHAR(3) NOT NULL DEFAULT 'RUB',
+            provider VARCHAR(64) NOT NULL,
+            provider_payment_id VARCHAR(191) NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'created',
+            idempotence_key CHAR(64) NOT NULL,
+            checkout_url TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            paid_at DATETIME NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_payment_orders_idempotence (idempotence_key),
+            KEY idx_payment_orders_user (user_id, created_at),
+            CONSTRAINT fk_payment_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
 }
 
 function automatic_backup_allowed_for_request(): bool
@@ -1224,6 +1280,221 @@ function school_grade_scale(PDO $pdo, ?int $schoolId): array
     } catch (Throwable) {
         return $cache[$schoolId] = default_grade_scale();
     }
+}
+
+function subscription_plan_catalog(): array
+{
+    return [
+        'basic' => [
+            'code' => 'basic',
+            'name' => 'Базовый',
+            'monthly_price_minor' => 0,
+            'yearly_price_minor' => 0,
+            'max_classes' => 2,
+            'max_students' => 60,
+            'max_active_assignments' => 10,
+            'ai_monthly_limit' => 0,
+            'features' => [
+                'manual_assignments' => true,
+                'auto_grading' => true,
+                'journal' => true,
+                'library_access' => true,
+                'file_import' => false,
+                'advanced_analytics' => false,
+                'export_results' => false,
+                'marketplace_sell' => false,
+                'premium_ai' => false,
+            ],
+        ],
+        'pro' => [
+            'code' => 'pro',
+            'name' => 'PRO',
+            'monthly_price_minor' => 44900,
+            'yearly_price_minor' => 449000,
+            'max_classes' => 10,
+            'max_students' => 300,
+            'max_active_assignments' => 100,
+            'ai_monthly_limit' => 50,
+            'features' => [
+                'manual_assignments' => true,
+                'auto_grading' => true,
+                'journal' => true,
+                'library_access' => true,
+                'file_import' => true,
+                'advanced_analytics' => true,
+                'export_results' => true,
+                'marketplace_sell' => true,
+                'premium_ai' => false,
+            ],
+        ],
+        'premium' => [
+            'code' => 'premium',
+            'name' => 'Premium',
+            'monthly_price_minor' => 89900,
+            'yearly_price_minor' => 899000,
+            'max_classes' => null,
+            'max_students' => null,
+            'max_active_assignments' => null,
+            'ai_monthly_limit' => 300,
+            'features' => [
+                'manual_assignments' => true,
+                'auto_grading' => true,
+                'journal' => true,
+                'library_access' => true,
+                'file_import' => true,
+                'advanced_analytics' => true,
+                'export_results' => true,
+                'marketplace_sell' => true,
+                'premium_ai' => true,
+            ],
+        ],
+    ];
+}
+
+function subscription_effective_state(PDO $pdo, array $user): array
+{
+    $plans = subscription_plan_catalog();
+    $basic = $plans['basic'];
+    if (($user['role'] ?? '') === 'student') {
+        return [
+            'plan_code' => 'basic',
+            'plan' => $basic,
+            'status' => 'student',
+            'trial_ends_at' => null,
+            'ends_at' => null,
+            'auto_renew' => false,
+            'billing_period' => null,
+            'enforcement_enabled' => false,
+        ];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT plan_code, status, starts_at, ends_at, trial_ends_at, auto_renew, billing_period, payment_provider
+         FROM user_subscriptions
+         WHERE user_id = :user_id
+         LIMIT 1'
+    );
+    $stmt->execute(['user_id' => (int)$user['id']]);
+    $row = $stmt->fetch();
+
+    $planCode = is_array($row) ? (string)($row['plan_code'] ?? 'basic') : 'basic';
+    if (!isset($plans[$planCode])) $planCode = 'basic';
+    $status = is_array($row) ? (string)($row['status'] ?? 'inactive') : 'inactive';
+
+    $now = time();
+    $trialEnds = is_array($row) && !empty($row['trial_ends_at']) ? strtotime((string)$row['trial_ends_at']) : false;
+    $endsAt = is_array($row) && !empty($row['ends_at']) ? strtotime((string)$row['ends_at']) : false;
+
+    if ($status === 'trial' && $trialEnds !== false && $trialEnds < $now) {
+        $status = 'expired';
+        $planCode = 'basic';
+    } elseif ($status === 'active' && $endsAt !== false && $endsAt < $now) {
+        $status = 'expired';
+        $planCode = 'basic';
+    } elseif (!in_array($status, ['trial', 'active'], true)) {
+        $planCode = 'basic';
+    }
+
+    return [
+        'plan_code' => $planCode,
+        'plan' => $plans[$planCode],
+        'status' => $status,
+        'trial_ends_at' => is_array($row) ? ($row['trial_ends_at'] ?? null) : null,
+        'ends_at' => is_array($row) ? ($row['ends_at'] ?? null) : null,
+        'auto_renew' => is_array($row) ? (bool)($row['auto_renew'] ?? 0) : false,
+        'billing_period' => is_array($row) ? ($row['billing_period'] ?? null) : null,
+        'payment_provider' => is_array($row) ? ($row['payment_provider'] ?? null) : null,
+        // Stage 1 intentionally does not block existing workflows yet.
+        'enforcement_enabled' => false,
+    ];
+}
+
+function subscription_feature_allowed(PDO $pdo, array $user, string $feature): bool
+{
+    $state = subscription_effective_state($pdo, $user);
+    if (!$state['enforcement_enabled']) {
+        return true;
+    }
+    return (bool)($state['plan']['features'][$feature] ?? false);
+}
+
+function subscription_usage_snapshot(PDO $pdo, array $user, ?int $schoolId): array
+{
+    if (($user['role'] ?? '') === 'student') {
+        return ['classes' => 0, 'students' => 0, 'active_assignments' => 0, 'ai_generations' => 0];
+    }
+
+    $userId = (int)$user['id'];
+    $classes = 0;
+    $students = 0;
+    $activeAssignments = 0;
+
+    if ($schoolId !== null && $schoolId > 0) {
+        if (is_platform_admin($user) || can_manage_school($user, $schoolId)) {
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM classes WHERE school_id = :school_id');
+            $stmt->execute(['school_id' => $schoolId]);
+            $classes = (int)$stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(DISTINCT cs.student_id)
+                 FROM class_students cs
+                 JOIN classes c ON c.id = cs.class_id
+                 WHERE c.school_id = :school_id'
+            );
+            $stmt->execute(['school_id' => $schoolId]);
+            $students = (int)$stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM assignments
+                 WHERE school_id = :school_id
+                   AND status = "published"
+                   AND COALESCE(workflow_status, "assigned") <> "completed"'
+            );
+            $stmt->execute(['school_id' => $schoolId]);
+            $activeAssignments = (int)$stmt->fetchColumn();
+        } else {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(DISTINCT class_id) FROM teacher_classes
+                 WHERE school_id = :school_id AND teacher_id = :teacher_id'
+            );
+            $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $userId]);
+            $classes = (int)$stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(DISTINCT cs.student_id)
+                 FROM teacher_classes tc
+                 JOIN class_students cs ON cs.class_id = tc.class_id
+                 WHERE tc.school_id = :school_id AND tc.teacher_id = :teacher_id'
+            );
+            $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $userId]);
+            $students = (int)$stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM assignments
+                 WHERE school_id = :school_id
+                   AND teacher_id = :teacher_id
+                   AND status = "published"
+                   AND COALESCE(workflow_status, "assigned") <> "completed"'
+            );
+            $stmt->execute(['school_id' => $schoolId, 'teacher_id' => $userId]);
+            $activeAssignments = (int)$stmt->fetchColumn();
+        }
+    }
+
+    $periodKey = gmdate('Y-m');
+    $stmt = $pdo->prepare(
+        'SELECT ai_generations FROM subscription_usage_monthly
+         WHERE user_id = :user_id AND period_key = :period_key
+         LIMIT 1'
+    );
+    $stmt->execute(['user_id' => $userId, 'period_key' => $periodKey]);
+
+    return [
+        'classes' => $classes,
+        'students' => $students,
+        'active_assignments' => $activeAssignments,
+        'ai_generations' => (int)($stmt->fetchColumn() ?: 0),
+    ];
 }
 
 function grade_from_percent(float $percent, ?array $scale = null): string
