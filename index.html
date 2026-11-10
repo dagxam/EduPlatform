@@ -973,6 +973,40 @@
             </div>
             <small class="field-help" id="yookassaWebhookHint">Webhook: https://urovia.ru/api/subscription/yookassa-webhook.php</small>
           </form>
+
+          <div class="yookassa-config-divider"></div>
+
+          <form id="yookassaConfigForm" class="profile-form yookassa-config-form">
+            <div class="panel-head compact">
+              <div>
+                <span class="section-kicker">API ЮKassa</span>
+                <h3>Подключение магазина</h3>
+              </div>
+            </div>
+            <p class="panel-note">После завершения регистрации магазина ЮKassa вставьте сюда <b>shopId</b> и <b>секретный ключ</b>. Ключ хранится только в закрытом storage на сервере и не попадает в GitHub.</p>
+            <div class="form-row">
+              <label>shopId
+                <input id="yookassaShopId" name="shop_id" autocomplete="off" placeholder="Например: 123456">
+              </label>
+              <label>Секретный ключ
+                <input id="yookassaSecretKey" name="secret_key" type="password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять">
+              </label>
+            </div>
+            <label class="school-setting-toggle">
+              <input type="checkbox" id="yookassaTestMode" name="test_mode" checked>
+              <span>
+                <b>Тестовый режим</b>
+                <small>Оставьте включённым до проверки тестового платежа и webhook.</small>
+              </span>
+            </label>
+            <div class="yookassa-endpoints">
+              <div><span>Webhook</span><code id="yookassaWebhookUrl">https://urovia.ru/api/subscription/yookassa-webhook.php</code></div>
+              <div><span>Возврат после оплаты</span><code id="yookassaReturnUrl">https://urovia.ru/payment-return.html</code></div>
+            </div>
+            <div class="form-error hidden" id="yookassaConfigError"></div>
+            <div class="import-result hidden" id="yookassaConfigResult"></div>
+            <button class="primary-btn" type="submit">Сохранить подключение ЮKassa</button>
+          </form>
         </article>
       </section>
 
