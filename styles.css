@@ -10310,3 +10310,70 @@ body.student-session .assignment-author-only {
     padding:7px 0;
   }
 }
+
+
+/* YooKassa legal profile */
+.yookassa-admin-panel{margin-top:20px}
+.legal-profile-form{display:grid;gap:12px}
+.legal-profile-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.legal-profile-actions .secondary-btn{text-decoration:none}
+.yookassa-admin-panel .panel-note b{font-weight:850}
+@media(max-width:640px){
+  .legal-profile-actions{display:grid}
+  .legal-profile-actions>*{width:100%;justify-content:center}
+}
+
+
+/* YooKassa protected config */
+.yookassa-config-divider{
+  height:1px;
+  background:#e7ebf0;
+  margin:24px 0;
+}
+.yookassa-config-form{
+  display:grid;
+  gap:12px;
+}
+.yookassa-endpoints{
+  display:grid;
+  gap:8px;
+}
+.yookassa-endpoints>div{
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+  padding:10px 12px;
+  border:1px solid #e5eaf0;
+  border-radius:12px;
+  background:#fafbfd;
+}
+.yookassa-endpoints span{
+  color:#7a8793;
+  font-size:11px;
+  font-weight:750;
+}
+.yookassa-endpoints code{
+  overflow-wrap:anywhere;
+  white-space:normal;
+  font-size:11px;
+}
+.panel-head.compact{margin-bottom:0}
+@media(max-width:640px){
+  .yookassa-endpoints>div{grid-template-columns:1fr}
+}
+
+
+/* YooKassa payment journal */
+.yookassa-payments-panel{margin-top:20px}
+.yookassa-payments-table td{vertical-align:top}
+.yookassa-payments-table td b,
+.yookassa-payments-table td small{display:block}
+.yookassa-payments-table td small{margin-top:4px;color:#7f8a95;max-width:240px;overflow-wrap:anywhere}
+.subscription-current-actions{margin-top:10px}
+@media(max-width:820px){
+  .yookassa-payments-table thead{display:none}
+  .yookassa-payments-table,.yookassa-payments-table tbody,.yookassa-payments-table tr,.yookassa-payments-table td{display:block;width:100%}
+  .yookassa-payments-table tr{border:1px solid #e5eaf0;border-radius:14px;padding:12px;margin-bottom:10px}
+  .yookassa-payments-table td{border:0;padding:6px 0}
+}
