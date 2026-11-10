@@ -485,7 +485,24 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
             CONSTRAINT fk_payment_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-}
+
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS subscription_admin_grants (
+            user_id BIGINT UNSIGNED NOT NULL,
+            plan_code VARCHAR(32) NOT NULL,
+            starts_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ends_at DATETIME NULL,
+            note VARCHAR(500) NULL,
+            assigned_by BIGINT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id),
+            KEY idx_subscription_admin_grants_end (ends_at),
+            CONSTRAINT fk_subscription_admin_grants_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_subscription_admin_grants_admin FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );}
 
 function automatic_backup_allowed_for_request(): bool
 {
@@ -1364,6 +1381,34 @@ function subscription_effective_state(PDO $pdo, array $user): array
             'ends_at' => null,
             'auto_renew' => false,
             'billing_period' => null,
+            'enforcement_enabled' => false,
+        ];
+    }
+
+    $grantStmt = $pdo->prepare(
+        'SELECT plan_code, starts_at, ends_at, note, assigned_by
+         FROM subscription_admin_grants
+         WHERE user_id = :user_id
+           AND starts_at <= CURRENT_TIMESTAMP
+           AND (ends_at IS NULL OR ends_at >= CURRENT_TIMESTAMP)
+         LIMIT 1'
+    );
+    $grantStmt->execute(['user_id' => (int)$user['id']]);
+    $grant = $grantStmt->fetch();
+
+    if (is_array($grant) && isset($plans[(string)$grant['plan_code']])) {
+        $grantCode = (string)$grant['plan_code'];
+        return [
+            'plan_code' => $grantCode,
+            'plan' => $plans[$grantCode],
+            'status' => 'admin_grant',
+            'trial_ends_at' => null,
+            'ends_at' => $grant['ends_at'] ?? null,
+            'auto_renew' => false,
+            'billing_period' => null,
+            'payment_provider' => 'manual_admin',
+            'grant_note' => $grant['note'] ?? null,
+            'assigned_by' => isset($grant['assigned_by']) ? (int)$grant['assigned_by'] : null,
             'enforcement_enabled' => false,
         ];
     }
