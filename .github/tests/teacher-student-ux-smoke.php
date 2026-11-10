@@ -75,3 +75,4 @@ must_contain('app.js', [
 ]);
 
 echo "Teacher/student UX stage 2 wiring OK\n";
+
