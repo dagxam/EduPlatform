@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=89">
+  <link rel="stylesheet" href="styles.css?v=90">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -901,17 +901,79 @@
 
         <div class="panel subscription-payment-info">
           <div>
-            <span class="section-kicker">Оплата</span>
+            <span class="section-kicker">Оплата через ЮKassa</span>
             <h3>Защищённая платёжная форма</h3>
-            <p>UROVIA не будет принимать и хранить номер банковской карты. После выбора тарифа пользователь переходит на защищённую форму платёжного провайдера, а подписка включается только после подтверждённого webhook.</p>
+            <p>После выбора тарифа пользователь переходит на защищённую страницу ЮKassa. UROVIA не получает и не хранит номер карты; подписка активируется только после подтверждённого webhook от ЮKassa.</p>
           </div>
           <div class="subscription-payment-points">
             <span>Банковские карты</span>
             <span>СБП</span>
-            <span>Мир / доступные способы провайдера</span>
-            <span>Чек на email</span>
+            <span>SberPay / Mir Pay</span>
+            <span>Автопродление — только с согласия</span>
           </div>
         </div>
+
+        <article class="panel platform-admin-only hidden yookassa-admin-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ЮKassa · модерация сайта</span>
+              <h3>Реквизиты владельца UROVIA</h3>
+            </div>
+            <span class="status blue" id="yookassaConnectionBadge">Проверяем подключение</span>
+          </div>
+          <p class="panel-note">Эти данные публикуются на странице <b>urovia.ru/requisites.php</b> и используются для проверки сайта ЮKassa. Указывайте только реальные сведения владельца сервиса.</p>
+          <form id="legalProfileForm" class="profile-form legal-profile-form">
+            <label>Статус
+              <select id="legalEntityType" name="entity_type">
+                <option value="self_employed">Самозанятый</option>
+                <option value="ip">Индивидуальный предприниматель</option>
+                <option value="company">Юридическое лицо</option>
+              </select>
+            </label>
+            <div class="form-row">
+              <label>Ф.И.О. / наименование
+                <input id="legalName" name="legal_name" autocomplete="organization" placeholder="Как указано при регистрации" required>
+              </label>
+              <label>ИНН
+                <input id="legalInn" name="inn" inputmode="numeric" maxlength="12" placeholder="10 или 12 цифр" required>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>ОГРН / ОГРНИП
+                <input id="legalOgrn" name="ogrn" placeholder="Для ИП/организации, если применимо">
+              </label>
+              <label>Телефон
+                <input id="legalPhone" name="phone" type="tel" placeholder="+7 ...">
+              </label>
+            </div>
+            <label>Юридический / фактический адрес
+              <input id="legalAddress" name="legal_address" placeholder="Адрес для публикации">
+            </label>
+            <label>Почтовый адрес
+              <input id="legalPostalAddress" name="postal_address" placeholder="Если отличается">
+            </label>
+            <div class="form-row">
+              <label>Email
+                <input id="legalEmail" name="email" type="email" value="info@urovia.ru">
+              </label>
+              <label>Email поддержки
+                <input id="legalSupportEmail" name="support_email" type="email" value="info@urovia.ru">
+              </label>
+            </div>
+            <label>Налоговая / чековая информация
+              <textarea id="legalTaxNote" name="tax_note" rows="2" maxlength="500" placeholder="Например: плательщик НПД, чек формируется через «Мой налог»"></textarea>
+            </label>
+            <div class="form-error hidden" id="legalProfileError"></div>
+            <div class="import-result hidden" id="legalProfileResult"></div>
+            <div class="legal-profile-actions">
+              <button class="primary-btn" type="submit">Сохранить реквизиты</button>
+              <a class="secondary-btn" href="requisites.php" target="_blank" rel="noopener">Открыть реквизиты</a>
+              <a class="secondary-btn" href="offer.php" target="_blank" rel="noopener">Открыть оферту</a>
+              <a class="secondary-btn" href="pricing.php" target="_blank" rel="noopener">Открыть тарифы</a>
+            </div>
+            <small class="field-help" id="yookassaWebhookHint">Webhook: https://urovia.ru/api/subscription/yookassa-webhook.php</small>
+          </form>
+        </article>
       </section>
 
       <section class="view" id="student-dashboard">
@@ -1120,7 +1182,7 @@
         </label>
         <div class="form-error hidden" id="subscriptionPaymentError"></div>
         <button class="primary-btn full" type="submit">Продолжить к защищённой оплате</button>
-        <small class="subscription-payment-note">На этапе 1 реальные списания отключены. Форма используется для проверки тарифного сценария и интерфейса.</small>
+        <small class="subscription-payment-note">Платёж будет создан только если на сервере настроены shopId и секретный ключ ЮKassa. При включённом автопродлении платёжный способ сохраняется у ЮKassa, а не в UROVIA.</small>
       </form>
     </div>
   </div>
@@ -1626,7 +1688,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=88"></script>
+  <script src="app.js?v=89"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=47"></script>
 </body>
