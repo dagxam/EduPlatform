@@ -1352,14 +1352,34 @@ function site_legal_profile(PDO $pdo): array
     return $row;
 }
 
+function yookassa_config_path(): string
+{
+    return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'yookassa-config.php';
+}
+
+function yookassa_runtime_config(): array
+{
+    $path = yookassa_config_path();
+    if (!is_file($path)) {
+        return [];
+    }
+    $config = require $path;
+    return is_array($config) ? $config : [];
+}
+
 function yookassa_config(): array
 {
+    $stored = yookassa_runtime_config();
+    $envTestMode = (string)(getenv('YOO_KASSA_TEST_MODE') ?: '1');
+
     return [
-        'shop_id' => trim((string)(getenv('YOO_KASSA_SHOP_ID') ?: '')),
-        'secret_key' => trim((string)(getenv('YOO_KASSA_SECRET_KEY') ?: '')),
-        'api_base' => rtrim((string)(getenv('YOO_KASSA_API_BASE') ?: 'https://api.yookassa.ru/v3'), '/'),
-        'test_mode' => filter_var((string)(getenv('YOO_KASSA_TEST_MODE') ?: '1'), FILTER_VALIDATE_BOOLEAN),
-        'cron_secret' => trim((string)(getenv('SUBSCRIPTION_CRON_SECRET') ?: '')),
+        'shop_id' => trim((string)($stored['shop_id'] ?? getenv('YOO_KASSA_SHOP_ID') ?: '')),
+        'secret_key' => trim((string)($stored['secret_key'] ?? getenv('YOO_KASSA_SECRET_KEY') ?: '')),
+        'api_base' => rtrim((string)($stored['api_base'] ?? getenv('YOO_KASSA_API_BASE') ?: 'https://api.yookassa.ru/v3'), '/'),
+        'test_mode' => array_key_exists('test_mode', $stored)
+            ? (bool)$stored['test_mode']
+            : filter_var($envTestMode, FILTER_VALIDATE_BOOLEAN),
+        'cron_secret' => trim((string)($stored['cron_secret'] ?? getenv('SUBSCRIPTION_CRON_SECRET') ?: '')),
     ];
 }
 
