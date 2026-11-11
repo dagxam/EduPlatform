@@ -28,13 +28,16 @@ $checks = [
     [$files['bootstrap'], "'basic' => [", 'Basic plan'],
     [$files['bootstrap'], "'pro' => [", 'PRO plan'],
     [$files['bootstrap'], "'premium' => [", 'Premium plan'],
-    [$files['bootstrap'], "'enforcement_enabled' => false", 'safe non-enforcement stage'],
-    [$files['trial'], '14 * 86400', '14 day PRO trial'],
+    [$files['bootstrap'], "'enforcement_enabled' => true", 'subscription enforcement enabled'],
+    [$files['trial'], "'TRIAL_DISABLED'", 'paid subscription selection'],
     [$files['checkout'], 'yookassa_is_configured()', 'YooKassa checkout configuration guard'],
+    [$files['checkout'], "['basic', 'pro', 'premium']", 'Basic checkout enabled'],
+    [$files['bootstrap'], "'max_students' => 50", 'Basic student limit'],
+    [$files['bootstrap'], "'manual_student_add' => false", 'Basic manual student restriction'],
     [$files['index'], 'id="subscription"', 'subscription view'],
     [$files['index'], 'id="subscriptionPaymentModal"', 'payment form modal'],
     [$files['app'], 'async function loadSubscriptionPage()', 'subscription page loader'],
-    [$files['app'], 'async function startProTrial()', 'trial UI action'],
+    [$files['app'], 'function staffSubscriptionLocked()', 'staff subscription gate'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
