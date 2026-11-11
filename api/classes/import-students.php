@@ -60,6 +60,7 @@ if (!$signatureValid) {
 }
 
 $pdo = app_db();
+subscription_require_staff_access($pdo, $user);
 $class = require_school_class_for_admin($pdo, $user, $classId);
 $students = parse_student_import_file($tmpName, $extension);
 if (!$students) {
