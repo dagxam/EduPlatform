@@ -58,6 +58,7 @@ function pricing_limit(mixed $value): string
           <li>Создание и назначение заданий: да</li>
           <li>Автопроверка и журнал: да</li>
           <li>Библиотека UROVIA: да</li>
+          <li>Ручное добавление ученика: <?=!empty($plan['features']['manual_student_add']) ? 'да' : 'только PRO / Premium'?></li>
           <li>Импорт PDF/DOCX/PPT/PPTX: <?=!empty($plan['features']['file_import']) ? 'да' : 'нет'?></li>
           <li>Расширенная аналитика: <?=!empty($plan['features']['advanced_analytics']) ? 'да' : 'нет'?></li>
           <li>Экспорт результатов: <?=!empty($plan['features']['export_results']) ? 'да' : 'нет'?></li>
