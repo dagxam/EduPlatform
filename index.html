@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=92">
+  <link rel="stylesheet" href="styles.css?v=93">
   <link rel="stylesheet" href="pwa.css?v=46">
 </head>
 <body>
@@ -49,7 +49,6 @@
         <button class="nav-item" data-view="journal"><span>▦</span> Журнал</button>
         <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
         <button class="nav-item live-execution-nav" data-view="live-execution"><span>◉</span> Выполнение <b class="nav-count hidden" id="liveExecutionBadge">0</b></button>
-        <button class="nav-item" data-view="staff-profile"><span>●</span> Профиль</button>
         <button class="nav-item" data-view="subscription"><span>◆</span> Тариф и подписка</button>
       </nav>
 
@@ -63,14 +62,6 @@
         <div class="sidebar-legal-links">
           <a href="privacy-policy.html" target="_blank" rel="noopener">Политика ПД</a>
           <a href="personal-data-consent.html" target="_blank" rel="noopener">Согласие</a>
-        </div>
-        <div class="profile-mini">
-          <div class="avatar" id="sidebarAvatar">У</div>
-          <div class="profile-copy">
-            <strong id="sidebarName">Пользователь</strong>
-            <span id="sidebarRole">Загрузка...</span>
-          </div>
-          <button class="logout-btn" id="logoutBtn" title="Выйти" aria-label="Выйти">↪</button>
         </div>
       </div>
     </aside>
@@ -96,6 +87,13 @@
           </div>
           <button class="icon-btn" id="notificationsBtn" aria-label="Уведомления">🔔</button>
           <button class="primary-btn assignment-author-only hidden" id="createTaskBtn">＋ Создать задание</button>
+          <div class="top-profile">
+            <button class="top-profile-main" id="headerProfileOpen" type="button" title="Открыть профиль">
+              <span class="avatar" id="sidebarAvatar">У</span>
+              <span class="profile-copy"><strong id="sidebarName">Пользователь</strong><span id="sidebarRole">Загрузка...</span></span>
+            </button>
+            <button class="logout-btn" id="logoutBtn" title="Выйти" aria-label="Выйти">↪</button>
+          </div>
         </div>
       </header>
 
@@ -884,12 +882,12 @@
           <div>
             <span class="section-kicker">UROVIA</span>
             <h2>Тариф и подписка</h2>
-            <p>Выберите возможности для своей работы. На первом этапе тарифы работают в режиме предпросмотра и не ограничивают существующие функции.</p>
+            <p>Выберите один из трёх тарифов. Без активной подписки рабочие разделы кабинета сотрудника заблокированы.</p>
           </div>
-          <span class="subscription-stage-badge">Безопасный запуск · ограничения пока выключены</span>
+          <span class="subscription-stage-badge">Доступ открывается после активации тарифа</span>
         </div>
 
-        <div class="subscription-current panel">
+        <div class="subscription-current panel subscription-staff-extra">
           <div>
             <span class="section-kicker">Текущий доступ</span>
             <h3 id="subscriptionCurrentPlan">Загрузка...</h3>
@@ -903,7 +901,7 @@
           <div class="dashboard-empty">Загрузка тарифов...</div>
         </div>
 
-        <div class="panel subscription-payment-info">
+        <div class="panel subscription-payment-info subscription-staff-extra">
           <div>
             <span class="section-kicker">Оплата через ЮKassa</span>
             <h3>Защищённая платёжная форма</h3>
@@ -1394,7 +1392,10 @@
           <button class="primary-btn full" id="confirmStudentsImportBtn" type="button">Добавить проверенный список</button>
         </div>
       </div>
-      <div class="panel-head class-list-head"><div><span class="section-kicker">Состав</span><h3>Ученики</h3></div><strong id="classStudentsCount">0</strong></div>
+      <div class="panel-head class-list-head">
+        <div><span class="section-kicker">Состав</span><h3>Ученики</h3></div>
+        <div class="class-student-head-actions"><button class="primary-btn compact-btn hidden" id="addStudentManualBtn" type="button">＋ Добавить ученика</button><strong id="classStudentsCount">0</strong></div>
+      </div>
       <div id="classStudentsList" class="class-students-list"></div>
     </div>
   </div>
@@ -1427,6 +1428,22 @@
         </div>
         <button class="danger-btn full" id="deleteClassBtn" type="button">Удалить класс и всех учеников</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="addStudentModal">
+    <div class="modal student-edit-modal">
+      <button class="modal-close" data-close-modal="addStudentModal">×</button>
+      <span class="section-kicker">PRO / Premium</span>
+      <h2>Добавить ученика</h2>
+      <p id="addStudentHint">Ученик будет добавлен в выбранный класс.</p>
+      <form id="addStudentForm">
+        <div class="form-row"><label>Фамилия<input name="last_name" autocomplete="family-name" required></label><label>Имя<input name="first_name" autocomplete="given-name" required></label></div>
+        <label>Отчество<input name="middle_name" autocomplete="additional-name" placeholder="Необязательно"></label>
+        <label class="privacy-checkbox"><input type="checkbox" name="privacy_basis_confirmed" value="1" required><span>Подтверждаю наличие законного основания для передачи данных учащегося в UROVIA. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span></label>
+        <div class="form-error hidden" id="addStudentError"></div>
+        <button class="primary-btn full" id="addStudentSaveBtn" type="submit">Добавить ученика</button>
+      </form>
     </div>
   </div>
 
