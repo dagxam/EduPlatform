@@ -10418,3 +10418,26 @@ body.student-session .assignment-author-only {
     grid-column:auto;
   }
 }
+
+
+/* Subscription enforcement + header profile */
+.top-profile{display:flex;align-items:center;gap:6px;min-width:0;padding:4px;border:1px solid #e4e9ef;border-radius:13px;background:#fff}
+.top-profile-main{display:flex;align-items:center;gap:9px;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.top-profile .avatar{flex:0 0 36px;width:36px;height:36px;background-size:cover;background-position:center}
+.top-profile .profile-copy{display:grid;min-width:0;line-height:1.15}
+.top-profile .profile-copy strong{max-width:155px;overflow:hidden;color:#26384a;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.top-profile .profile-copy span{max-width:175px;overflow:hidden;margin-top:3px;color:#8794a1;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.top-profile .logout-btn{width:34px;height:34px;border:0;border-left:1px solid #edf0f3;background:transparent;color:#7b8896;cursor:pointer}
+.teacher-nav .nav-item.subscription-gated{position:relative;opacity:.58;cursor:pointer}
+.teacher-nav .nav-item.subscription-gated::before{content:"🔒";margin-left:auto;order:3;font-size:10px}
+.teacher-nav .nav-item.subscription-gated:hover{opacity:.82;background:#fff7ea;color:#9b6500}
+.teacher-nav .nav-item.subscription-gated:hover::after{content:attr(data-subscription-hint);position:fixed;left:270px;z-index:1000;width:235px;padding:10px 12px;border:1px solid #f1d7a2;border-radius:10px;background:#fffaf0;box-shadow:0 10px 28px rgba(34,45,58,.13);color:#73511a;font-size:11px;font-weight:700;line-height:1.35;text-transform:none;letter-spacing:0}
+body.subscription-locked .assignment-author-only{display:none!important}
+body.school-staff-subscription-ui #subscription .subscription-staff-extra,
+body.school-staff-subscription-ui #subscription .subscription-stage-badge{display:none!important}
+body.school-staff-subscription-ui #subscription .section-toolbar{align-items:flex-start;max-width:920px;margin-left:auto;margin-right:auto;text-align:center;justify-content:center}
+body.school-staff-subscription-ui #subscription .subscription-plans{max-width:1120px;margin-left:auto;margin-right:auto}
+.class-student-head-actions{display:flex;align-items:center;gap:10px}
+.class-student-head-actions>strong{min-width:28px;text-align:center}
+@media(max-width:900px){.top-profile .profile-copy{display:none}.top-profile{padding:3px}}
+@media(max-width:680px){.topbar .top-actions{gap:6px}.top-profile .logout-btn{display:none}.top-profile .avatar{width:32px;height:32px;flex-basis:32px}.teacher-nav .nav-item.subscription-gated:hover::after{display:none}.class-student-head-actions{width:100%;justify-content:space-between}.class-list-head{align-items:flex-start;gap:10px;flex-wrap:wrap}}
