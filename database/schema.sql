@@ -502,7 +502,7 @@ CREATE TABLE IF NOT EXISTS subscription_usage_monthly (
 CREATE TABLE IF NOT EXISTS payment_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    plan_code TEXT NOT NULL CHECK (plan_code IN ('pro', 'premium')),
+    plan_code TEXT NOT NULL CHECK (plan_code IN ('basic', 'pro', 'premium')),
     billing_period TEXT NOT NULL CHECK (billing_period IN ('month', 'year')),
     amount_minor INTEGER NOT NULL,
     currency TEXT NOT NULL DEFAULT 'RUB',
