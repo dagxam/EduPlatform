@@ -28,6 +28,7 @@ const classModal = document.getElementById('classModal');
 const classDetailsModal = document.getElementById('classDetailsModal');
 const classEditModal = document.getElementById('classEditModal');
 const studentEditModal = document.getElementById('studentEditModal');
+const addStudentModal = document.getElementById('addStudentModal');
 let currentUser = null;
 let activeSchoolName = '';
 let currentBranding = { theme_color: '#1d68f0' };
@@ -173,6 +174,9 @@ function showView(id) {
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
   if (currentUser?.role === 'student' && !studentViews.has(id)) {
     id = 'student-dashboard';
+  }
+  if (staffSubscriptionLocked() && id !== 'subscription') {
+    id = 'subscription';
   }
   if (id !== 'live-execution') {
     stopLiveExecutionAutoRefresh();
@@ -532,6 +536,16 @@ async function logout() {
 }
 
 document.getElementById('logoutBtn')?.addEventListener('click', logout);
+document.getElementById('headerProfileOpen')?.addEventListener('click', () => {
+  if (currentUser?.role === 'student') return;
+  if (staffSubscriptionLocked()) {
+    showView('subscription');
+    loadSubscriptionPage().catch(() => {});
+    return;
+  }
+  showView('staff-profile');
+  loadStaffProfile().catch(() => {});
+});
 
 let schoolsCache = [];
 
@@ -899,11 +913,27 @@ document.getElementById('deleteClassBtn')?.addEventListener('click', async () =>
   }
 });
 
+function canManualAddStudent() {
+  if (!currentUser || currentUser.role === 'student') return false;
+  if (Number(currentUser.is_platform_admin) === 1) return true;
+  const current = subscriptionDataCache?.current;
+  return Boolean(current?.access_active && current?.plan?.features?.manual_student_add);
+}
+
+function syncManualStudentAddAccess() {
+  const button = document.getElementById('addStudentManualBtn');
+  if (!button) return;
+  const allowed = canManualAddStudent();
+  button.classList.toggle('hidden', !allowed);
+  button.disabled = !allowed;
+}
+
 async function openClassDetails(item) {
   currentClass = item;
   document.getElementById('classDetailsTitle').textContent = item.name;
   document.getElementById('classJoinCode').textContent = item.join_code || '—';
   updateRegistrationButton();
+  syncManualStudentAddAccess();
   document.getElementById('importStudentsResult').classList.add('hidden');
   document.getElementById('importStudentsError').classList.add('hidden');
   studentImportPreviewRows = [];
@@ -937,6 +967,7 @@ async function loadClassStudents() {
     const students = data.students || [];
     currentClassStudentsCache = students;
     document.getElementById('classStudentsCount').textContent = students.length;
+    syncManualStudentAddAccess();
     list.innerHTML = students.length ? students.map(student => `
       <div class="class-student-row">
         <span class="student-row-avatar">${escapeHtml((student.first_name || '?').charAt(0))}</span>
@@ -980,6 +1011,54 @@ async function loadClassStudents() {
     list.innerHTML = `<div class="empty-students">${escapeHtml(error.message)}</div>`;
   }
 }
+
+document.getElementById('addStudentManualBtn')?.addEventListener('click', async () => {
+  if (!currentClass) return;
+  if (!canManualAddStudent()) {
+    await appAlert('Ручное добавление ученика доступно только на тарифах PRO и Premium.', {
+      title:'Нужен PRO или Premium', okText:'Выбрать тариф'
+    });
+    closeModal(classDetailsModal);
+    showView('subscription');
+    await loadSubscriptionPage().catch(() => {});
+    return;
+  }
+  document.getElementById('addStudentForm')?.reset();
+  document.getElementById('addStudentError')?.classList.add('hidden');
+  const hint = document.getElementById('addStudentHint');
+  if (hint) hint.textContent = 'Класс: ' + (currentClass.name || '—') + '. После добавления ученик появится в списке.';
+  openModal(addStudentModal);
+});
+
+document.getElementById('addStudentForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!currentClass || !canManualAddStudent()) return;
+  const form = event.currentTarget;
+  const button = document.getElementById('addStudentSaveBtn');
+  const error = document.getElementById('addStudentError');
+  error?.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Добавляем...';
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    payload.class_id = Number(currentClass.id);
+    const response = await fetch('./api/classes/add-student.php', {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось добавить ученика.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось добавить ученика.');
+    form.reset();
+    closeModal(addStudentModal);
+    await Promise.all([loadClassStudents(), loadClasses(), loadTeacherDashboard().catch(() => {})]);
+    await loadSubscriptionPage().catch(() => {});
+    await appAlert(data.message || 'Ученик добавлен.', { title:'Ученик добавлен', tone:'success', okText:'Готово' });
+  } catch (err) {
+    if (error) { error.textContent = err.message; error.classList.remove('hidden'); }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Добавить ученика';
+  }
+});
 
 function openStudentEditor(studentId) {
   const student = currentClassStudentsCache.find(item => Number(item.id) === Number(studentId));
@@ -2649,6 +2728,7 @@ const historyEventLabels = {
   students_imported: 'Ученики импортированы',
   student_pin_reset: 'PIN ученика сброшен',
   student_profile_updated: 'Данные ученика изменены',
+  student_added_manually: 'Ученик добавлен вручную',
   class_updated: 'Данные класса изменены',
   class_deleted: 'Класс удалён полностью',
   password_recovery_requested: 'Запрошено восстановление пароля',
@@ -4600,6 +4680,7 @@ function subscriptionFeatureRows(plan) {
     ['Классы', subscriptionLimitText(plan.max_classes)],
     ['Ученики', subscriptionLimitText(plan.max_students)],
     ['Активные задания', subscriptionLimitText(plan.max_active_assignments)],
+    ['Добавить ученика вручную', features.manual_student_add ? 'Да' : 'Только PRO / Premium'],
     ['Импорт PDF / DOCX / PPTX', features.file_import ? 'Да' : 'Нет'],
     ['Расширенная аналитика', features.advanced_analytics ? 'Да' : 'Нет'],
     ['Экспорт результатов', features.export_results ? 'Да' : 'Нет'],
@@ -4614,25 +4695,60 @@ function subscriptionFeatureRows(plan) {
 
 function subscriptionStatusText(data) {
   const current = data?.current || {};
+  if (current.status === 'admin_grant') {
+    return 'Тариф выдан главным администратором UROVIA' + (current.ends_at ? ' до ' + historyDateTime(current.ends_at) : '') + '.';
+  }
   if (current.status === 'trial' && current.trial_ends_at) {
-    return 'Пробный PRO активен до ' + historyDateTime(current.trial_ends_at) + '. Банковская карта не привязана.';
+    return 'Пробный доступ активен до ' + historyDateTime(current.trial_ends_at) + '.';
   }
   if (current.status === 'active' && current.ends_at) {
     return 'Подписка активна до ' + historyDateTime(current.ends_at) + (current.auto_renew ? ' · автопродление включено.' : '.');
   }
   if (current.status === 'expired') {
-    return 'Платный доступ закончился. Все старые задания, результаты и оценки сохранены.';
+    return 'Подписка закончилась. Выберите тариф, чтобы снова открыть рабочие разделы.';
   }
-  return 'Сейчас используется Базовый тариф. На этапе запуска существующие функции не блокируются.';
+  return 'Подписка пока не выбрана. Для работы в UROVIA активируйте Базовый, PRO или Premium.';
+}
+
+function staffSubscriptionLocked() {
+  if (!currentUser || currentUser.role === 'student' || Number(currentUser.is_platform_admin) === 1) return false;
+  if (!subscriptionDataCache?.current) return false;
+  return !Boolean(subscriptionDataCache.current.access_active);
+}
+
+function applySubscriptionAccessState(data) {
+  subscriptionDataCache = data;
+  const schoolStaff = Boolean(currentUser) && currentUser.role !== 'student' && Number(currentUser.is_platform_admin) !== 1;
+  const locked = schoolStaff && !Boolean(data?.current?.access_active);
+
+  document.body.classList.toggle('school-staff-subscription-ui', schoolStaff);
+  document.body.classList.toggle('subscription-locked', locked);
+
+  document.querySelectorAll('.teacher-nav .nav-item').forEach(button => {
+    const gated = locked && button.dataset.view !== 'subscription';
+    button.classList.toggle('subscription-gated', gated);
+    if (gated) {
+      button.setAttribute('aria-disabled', 'true');
+      button.dataset.subscriptionHint = 'Требуется подписка — выберите Базовый, PRO или Premium';
+      button.title = 'Требуется активная подписка';
+    } else {
+      button.removeAttribute('aria-disabled');
+      delete button.dataset.subscriptionHint;
+      if (button.title === 'Требуется активная подписка') button.removeAttribute('title');
+    }
+  });
+
+  syncManualStudentAddAccess();
+  if (locked) showView('subscription');
 }
 
 function renderSubscriptionPage(data) {
-  subscriptionDataCache = data;
+  applySubscriptionAccessState(data);
   const current = data?.current || {};
   const currentPlan = current?.plan || {};
   const currentPlanNode = document.getElementById('subscriptionCurrentPlan');
   const currentStatusNode = document.getElementById('subscriptionCurrentStatus');
-  if (currentPlanNode) currentPlanNode.textContent = currentPlan.name || 'Базовый';
+  if (currentPlanNode) currentPlanNode.textContent = currentPlan.name || 'Подписка не выбрана';
   if (currentStatusNode) currentStatusNode.textContent = subscriptionStatusText(data);
 
   const currentActions = document.getElementById('subscriptionCurrentActions');
@@ -4683,8 +4799,8 @@ function renderSubscriptionPage(data) {
   if (!plansNode) return;
   const plans = Array.isArray(data?.plans) ? data.plans : [];
   plansNode.innerHTML = plans.map(plan => {
-    const currentCode = String(current.plan_code || 'basic');
-    const isCurrent = currentCode === String(plan.code);
+    const currentCode = String(current.plan_code || '');
+    const isCurrent = Boolean(current.access_active) && currentCode === String(plan.code);
     const monthly = Number(plan.monthly_price_minor || 0);
     const yearly = Number(plan.yearly_price_minor || 0);
     const priceHtml = monthly > 0
@@ -4693,10 +4809,7 @@ function renderSubscriptionPage(data) {
       : '<strong>0 ₽</strong><span>Навсегда</span>';
 
     let action = '<button class="secondary-btn full" type="button" disabled>Текущий тариф</button>';
-    if (!isCurrent && plan.code === 'pro' && data.trial_available) {
-      action = '<button class="primary-btn full" type="button" data-start-pro-trial>Попробовать PRO 14 дней</button>' +
-        '<button class="secondary-btn full" type="button" data-open-subscription-payment="pro">Выбрать PRO</button>';
-    } else if (!isCurrent && ['pro','premium'].includes(plan.code)) {
+    if (!isCurrent && ['basic','pro','premium'].includes(plan.code)) {
       action = '<button class="primary-btn full" type="button" data-open-subscription-payment="' + escapeHtml(plan.code) + '">Выбрать ' + escapeHtml(plan.name) + '</button>';
     }
 
@@ -4709,9 +4822,6 @@ function renderSubscriptionPage(data) {
       '<div class="subscription-plan-actions">' + action + '</div></article>';
   }).join('');
 
-  plansNode.querySelectorAll('[data-start-pro-trial]').forEach(button => {
-    button.addEventListener('click', startProTrial);
-  });
   plansNode.querySelectorAll('[data-open-subscription-payment]').forEach(button => {
     button.addEventListener('click', () => openSubscriptionPayment(String(button.dataset.openSubscriptionPayment || 'pro')));
   });
@@ -5143,6 +5253,11 @@ document.getElementById('subscriptionPaymentForm')?.addEventListener('submit', a
 });
 
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
+  if (staffSubscriptionLocked() && btn.dataset.view !== 'subscription') {
+    showView('subscription');
+    loadSubscriptionPage().catch(() => {});
+    return;
+  }
   showView(btn.dataset.view);
   if (btn.dataset.view === 'teacher-dashboard') loadTeacherDashboard().catch(() => {});
   if (btn.dataset.view === 'classes') loadClasses();
@@ -5165,6 +5280,11 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
 }));
 document.querySelectorAll('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => {
   const target = btn.dataset.viewJump;
+  if (staffSubscriptionLocked() && target !== 'subscription') {
+    showView('subscription');
+    loadSubscriptionPage().catch(() => {});
+    return;
+  }
   showView(target);
   if (target === 'results') loadResults().catch(() => {});
   if (target === 'student-results') loadStudentResults().catch(() => {});
@@ -8608,11 +8728,20 @@ loadSession().then(async user => {
   }
 
   try {
-    const schoolsData = await loadSchools();
+    const platformAdmin = Number(user.is_platform_admin) === 1;
+    const [schoolsData, subscriptionData] = await Promise.all([
+      loadSchools(),
+      platformAdmin ? Promise.resolve(null) : loadSubscriptionPage()
+    ]);
     const activeSchool = Number(schoolsData?.active_school_id || 0) > 0;
 
+    if (!platformAdmin && !Boolean(subscriptionData?.current?.access_active)) {
+      showView('subscription');
+      return;
+    }
+
     if (!activeSchool) {
-      if (Number(user.is_platform_admin) === 1) showView('teacher-dashboard');
+      if (platformAdmin) showView('teacher-dashboard');
       return;
     }
 
