@@ -921,11 +921,17 @@ function canManualAddStudent() {
 }
 
 function syncManualStudentAddAccess() {
-  const button = document.getElementById('addStudentManualBtn');
-  if (!button) return;
   const allowed = canManualAddStudent();
-  button.classList.toggle('hidden', !allowed);
-  button.disabled = !allowed;
+  const button = document.getElementById('addStudentManualBtn');
+  if (button) {
+    button.classList.toggle('hidden', !allowed);
+    button.disabled = !allowed;
+  }
+  const previewAdd = document.getElementById('addPreviewStudentBtn');
+  if (previewAdd) {
+    previewAdd.classList.toggle('hidden', !allowed);
+    previewAdd.disabled = !allowed;
+  }
 }
 
 async function openClassDetails(item) {
@@ -4712,7 +4718,7 @@ function subscriptionStatusText(data) {
 
 function staffSubscriptionLocked() {
   if (!currentUser || currentUser.role === 'student' || Number(currentUser.is_platform_admin) === 1) return false;
-  if (!subscriptionDataCache?.current) return false;
+  if (!subscriptionDataCache?.current) return true;
   return !Boolean(subscriptionDataCache.current.access_active);
 }
 
