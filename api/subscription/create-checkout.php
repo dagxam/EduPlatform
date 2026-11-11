@@ -17,7 +17,7 @@ $config = yookassa_config();
 $autoRenew = $autoRenewRequested && (bool)($config['recurring_enabled'] ?? false);
 $plans = subscription_plan_catalog();
 
-if (!in_array($planCode, ['pro', 'premium'], true) || !isset($plans[$planCode])) {
+if (!in_array($planCode, ['basic', 'pro', 'premium'], true) || !isset($plans[$planCode])) {
     json_response(['ok' => false, 'error' => 'Недоступный тариф.'], 422);
 }
 if (!in_array($period, ['month', 'year'], true)) {
