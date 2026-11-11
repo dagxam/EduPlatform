@@ -10377,3 +10377,44 @@ body.student-session .assignment-author-only {
   .yookassa-payments-table tr{border:1px solid #e5eaf0;border-radius:14px;padding:12px;margin-bottom:10px}
   .yookassa-payments-table td{border:0;padding:6px 0}
 }
+
+
+/* Bulk class result reset */
+.journal-filters{
+  grid-template-columns:minmax(150px,.8fr) minmax(180px,1fr) minmax(220px,1.4fr) minmax(130px,.7fr) minmax(190px,.9fr);
+}
+.journal-class-reset-btn{
+  align-self:end;
+  min-height:43px;
+  padding:9px 13px;
+  border-color:#f0c7c7;
+  color:#b73535;
+  background:#fffafa;
+  white-space:nowrap;
+}
+.journal-class-reset-btn:hover:not(:disabled){
+  border-color:#e59b9b;
+  background:#fff1f1;
+  color:#9f2525;
+}
+.journal-class-reset-btn:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+@media(max-width:1180px){
+  .journal-filters{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .journal-class-reset-btn{
+    grid-column:1/-1;
+    width:100%;
+  }
+}
+@media(max-width:680px){
+  .journal-filters{
+    grid-template-columns:1fr;
+  }
+  .journal-class-reset-btn{
+    grid-column:auto;
+  }
+}

@@ -2684,6 +2684,7 @@ const historyEventLabels = {
   attempt_result_draft_updated: 'Результат ученика скорректирован',
   attempt_result_published: 'Обновлённая оценка опубликована',
   attempt_result_reset: 'Результат ученика сброшен',
+  attempt_class_results_reset: 'Результаты класса по работе сброшены',
   mail_test_sent: 'Отправлено тестовое письмо UROVIA'
 };
 
@@ -3113,9 +3114,25 @@ function populateJournalSubjectFilter() {
     : String(subjects[0]?.id || '');
 }
 
+function updateJournalClassResetButton() {
+  const button = document.getElementById('journalClassResetBtn');
+  if (!button) return;
+
+  const classId = Number(document.getElementById('journalClassFilter')?.value || 0);
+  const assignmentId = Number(document.getElementById('journalAssignmentFilter')?.value || 0);
+  const assignment = (journalDataCache?.assignments || []).find(item => Number(item.id) === assignmentId);
+  const enabled = Boolean(journalDataCache && classId && assignmentId && assignment);
+
+  button.disabled = !enabled;
+  button.title = enabled
+    ? 'Удалить все попытки выбранной работы у учеников этого класса и разрешить пройти её заново'
+    : 'Сначала выберите конкретную работу';
+}
+
 function renderJournal() {
   const wrap = document.getElementById('journalTableWrap');
   const summary = document.getElementById('journalSummary');
+  updateJournalClassResetButton();
   if (!wrap || !journalDataCache) return;
 
   const assignmentFilter = Number(document.getElementById('journalAssignmentFilter')?.value || 0);
@@ -3351,6 +3368,7 @@ async function loadJournal() {
 
     if (!classId || !subjectId) {
       journalDataCache = null;
+      updateJournalClassResetButton();
       if (summary) summary.textContent = 'Для журнала нужен назначенный вам класс и предмет.';
       wrap.innerHTML = '<div class="history-empty"><b>Нет доступных назначений</b><span>Проверьте предметы и классы сотрудника.</span></div>';
       return;
@@ -3384,8 +3402,99 @@ async function loadJournal() {
     renderJournal();
   } catch (error) {
     journalDataCache = null;
+    updateJournalClassResetButton();
     if (summary) summary.textContent = error.message;
     wrap.innerHTML = '<div class="history-empty"><b>Не удалось загрузить журнал</b><span>' + escapeHtml(error.message) + '</span></div>';
+  }
+}
+
+async function resetJournalClassAssignment() {
+  const classId = Number(document.getElementById('journalClassFilter')?.value || 0);
+  const assignmentId = Number(document.getElementById('journalAssignmentFilter')?.value || 0);
+  const button = document.getElementById('journalClassResetBtn');
+  const assignment = (journalDataCache?.assignments || []).find(item => Number(item.id) === assignmentId);
+  const className = String(journalDataCache?.class?.name || 'класс');
+  const assignmentTitle = String(assignment?.title || 'работа');
+
+  if (!classId || !assignmentId || !assignment) {
+    await appAlert('Сначала выберите конкретную работу в журнале.', {
+      title:'Сброс работы класса',
+      tone:'info'
+    });
+    return;
+  }
+
+  if (button) button.disabled = true;
+
+  try {
+    const previewResponse = await fetch('./api/results/reset-class.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ class_id:classId, assignment_id:assignmentId, preview:true })
+    });
+    const preview = await readJsonResponse(previewResponse, 'Не удалось проверить результаты класса.');
+    if (!previewResponse.ok || preview.ok === false) {
+      throw new Error(preview.error || 'Не удалось проверить результаты класса.');
+    }
+
+    const attemptsCount = Number(preview.attempts_count || 0);
+    const studentsCount = Number(preview.students_affected || 0);
+    const activeCount = Number(preview.active_attempts || 0);
+
+    if (attemptsCount < 1) {
+      await appAlert('По этой работе у выбранного класса нет попыток для сброса.', {
+        title:'Сбрасывать нечего',
+        tone:'info'
+      });
+      return;
+    }
+
+    const confirmed = await appConfirm(
+      'Сбросить работу «' + assignmentTitle + '» для класса «' + className + '»? '
+      + 'Будет удалено попыток: ' + attemptsCount + ', затронуто учеников: ' + studentsCount + '. '
+      + (activeCount > 0 ? 'Сейчас выполняют работу: ' + activeCount + ' — их текущие попытки тоже будут аннулированы. ' : '')
+      + 'Все ответы и оценки по этой работе у класса исчезнут, после чего ученики смогут выполнить её заново.',
+      {
+        title:'Сбросить работу всего класса',
+        tone:'danger',
+        okText:'Сбросить класс и разрешить заново',
+        cancelText:'Отмена'
+      }
+    );
+    if (!confirmed) return;
+
+    const response = await fetch('./api/results/reset-class.php', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ class_id:classId, assignment_id:assignmentId, preview:false })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сбросить работу класса.');
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Не удалось сбросить работу класса.');
+    }
+
+    await Promise.all([
+      loadJournal(),
+      loadResults().catch(() => {}),
+      loadTeacherDashboard().catch(() => {}),
+      loadActivityHistory().catch(() => {}),
+      loadLiveExecution({ silent:true }).catch(() => {})
+    ]);
+
+    await appAlert(data.message || 'Результаты класса сброшены. Ученики могут выполнить работу заново.', {
+      title:'Работа класса сброшена',
+      tone:'success',
+      okText:'Готово'
+    });
+  } catch (error) {
+    await appAlert(error.message, {
+      title:'Не удалось сбросить работу класса',
+      tone:'danger'
+    });
+  } finally {
+    updateJournalClassResetButton();
   }
 }
 
@@ -4433,6 +4542,9 @@ document.getElementById('journalPeriodFilter')?.addEventListener('change', () =>
   loadJournal().catch(() => {});
 });
 document.getElementById('journalAssignmentFilter')?.addEventListener('change', renderJournal);
+document.getElementById('journalClassResetBtn')?.addEventListener('click', () => {
+  resetJournalClassAssignment().catch(() => {});
+});
 document.getElementById('exportJournalBtn')?.addEventListener('click', exportJournalCsv);
 document.getElementById('resultEditScore')?.addEventListener('input', updateResultEditorPercent);
 document.getElementById('resultResetAutoBtn')?.addEventListener('click', () => {
