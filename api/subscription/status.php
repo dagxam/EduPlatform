@@ -18,8 +18,8 @@ json_response([
     'current' => $state,
     'usage' => $usage,
     'plans' => array_values($plans),
-    'trial_available' => !in_array($state['status'], ['trial', 'active'], true)
-        && empty($state['trial_ends_at']),
+    'trial_available' => false,
+    'access_required' => !is_platform_admin($user) && empty($state['access_active']),
     'payment' => [
         'provider' => 'yookassa',
         'configured' => $providerConfigured,
