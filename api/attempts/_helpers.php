@@ -959,6 +959,7 @@ function matching_misaligned_right_order(
     $count = count($base);
     $best = $base;
     $bestScore = matching_alignment_count($leftOrder, $best, $pairs);
+    $bestIsOriginal = ($best === $rightValues);
     $bestTie = hash('sha256', $seed . '|base|' . implode('|', $best));
 
     foreach ([false, true] as $reverse) {
@@ -968,15 +969,27 @@ function matching_misaligned_right_order(
                 ? array_merge(array_slice($source, $shift), array_slice($source, 0, $shift))
                 : $source;
             $score = matching_alignment_count($leftOrder, $candidate, $pairs);
+            $candidateIsOriginal = ($candidate === $rightValues);
             $tie = hash('sha256', $seed . '|' . ($reverse ? 'r' : 'f') . '|' . $shift . '|' . implode('|', $candidate));
 
-            if ($score < $bestScore || ($score === $bestScore && strcmp($tie, $bestTie) < 0)) {
+            $preferCandidate =
+                $score < $bestScore
+                || (
+                    $score === $bestScore
+                    && $bestIsOriginal
+                    && !$candidateIsOriginal
+                )
+                || (
+                    $score === $bestScore
+                    && $bestIsOriginal === $candidateIsOriginal
+                    && strcmp($tie, $bestTie) < 0
+                );
+
+            if ($preferCandidate) {
                 $best = array_values($candidate);
                 $bestScore = $score;
+                $bestIsOriginal = $candidateIsOriginal;
                 $bestTie = $tie;
-            }
-            if ($bestScore === 0) {
-                return $best;
             }
         }
     }
