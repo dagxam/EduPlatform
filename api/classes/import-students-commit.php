@@ -25,6 +25,7 @@ if (count($rows) > 100) {
 }
 
 $pdo = app_db();
+subscription_require_staff_access($pdo, $user);
 $class = require_school_class_for_admin($pdo, $user, $classId);
 $existing = class_existing_student_keys($pdo, $classId);
 
@@ -49,6 +50,12 @@ foreach ($rows as $row) {
     $payloadSeen[$key] = true;
     $clean[$key] = ['last_name' => $lastName, 'first_name' => $firstName];
 }
+
+$newStudentsCount = 0;
+foreach ($clean as $key => $student) {
+    if (!isset($existing[$key])) $newStudentsCount++;
+}
+subscription_assert_student_capacity($pdo, $user, (int)$class['school_id'], $newStudentsCount);
 
 $inserted = [];
 $skipped = [];
