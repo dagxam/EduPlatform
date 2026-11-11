@@ -2,9 +2,11 @@ const AttemptSecurity = (() => {
   let state = null;
   let heartbeatTimer = null;
   let focusLossTimer = null;
+  let hiddenTimer = null;
   const HEARTBEAT_MIN_MS = 25000;
   const HEARTBEAT_JITTER_MS = 10000;
-  const FOCUS_LOSS_GRACE_MS = 1200;
+  const FOCUS_LOSS_GRACE_MS = 3000;
+  const HIDDEN_GRACE_MS = 1800;
   let hiddenHandled = false;
 
   async function sendEvent(eventType, keepalive = false) {
@@ -55,12 +57,22 @@ const AttemptSecurity = (() => {
     }
   }
 
+  function clearFocusTimers() {
+    if (focusLossTimer) window.clearTimeout(focusLossTimer);
+    if (hiddenTimer) window.clearTimeout(hiddenTimer);
+    focusLossTimer = null;
+    hiddenTimer = null;
+  }
+
+  function isStrict() {
+    return String(state?.focusPolicy || 'allow') === 'strict';
+  }
+
   function terminateForFocusLoss(eventType = 'hidden') {
-    if (!state || hiddenHandled) return;
+    if (!state || hiddenHandled || !isStrict()) return;
     hiddenHandled = true;
     state.locked = true;
-    if (focusLossTimer) window.clearTimeout(focusLossTimer);
-    focusLossTimer = null;
+    clearFocusTimers();
     state.onLocked?.(eventType);
     state.onHidden?.(eventType);
     sendEvent(eventType === 'blur' ? 'blur' : 'hidden', true).catch(() => {});
@@ -68,13 +80,26 @@ const AttemptSecurity = (() => {
 
   function handleVisibility() {
     if (!state) return;
+
     if (document.hidden) {
-      terminateForFocusLoss('hidden');
+      if (!isStrict()) {
+        sendEvent('hidden', true).catch(() => {});
+        return;
+      }
+
+      if (hiddenTimer) window.clearTimeout(hiddenTimer);
+      hiddenTimer = window.setTimeout(() => {
+        hiddenTimer = null;
+        if (state && document.hidden) {
+          terminateForFocusLoss('hidden');
+        }
+      }, HIDDEN_GRACE_MS);
       return;
     }
 
-    // A hidden tab never resumes the same attempt. Check the server
-    // immediately when the student returns so the final result is shown.
+    if (hiddenTimer) window.clearTimeout(hiddenTimer);
+    hiddenTimer = null;
+
     if (state.locked) {
       heartbeat();
       window.setTimeout(heartbeat, 700);
@@ -88,10 +113,15 @@ const AttemptSecurity = (() => {
   function handleWindowBlur() {
     if (!state || state.locked) return;
     if (focusLossTimer) window.clearTimeout(focusLossTimer);
+
     focusLossTimer = window.setTimeout(() => {
       focusLossTimer = null;
-      if (state && !document.hasFocus()) {
+      if (!state || document.hasFocus()) return;
+
+      if (isStrict()) {
         terminateForFocusLoss('blur');
+      } else {
+        sendEvent('blur', true).catch(() => {});
       }
     }, FOCUS_LOSS_GRACE_MS);
   }
@@ -100,18 +130,24 @@ const AttemptSecurity = (() => {
     if (focusLossTimer) window.clearTimeout(focusLossTimer);
     focusLossTimer = null;
     if (!state || state.locked) return;
+    hiddenHandled = false;
     sendEvent('focus').catch(() => {});
   }
 
   function handlePageHide() {
-    terminateForFocusLoss('hidden');
+    if (!state) return;
+    if (isStrict()) {
+      terminateForFocusLoss('hidden');
+    } else {
+      sendEvent('hidden', true).catch(() => {});
+    }
   }
 
   function start({ attemptId, focusPolicy = 'allow', onLocked = null, onHidden = null, onTerminated = null }) {
     stop();
     state = {
       attemptId: Number(attemptId),
-      focusPolicy,
+      focusPolicy: String(focusPolicy || 'allow'),
       locked: false,
       onLocked,
       onHidden,
@@ -132,9 +168,8 @@ const AttemptSecurity = (() => {
     window.removeEventListener('focus', handleWindowFocus);
     window.removeEventListener('pagehide', handlePageHide);
     if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
-    if (focusLossTimer) window.clearTimeout(focusLossTimer);
+    clearFocusTimers();
     heartbeatTimer = null;
-    focusLossTimer = null;
     state = null;
     hiddenHandled = false;
   }

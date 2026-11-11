@@ -99,6 +99,12 @@ foreach ($questionOrder as $questionId) {
         $rightSource = is_array($settings['right'] ?? null) ? $settings['right'] : [];
         $leftKeys = array_map('strval', (array)($savedStructured['left'] ?? array_keys($leftSource)));
         $rightKeys = array_map('strval', (array)($savedStructured['right'] ?? array_keys($rightSource)));
+        $rightKeys = matching_misaligned_right_order(
+            $leftKeys,
+            $rightKeys,
+            is_array($settings['pairs'] ?? null) ? $settings['pairs'] : [],
+            'attempt:' . (int)$attempt['id'] . '|matching-right:' . $questionId
+        );
 
         $left = [];
         foreach ($leftKeys as $key) {

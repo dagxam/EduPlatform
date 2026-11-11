@@ -8098,7 +8098,7 @@ async function startRealStudentAssignment(assignmentId) {
 
     AttemptSecurity.start({
       attemptId: questionData.attempt.id,
-      focusPolicy: assignment.focus_policy || 'allow',
+      focusPolicy: questionData.attempt.focus_policy || assignment.focus_policy || 'allow',
       onLocked: reason => {
         document.querySelectorAll('#realQuizForm input,#realQuizForm textarea,#realQuizForm select,#realQuizForm button')
           .forEach(el => el.disabled = true);

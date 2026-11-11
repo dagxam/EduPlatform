@@ -59,6 +59,8 @@ $stmt->execute(['assignment_id' => $assignmentId]);
 $rows = $stmt->fetchAll();
 
 $questionOrder = array_map('intval', array_column($rows, 'id'));
+$previewSeed = 'preview:assignment:' . $assignmentId . '|user:' . (int)$user['id'];
+$questionOrder = variant_scrambled_order($questionOrder, $previewSeed . '|questions', count($questionOrder) > 1);
 
 $byId = [];
 foreach ($rows as $row) {
@@ -98,6 +100,11 @@ foreach ($questionOrder as $questionId) {
     }
 
     $optionIds = array_keys($optionsById);
+    $optionIds = variant_scrambled_order(
+        $optionIds,
+        $previewSeed . '|options:' . $questionId,
+        count($optionIds) > 1
+    );
     $options = [];
     foreach ($optionIds as $optionId) {
         if (isset($optionsById[$optionId])) $options[] = $optionsById[$optionId];
@@ -109,6 +116,11 @@ foreach ($questionOrder as $questionId) {
 
     if ($interaction === 'order' && is_array($settings['items'] ?? null)) {
         $keys = array_map('strval', array_keys($settings['items']));
+        $keys = variant_scrambled_order(
+            $keys,
+            $previewSeed . '|order:' . $questionId,
+            true
+        );
         $items = [];
         foreach ($keys as $key) {
             if (array_key_exists($key, $settings['items'])) {
@@ -121,6 +133,17 @@ foreach ($questionOrder as $questionId) {
         $rightSource = is_array($settings['right'] ?? null) ? $settings['right'] : [];
         $leftKeys = array_map('strval', array_keys($leftSource));
         $rightKeys = array_map('strval', array_keys($rightSource));
+        $leftKeys = variant_scrambled_order(
+            $leftKeys,
+            $previewSeed . '|matching-left:' . $questionId,
+            count($leftKeys) > 1
+        );
+        $rightKeys = matching_misaligned_right_order(
+            $leftKeys,
+            $rightKeys,
+            is_array($settings['pairs'] ?? null) ? $settings['pairs'] : [],
+            $previewSeed . '|matching-right:' . $questionId
+        );
         $left = [];
         foreach ($leftKeys as $key) {
             $left[] = ['key' => $key, 'text' => (string)$leftSource[$key]];

@@ -929,6 +929,61 @@ function variant_scrambled_order(array $values, string $seed, bool $avoidOrigina
     return array_values($shuffled);
 }
 
+
+function matching_alignment_count(array $leftOrder, array $rightOrder, array $pairs): int
+{
+    $count = min(count($leftOrder), count($rightOrder));
+    $aligned = 0;
+
+    for ($index = 0; $index < $count; $index++) {
+        $leftKey = (string)$leftOrder[$index];
+        $rightKey = (string)$rightOrder[$index];
+        if (isset($pairs[$leftKey]) && (string)$pairs[$leftKey] === $rightKey) {
+            $aligned++;
+        }
+    }
+
+    return $aligned;
+}
+
+function matching_misaligned_right_order(
+    array $leftOrder,
+    array $rightValues,
+    array $pairs,
+    string $seed
+): array {
+    $rightValues = array_values(array_map('strval', $rightValues));
+    if (count($rightValues) <= 1) return $rightValues;
+
+    $base = variant_scrambled_order($rightValues, $seed, false);
+    $count = count($base);
+    $best = $base;
+    $bestScore = matching_alignment_count($leftOrder, $best, $pairs);
+    $bestTie = hash('sha256', $seed . '|base|' . implode('|', $best));
+
+    foreach ([false, true] as $reverse) {
+        $source = $reverse ? array_reverse($base) : $base;
+        for ($shift = 0; $shift < $count; $shift++) {
+            $candidate = $shift > 0
+                ? array_merge(array_slice($source, $shift), array_slice($source, 0, $shift))
+                : $source;
+            $score = matching_alignment_count($leftOrder, $candidate, $pairs);
+            $tie = hash('sha256', $seed . '|' . ($reverse ? 'r' : 'f') . '|' . $shift . '|' . implode('|', $candidate));
+
+            if ($score < $bestScore || ($score === $bestScore && strcmp($tie, $bestTie) < 0)) {
+                $best = array_values($candidate);
+                $bestScore = $score;
+                $bestTie = $tie;
+            }
+            if ($bestScore === 0) {
+                return $best;
+            }
+        }
+    }
+
+    return array_values($best);
+}
+
 function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): array
 {
     // A student's variant is deterministic for the assignment, so reconnects
@@ -1013,9 +1068,21 @@ function build_attempt_variant(PDO $pdo, int $assignmentId, int $studentId): arr
         } elseif ($interaction === 'matching') {
             $left = is_array($settings['left'] ?? null) ? array_map('strval', array_keys($settings['left'])) : [];
             $right = is_array($settings['right'] ?? null) ? array_map('strval', array_keys($settings['right'])) : [];
+            $pairs = is_array($settings['pairs'] ?? null) ? $settings['pairs'] : [];
+            $leftOrder = variant_scrambled_order(
+                $left,
+                $seed . '|matching-left:' . $questionId,
+                count($left) > 1
+            );
+            $rightOrder = matching_misaligned_right_order(
+                $leftOrder,
+                $right,
+                $pairs,
+                $seed . '|matching-right:' . $questionId
+            );
             $structuredOrder[$key] = [
-                'left' => variant_scrambled_order($left, $seed . '|matching-left:' . $questionId, count($left) > 1),
-                'right' => variant_scrambled_order($right, $seed . '|matching-right:' . $questionId, count($right) > 1),
+                'left' => $leftOrder,
+                'right' => $rightOrder,
             ];
         }
     }
