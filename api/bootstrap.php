@@ -1523,10 +1523,10 @@ function subscription_plan_catalog(): array
         'basic' => [
             'code' => 'basic',
             'name' => 'Базовый',
-            'monthly_price_minor' => 0,
-            'yearly_price_minor' => 0,
+            'monthly_price_minor' => 10000,
+            'yearly_price_minor' => 120000,
             'max_classes' => 2,
-            'max_students' => 60,
+            'max_students' => 50,
             'max_active_assignments' => 10,
             'ai_monthly_limit' => 0,
             'features' => [
@@ -1539,6 +1539,7 @@ function subscription_plan_catalog(): array
                 'export_results' => false,
                 'marketplace_sell' => false,
                 'premium_ai' => false,
+                'manual_student_add' => false,
             ],
         ],
         'pro' => [
@@ -1560,6 +1561,7 @@ function subscription_plan_catalog(): array
                 'export_results' => true,
                 'marketplace_sell' => true,
                 'premium_ai' => false,
+                'manual_student_add' => true,
             ],
         ],
         'premium' => [
@@ -1581,6 +1583,7 @@ function subscription_plan_catalog(): array
                 'export_results' => true,
                 'marketplace_sell' => true,
                 'premium_ai' => true,
+                'manual_student_add' => true,
             ],
         ],
     ];
@@ -1590,6 +1593,7 @@ function subscription_effective_state(PDO $pdo, array $user): array
 {
     $plans = subscription_plan_catalog();
     $basic = $plans['basic'];
+
     if (($user['role'] ?? '') === 'student') {
         return [
             'plan_code' => 'basic',
@@ -1599,6 +1603,22 @@ function subscription_effective_state(PDO $pdo, array $user): array
             'ends_at' => null,
             'auto_renew' => false,
             'billing_period' => null,
+            'access_active' => true,
+            'enforcement_enabled' => false,
+        ];
+    }
+
+    if (is_platform_admin($user)) {
+        return [
+            'plan_code' => 'premium',
+            'plan' => $plans['premium'],
+            'status' => 'platform_admin',
+            'trial_ends_at' => null,
+            'ends_at' => null,
+            'auto_renew' => false,
+            'billing_period' => null,
+            'payment_provider' => 'system',
+            'access_active' => true,
             'enforcement_enabled' => false,
         ];
     }
@@ -1627,7 +1647,8 @@ function subscription_effective_state(PDO $pdo, array $user): array
             'payment_provider' => 'manual_admin',
             'grant_note' => $grant['note'] ?? null,
             'assigned_by' => isset($grant['assigned_by']) ? (int)$grant['assigned_by'] : null,
-            'enforcement_enabled' => false,
+            'access_active' => true,
+            'enforcement_enabled' => true,
         ];
     }
 
@@ -1640,45 +1661,94 @@ function subscription_effective_state(PDO $pdo, array $user): array
     $stmt->execute(['user_id' => (int)$user['id']]);
     $row = $stmt->fetch();
 
-    $planCode = is_array($row) ? (string)($row['plan_code'] ?? 'basic') : 'basic';
-    if (!isset($plans[$planCode])) $planCode = 'basic';
+    $storedPlanCode = is_array($row) ? (string)($row['plan_code'] ?? '') : '';
     $status = is_array($row) ? (string)($row['status'] ?? 'inactive') : 'inactive';
-
     $now = time();
     $trialEnds = is_array($row) && !empty($row['trial_ends_at']) ? strtotime((string)$row['trial_ends_at']) : false;
     $endsAt = is_array($row) && !empty($row['ends_at']) ? strtotime((string)$row['ends_at']) : false;
 
-    if ($status === 'trial' && $trialEnds !== false && $trialEnds < $now) {
+    if ($status === 'trial' && ($trialEnds === false || $trialEnds < $now)) {
         $status = 'expired';
-        $planCode = 'basic';
-    } elseif ($status === 'active' && $endsAt !== false && $endsAt < $now) {
-        $status = 'expired';
-        $planCode = 'basic';
-    } elseif (!in_array($status, ['trial', 'active'], true)) {
-        $planCode = 'basic';
     }
+    if ($status === 'active' && ($endsAt === false || $endsAt < $now)) {
+        $status = 'expired';
+    }
+
+    $accessActive = in_array($status, ['trial', 'active'], true) && isset($plans[$storedPlanCode]);
+    $planCode = $accessActive ? $storedPlanCode : null;
+    $plan = $accessActive ? $plans[$storedPlanCode] : null;
 
     return [
         'plan_code' => $planCode,
-        'plan' => $plans[$planCode],
+        'plan' => $plan,
         'status' => $status,
         'trial_ends_at' => is_array($row) ? ($row['trial_ends_at'] ?? null) : null,
         'ends_at' => is_array($row) ? ($row['ends_at'] ?? null) : null,
-        'auto_renew' => is_array($row) ? (bool)($row['auto_renew'] ?? 0) : false,
-        'billing_period' => is_array($row) ? ($row['billing_period'] ?? null) : null,
+        'auto_renew' => $accessActive && is_array($row) ? (bool)($row['auto_renew'] ?? 0) : false,
+        'billing_period' => $accessActive && is_array($row) ? ($row['billing_period'] ?? null) : null,
         'payment_provider' => is_array($row) ? ($row['payment_provider'] ?? null) : null,
-        // Stage 1 intentionally does not block existing workflows yet.
-        'enforcement_enabled' => false,
+        'access_active' => $accessActive,
+        'enforcement_enabled' => true,
     ];
 }
 
 function subscription_feature_allowed(PDO $pdo, array $user, string $feature): bool
 {
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) return true;
     $state = subscription_effective_state($pdo, $user);
-    if (!$state['enforcement_enabled']) {
-        return true;
-    }
+    if (empty($state['access_active']) || !is_array($state['plan'] ?? null)) return false;
     return (bool)($state['plan']['features'][$feature] ?? false);
+}
+
+function subscription_require_staff_access(PDO $pdo, array $user): array
+{
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) {
+        return subscription_effective_state($pdo, $user);
+    }
+    $state = subscription_effective_state($pdo, $user);
+    if (empty($state['access_active'])) {
+        json_response([
+            'ok' => false,
+            'error' => 'Для этой функции нужна активная подписка UROVIA. Выберите Базовый, PRO или Premium.',
+            'code' => 'SUBSCRIPTION_REQUIRED',
+        ], 402);
+    }
+    return $state;
+}
+
+function subscription_require_feature(PDO $pdo, array $user, string $feature, string $message): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) return $state;
+    if (empty($state['plan']['features'][$feature])) {
+        json_response([
+            'ok' => false,
+            'error' => $message,
+            'code' => 'SUBSCRIPTION_UPGRADE_REQUIRED',
+        ], 403);
+    }
+    return $state;
+}
+
+function subscription_assert_student_capacity(PDO $pdo, array $user, ?int $schoolId, int $additionalStudents = 1): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) return $state;
+    $limit = $state['plan']['max_students'] ?? null;
+    if ($limit === null) return $state;
+    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+    $current = (int)($usage['students'] ?? 0);
+    $additionalStudents = max(0, $additionalStudents);
+    if (($current + $additionalStudents) > (int)$limit) {
+        json_response([
+            'ok' => false,
+            'error' => 'Лимит тарифа: ' . (int)$limit . ' учеников. Сейчас используется ' . $current . '. Для добавления новых учеников выберите более высокий тариф.',
+            'code' => 'STUDENT_LIMIT_REACHED',
+            'limit' => (int)$limit,
+            'used' => $current,
+        ], 409);
+    }
+    return $state;
 }
 
 function subscription_usage_snapshot(PDO $pdo, array $user, ?int $schoolId): array
