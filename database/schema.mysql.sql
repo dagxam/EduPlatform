@@ -549,6 +549,7 @@ CREATE TABLE IF NOT EXISTS payment_orders (
   checkout_url TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   paid_at DATETIME NULL,
+  archived_at DATETIME NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_payment_orders_idempotence (idempotence_key),
   KEY idx_payment_orders_user (user_id, created_at),
