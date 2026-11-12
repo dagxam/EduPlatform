@@ -2,13 +2,15 @@
   'use strict';
 
   // Installation is controlled by the browser/OS, never by the website alone.
-  const INSTALLED_KEY = 'urovia-pwa-installed-v1';
+  const LEGACY_INSTALLED_KEY = 'urovia-pwa-installed-v1';
   const RELOAD_KEY = 'uvoria-sw-reloading';
   let deferredInstallPrompt = null;
   let registration = null;
   let assessmentActive = false;
   let updatePending = false;
   let reloadPending = false;
+  let installedThisSession = false;
+  let relatedPwaInstalled = false;
 
   const modes = ['standalone'];
   const isStandalone = () =>
@@ -25,22 +27,44 @@
 
   const isAndroid = () => /android/i.test(navigator.userAgent);
   const isYandex = () => /yabrowser/i.test(navigator.userAgent);
+  const isFirefox = () => /firefox|fxios/i.test(navigator.userAgent);
   const isMac = () => /macintosh|mac os x/i.test(navigator.userAgent) && !isIOS();
+  const isWindows = () => /windows/i.test(navigator.userAgent);
 
-  function installedFlag() {
-    try { return window.localStorage.getItem(INSTALLED_KEY) === '1'; }
-    catch { return false; }
+  function clearLegacyInstalledFlag() {
+    try { window.localStorage.removeItem(LEGACY_INSTALLED_KEY); } catch {}
   }
 
   function markInstalled() {
-    try { window.localStorage.setItem(INSTALLED_KEY, '1'); } catch {}
+    installedThisSession = true;
+    relatedPwaInstalled = true;
     deferredInstallPrompt = null;
+    clearLegacyInstalledFlag();
     document.getElementById('pwaInstallGuide')?.classList.add('hidden');
     refreshInstallButton();
   }
 
-  function clearInstalledFlag() {
-    try { window.localStorage.removeItem(INSTALLED_KEY); } catch {}
+  async function detectInstalledPwa() {
+    if (isStandalone()) {
+      relatedPwaInstalled = true;
+      refreshInstallButton();
+      return true;
+    }
+    if (typeof navigator.getInstalledRelatedApps !== 'function') {
+      return false;
+    }
+    try {
+      const apps = await navigator.getInstalledRelatedApps();
+      relatedPwaInstalled = Array.isArray(apps) && apps.some(app =>
+        app?.platform === 'webapp'
+        || String(app?.url || '').includes('manifest.webmanifest')
+        || String(app?.id || '').includes('urovia.ru')
+      );
+      refreshInstallButton();
+      return relatedPwaInstalled;
+    } catch {
+      return false;
+    }
   }
 
   function guideCopy() {
@@ -73,17 +97,32 @@
       };
     }
 
+    if (isFirefox()) {
+      return {
+        title: 'UROVIA на компьютере',
+        description: 'Firefox на компьютере не поддерживает системную установку PWA через сайт.',
+        steps: [
+          'Для отдельного приложения откройте urovia.ru в Chrome, Edge или другом Chromium-браузере.',
+          'Нажмите «Установить UROVIA» и подтвердите системную установку.',
+          'Если нужен только ярлык Firefox, используйте средства браузера или операционной системы для создания ярлыка сайта.'
+        ],
+        note: 'Создать системный ярлык на рабочем столе без подтверждения пользователя сайт не может.'
+      };
+    }
+
     return {
       title: 'UROVIA на компьютере',
-      description: 'Установите платформу как приложение из меню браузера, если системное окно установки недоступно.',
+      description: 'Установите UROVIA как отдельное приложение. Если браузер поддерживает системный диалог, кнопка откроет его автоматически.',
       steps: [
         isMac() && isSafari()
-          ? 'В Safari откройте меню «Файл» → «Добавить в Dock» (если доступно).'
-          : 'В Chrome / Edge / Яндекс Браузере откройте меню (⋮ / ≡) или значок установки в адресной строке.',
-        'Выберите «Установить приложение», «Установить эту страницу как приложение» либо аналогичный пункт.',
-        'Подтвердите установку. Если ярлык не появился на рабочем столе, найдите UROVIA в установленных приложениях браузера / системы и создайте ярлык через ОС.'
+          ? 'В Safari откройте «Файл» → «Добавить в Dock».'
+          : 'В Chrome / Edge / Яндекс Браузере используйте «Установить приложение» в меню или значок установки в адресной строке.',
+        'Подтвердите установку UROVIA.',
+        isWindows()
+          ? 'После установки UROVIA появится среди приложений Windows. Если браузер предлагает создание ярлыка на рабочем столе — включите эту опцию; иначе ярлык можно создать из установленного приложения средствами Windows.'
+          : 'После установки UROVIA появится среди приложений системы; при необходимости закрепите её в Dock/панели или создайте ярлык средствами ОС.'
       ],
-      note: 'Сайт не может сам создать ярлык на рабочем столе: его размещением управляют браузер и операционная система.'
+      note: 'Браузер и операционная система сами решают, создавать ли ярлык на рабочем столе. Сайт не может сделать это без системного подтверждения.'
     };
   }
 
@@ -115,11 +154,11 @@
     if (!button) return;
     const standalone = isStandalone();
     document.documentElement.classList.toggle('pwa-standalone', standalone);
-    if (standalone) {
-      // Some installed applications have separate local browser storage.
-      try { window.localStorage.setItem(INSTALLED_KEY, '1'); } catch {}
-    }
-    const installed = standalone || installedFlag();
+
+    // Never trust a persistent localStorage flag here. It can survive uninstall
+    // and permanently hide the install action. The button is hidden only when
+    // the current app is standalone or this browser reports/just confirmed install.
+    const installed = standalone || installedThisSession || relatedPwaInstalled;
     button.classList.toggle('hidden', installed);
     button.disabled = installed;
     if (installed) document.getElementById('pwaInstallGuide')?.classList.add('hidden');
@@ -131,7 +170,7 @@
     const install = document.createElement('button');
     install.id = 'pwaInstallButton';
     install.type = 'button';
-    install.className = 'pwa-install-button hidden';
+    install.className = 'pwa-install-button';
     install.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span>Установить UROVIA</span>';
     install.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
@@ -158,7 +197,7 @@
     document.body.append(install, update, guide);
 
     install.addEventListener('click', async () => {
-      if (isStandalone() || installedFlag()) {
+      if (isStandalone() || installedThisSession || relatedPwaInstalled) {
         refreshInstallButton();
         return;
       }
@@ -263,19 +302,28 @@
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     if (isStandalone()) return;
-    // A fresh native prompt means installation is available again (e.g. after uninstall).
-    clearInstalledFlag();
+    // A fresh native prompt is authoritative evidence that this browser
+    // currently considers the PWA installable (for example after uninstall).
+    installedThisSession = false;
+    relatedPwaInstalled = false;
+    clearLegacyInstalledFlag();
     deferredInstallPrompt = event;
     refreshInstallButton();
   });
   window.addEventListener('appinstalled', markInstalled);
-  window.addEventListener('pageshow', refreshInstallButton);
-  window.addEventListener('focus', refreshInstallButton);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshInstallButton();
+  window.addEventListener('pageshow', () => {
+    refreshInstallButton();
+    detectInstalledPwa().catch(() => {});
   });
-  window.addEventListener('storage', event => {
-    if (event.key === INSTALLED_KEY) refreshInstallButton();
+  window.addEventListener('focus', () => {
+    refreshInstallButton();
+    detectInstalledPwa().catch(() => {});
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshInstallButton();
+      detectInstalledPwa().catch(() => {});
+    }
   });
   modes.forEach(mode => {
     const query = window.matchMedia('(display-mode: ' + mode + ')');
@@ -284,8 +332,11 @@
   });
 
   async function initializePwa() {
+    // Remove obsolete v1 persistence so uninstall can never leave the button hidden.
+    clearLegacyInstalledFlag();
     ensureUi();
     refreshInstallButton();
+    await detectInstalledPwa();
     if (!('serviceWorker' in navigator)) return;
     try {
       const reg = await navigator.serviceWorker.register('./sw.js');
