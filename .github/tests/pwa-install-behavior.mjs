@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 const script = readFileSync('pwa.js', 'utf8');
-const KEY = 'urovia-pwa-installed-v1';
+const LEGACY_KEY = 'urovia-pwa-installed-v1';
 
-function harness({ standalone = false, ios = false, installed = false } = {}) {
-  const store = new Map(installed ? [[KEY, '1']] : []);
+function harness({ standalone = false, ios = false, legacyInstalled = false, relatedInstalled = false } = {}) {
+  const store = new Map(legacyInstalled ? [[LEGACY_KEY, '1']] : []);
   const nodes = new Map();
   const windowListeners = new Map();
 
@@ -27,6 +27,7 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
       this.listeners = new Map();
       this.innerHTML = '';
       this.textContent = '';
+      this.disabled = false;
     }
     setAttribute() {}
     addEventListener(type, callback) { this.listeners.set(type, callback); }
@@ -49,6 +50,7 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
       }
     }
   };
+
   const body = { append(...elements) { elements.forEach(register); } };
   const document = {
     readyState: 'complete',
@@ -60,12 +62,20 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
     getElementById(id) { return nodes.get(id) || null; },
     addEventListener() {}
   };
+
   const window = {
     navigator: {
-      userAgent: ios ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' : 'Mozilla/5.0 Chrome/130.0 Safari/537.36',
+      userAgent: ios
+        ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+        : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36',
       platform: ios ? 'iPhone' : 'Win32',
       maxTouchPoints: ios ? 5 : 0,
-      standalone: standalone && ios
+      standalone: standalone && ios,
+      async getInstalledRelatedApps() {
+        return relatedInstalled
+          ? [{ platform: 'webapp', url: 'https://urovia.ru/manifest.webmanifest', id: 'https://urovia.ru/' }]
+          : [];
+      }
     },
     matchMedia: query => ({
       matches: standalone && query === '(display-mode: standalone)',
@@ -78,6 +88,7 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
     },
     addEventListener(type, callback) { windowListeners.set(type, callback); }
   };
+
   const context = {
     window,
     navigator: window.navigator,
@@ -85,6 +96,7 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
     sessionStorage: { getItem: () => null, setItem() {} },
     console
   };
+
   runInNewContext(script, context, { filename: 'pwa.js' });
 
   const node = id => {
@@ -98,27 +110,46 @@ function harness({ standalone = false, ios = false, installed = false } = {}) {
     return fn(event);
   };
   const hidden = () => node('pwaInstallButton').classList.contains('hidden');
-  return { node, emit, hidden, store };
+  const settle = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  return { node, emit, hidden, store, settle };
 }
 
-// Fresh ordinary browser: installation action remains available.
+// Fresh ordinary browser: install action is immediately visible.
 {
   const h = harness();
   assert.equal(h.hidden(), false);
+  await h.settle();
+  assert.equal(h.hidden(), false);
   h.emit('appinstalled');
-  assert.equal(h.hidden(), true, 'appinstalled hides the installation button');
-  assert.equal(h.store.get(KEY), '1', 'install acknowledgment persists');
+  assert.equal(h.hidden(), true, 'appinstalled hides the button in the current browser session');
 }
 
-// Reopening browser after installation preserves hidden state.
-assert.equal(harness({ installed: true }).hidden(), true);
+// Obsolete persisted "installed" flag must never hide the action after uninstall/reopen.
+{
+  const h = harness({ legacyInstalled: true });
+  assert.equal(h.hidden(), false, 'legacy localStorage flag must not hide install button');
+  assert.equal(h.store.has(LEGACY_KEY), false, 'legacy flag is cleared during initialization');
+}
 
-// Installed PWA launched from its icon: no duplicate install prompt.
+// Installed PWA launched from its icon: no duplicate install action.
 assert.equal(harness({ standalone: true }).hidden(), true);
 
-// If uninstalled, a new native prompt can make installation available again.
+// Supported browsers can detect an installed related PWA.
 {
-  const h = harness({ installed: true });
+  const h = harness({ relatedInstalled: true });
+  assert.equal(h.hidden(), false, 'button starts visible before async installed-app detection');
+  await h.settle();
+  assert.equal(h.hidden(), true, 'installed related PWA hides duplicate install action');
+}
+
+// A fresh native prompt is authoritative evidence that installation is available now.
+{
+  const h = harness({ legacyInstalled: true });
   let prevented = false;
   h.emit('beforeinstallprompt', {
     preventDefault() { prevented = true; },
@@ -127,10 +158,9 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   });
   assert.equal(prevented, true);
   assert.equal(h.hidden(), false);
-  assert.equal(h.store.has(KEY), false);
 }
 
-// Accepted native install promptly hides the button even if no appinstalled event fires.
+// Accepted native install hides the button for the current browser session.
 {
   const h = harness();
   h.emit('beforeinstallprompt', {
@@ -140,10 +170,9 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   });
   await h.node('pwaInstallButton').click();
   assert.equal(h.hidden(), true);
-  assert.equal(h.store.get(KEY), '1');
 }
 
-// On iOS the website gives the share-sheet instructions; user confirms manually.
+// On iOS the website gives share-sheet instructions; manual confirmation is session-only.
 {
   const h = harness({ ios: true });
   await h.node('pwaInstallButton').click();
@@ -151,6 +180,9 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   assert.match(h.node('pwaGuideDescription').textContent, /Safari/);
   await h.node('pwaInstallConfirmed').click();
   assert.equal(h.hidden(), true);
+
+  const reopened = harness({ ios: true, legacyInstalled: true });
+  assert.equal(reopened.hidden(), false, 'reopened normal browser must offer install again unless real install state is detectable');
 }
 
-console.log('PWA installation behavior OK: prompt, iOS, standalone, persistence and reinstall');
+console.log('PWA installation behavior OK: always-visible fallback, prompt, standalone, related-app detection and reinstall');
