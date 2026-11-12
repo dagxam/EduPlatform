@@ -10441,3 +10441,11 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
 .class-student-head-actions>strong{min-width:28px;text-align:center}
 @media(max-width:900px){.top-profile .profile-copy{display:none}.top-profile{padding:3px}}
 @media(max-width:680px){.topbar .top-actions{gap:6px}.top-profile .logout-btn{display:none}.top-profile .avatar{width:32px;height:32px;flex-basis:32px}.teacher-nav .nav-item.subscription-gated:hover::after{display:none}.class-student-head-actions{width:100%;justify-content:space-between}.class-list-head{align-items:flex-start;gap:10px;flex-wrap:wrap}}
+
+
+/* Payment journal cleanup */
+.yookassa-payments-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.compact-check{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#64748b;cursor:pointer}
+.compact-check input{width:16px;height:16px;margin:0}
+.yookassa-payments-table .row-actions-cell{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.yookassa-payments-table .payment-row-archived{opacity:.72}
