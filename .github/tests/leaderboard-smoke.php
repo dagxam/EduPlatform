@@ -15,7 +15,7 @@ $checks = [
     'student leaderboard returns five places' => "LIMIT 5",
     'class leaderboard returns five places' => "array_slice(\$classLeaders, 0, 5)",
     'school leaderboard returns five places' => "array_slice(\$schoolLeaders, 0, 5)",
-    'student ranking uses cumulative performance points first' => "ORDER BY rating_points DESC, works_count DESC, correct_answers_count DESC, final_percent DESC",
+    'student ranking uses overall final percent first' => "ORDER BY final_percent DESC, works_count DESC, correct_answers_count DESC, rating_points DESC",
     'student leaderboard sums per-work rating points' => 'SUM({$ratingWorkPointsSql}) AS rating_points',
     'student leaderboard counts correct answers' => 'AS correct_answers_count',
     'student leaderboard counts checked answers' => 'AS checked_answers_count',
@@ -43,8 +43,7 @@ if (!str_contains($app, 'items.slice(0,5)')) {
 
 if (!str_contains($app, 'item.final_percent')
     || !str_contains($app, 'item.final_grade')
-    || !str_contains($app, 'item.rating_points')
-    || !str_contains($app, 'рейтинг:')
+    || !str_contains($app, 'общий результат:')
     || !str_contains($app, 'item.correct_answers_count')
     || !str_contains($app, 'item.checked_answers_count')
     || !str_contains($app, 'item.total_score')
@@ -55,8 +54,8 @@ if (!str_contains($app, 'item.final_percent')
     exit(1);
 }
 
-if (!str_contains($index, 'Каждая выполненная работа даёт до 100 рейтинговых баллов')) {
-    fwrite(STDERR, "Leaderboard smoke failed: cumulative student leaderboard explanation is missing.\n");
+if (!str_contains($index, 'Главный показатель — общий итоговый процент')) {
+    fwrite(STDERR, "Leaderboard smoke failed: percent-first student leaderboard explanation is missing.\n");
     exit(1);
 }
 
