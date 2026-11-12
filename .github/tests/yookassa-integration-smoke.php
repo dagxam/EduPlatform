@@ -24,6 +24,8 @@ $files = [
     'payment_info' => file_get_contents($root . '/payment-info.php'),
     'payments_list' => file_get_contents($root . '/api/admin/payments/list.php'),
     'receipt_mark' => file_get_contents($root . '/api/admin/payments/mark-receipt.php'),
+    'payment_remove' => file_get_contents($root . '/api/admin/payments/remove.php'),
+    'payment_restore' => file_get_contents($root . '/api/admin/payments/restore.php'),
 ];
 
 foreach ($files as $name => $content) {
@@ -60,7 +62,14 @@ $checks = [
     [$files['sqlite'], 'receipt_status TEXT', 'SQLite receipt tracking'],
     [$files['mysql'], 'receipt_status VARCHAR(32)', 'MySQL receipt tracking'],
     [$files['payments_list'], 'receipt_status', 'payment journal receipt status'],
+    [$files['payments_list'], 'archived_at IS NULL', 'payment journal archive filter'],
     [$files['receipt_mark'], 'payment_receipt_status_updated', 'receipt audit event'],
+    [$files['payment_remove'], 'payment_order_deleted', 'safe deletion audit event'],
+    [$files['payment_remove'], 'payment_order_archived', 'financial record archive event'],
+    [$files['payment_restore'], 'payment_order_restored', 'payment restore audit event'],
+    [$files['app'], 'data-remove-payment', 'payment cleanup frontend action'],
+    [$files['app'], 'data-restore-payment', 'payment restore frontend action'],
+    [$files['index'], 'showArchivedYooKassaPayments', 'payment archive UI toggle'],
     [$files['index'], 'id="legalProfileForm"', 'legal profile UI'],
     [$files['index'], 'id="yookassaConfigForm"', 'YooKassa config UI'],
     [$files['index'], 'id="yookassaRecurringEnabled"', 'recurring provider permission toggle'],
@@ -108,7 +117,7 @@ foreach (['user_subscriptions', 'payment_orders', 'site_legal_profile', 'subscri
 
 $columns = $pdo->query('PRAGMA table_info(payment_orders)')->fetchAll(PDO::FETCH_ASSOC);
 $columnNames = array_column($columns, 'name');
-foreach (['customer_email','receipt_status','receipt_reference'] as $requiredColumn) {
+foreach (['customer_email','receipt_status','receipt_reference','archived_at'] as $requiredColumn) {
     if (!in_array($requiredColumn, $columnNames, true)) {
         fwrite(STDERR, "YooKassa smoke failed: payment_orders.{$requiredColumn} missing.\n");
         exit(1);
