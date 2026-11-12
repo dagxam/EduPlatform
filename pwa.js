@@ -42,9 +42,6 @@
     clearLegacyInstalledFlag();
     document.getElementById('pwaInstallGuide')?.classList.add('hidden');
     refreshInstallButton();
-    if (isYandex() && !isStandalone()) {
-      window.setTimeout(() => showInstallGuide(), 0);
-    }
   }
 
   async function detectInstalledPwa() {
@@ -71,34 +68,6 @@
   }
 
   function guideCopy() {
-    if (isYandex() && !isIOS()) {
-      const installed = installedThisSession || relatedPwaInstalled;
-      if (installed) {
-        return {
-          title: 'Создать ярлык UROVIA',
-          description: 'UROVIA уже установлена в Яндекс Браузере. Осталось отдельно добавить системный ярлык.',
-          steps: [
-            'Откройте установленную UROVIA как приложение через боковую панель Яндекс Браузера или через Умную строку → «Открыть приложение».',
-            'В правом верхнем углу окна приложения откройте меню.',
-            'Выберите «Добавить ярлык».',
-            'Включите создание ярлыка на рабочем столе Windows и подтвердите. После этого на рабочем столе появится иконка UROVIA.'
-          ],
-          note: 'Яндекс Браузер сейчас отделяет установку веб-приложения от создания ярлыка. Сайт не может включить эту системную опцию автоматически.'
-        };
-      }
-      return {
-        title: 'Установить UROVIA в Яндекс Браузере',
-        description: 'Сначала установите UROVIA как веб-приложение, затем отдельно добавьте ярлык на рабочий стол.',
-        steps: [
-          'В Умной строке Яндекс Браузера нажмите значок установки и выберите «Установить как приложение».',
-          'Откройте установленную UROVIA как приложение.',
-          'В правом верхнем углу окна приложения откройте меню → «Добавить ярлык».',
-          'Выберите рабочий стол Windows и подтвердите.'
-        ],
-        note: 'После установки кнопка UROVIA останется доступной как подсказка «Создать ярлык UROVIA», пока сайт открыт в обычной вкладке.'
-      };
-    }
-
     if (isIOS()) {
       return {
         title: 'UROVIA на iPhone и iPad',
@@ -185,21 +154,15 @@
     if (!button) return;
     const standalone = isStandalone();
     const installed = standalone || installedThisSession || relatedPwaInstalled;
-    const yandexShortcutHelper = isYandex() && !standalone && installed;
 
     document.documentElement.classList.toggle('pwa-standalone', standalone);
-    button.classList.toggle('hidden', installed && !yandexShortcutHelper);
-    button.disabled = installed && !yandexShortcutHelper;
-    button.classList.toggle('pwa-shortcut-helper', yandexShortcutHelper);
-    button.innerHTML = yandexShortcutHelper
-      ? '<span class="pwa-install-icon" aria-hidden="true">↗</span><span>Создать ярлык UROVIA</span>'
-      : '<span class="pwa-install-icon" aria-hidden="true">↓</span><span>Установить UROVIA</span>';
-    button.setAttribute(
-      'aria-label',
-      yandexShortcutHelper ? 'Создать ярлык UROVIA на рабочем столе' : 'Установить UROVIA как приложение'
-    );
+    button.classList.toggle('hidden', installed);
+    button.disabled = installed;
+    button.classList.remove('pwa-shortcut-helper');
+    button.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span>Установить UROVIA</span>';
+    button.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
-    if (standalone || (installed && !yandexShortcutHelper)) {
+    if (installed) {
       document.getElementById('pwaInstallGuide')?.classList.add('hidden');
     }
   }
@@ -239,10 +202,6 @@
     install.addEventListener('click', async () => {
       if (isStandalone()) {
         refreshInstallButton();
-        return;
-      }
-      if (isYandex() && (installedThisSession || relatedPwaInstalled)) {
-        showInstallGuide();
         return;
       }
       if (installedThisSession || relatedPwaInstalled) {
