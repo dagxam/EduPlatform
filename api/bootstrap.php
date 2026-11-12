@@ -377,7 +377,6 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
     mysql_add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INT NOT NULL DEFAULT 50');
     mysql_add_column_if_missing($pdo, 'questions', 'is_active', 'TINYINT NOT NULL DEFAULT 1');
     mysql_add_column_if_missing($pdo, 'questions', 'revision_of_id', 'BIGINT UNSIGNED NULL');
-    mysql_add_column_if_missing($pdo, 'payment_orders', 'archived_at', 'DATETIME NULL');
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS assignment_students (
@@ -533,6 +532,7 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
     mysql_add_column_if_missing($pdo, 'payment_orders', 'customer_email', 'VARCHAR(191) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_status', 'VARCHAR(32) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_reference', 'VARCHAR(500) NULL');
+    mysql_add_column_if_missing($pdo, 'payment_orders', 'archived_at', 'DATETIME NULL');
     $pdo->exec("UPDATE payment_orders SET receipt_status = 'pending' WHERE receipt_status IS NULL OR receipt_status = ''");
 }
 
