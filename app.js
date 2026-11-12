@@ -4064,13 +4064,35 @@ async function readJsonResponse(response, fallbackMessage = 'Сервер вер
   }
 
   try {
-    return JSON.parse(raw);
-  } catch {
-    throw new Error(
-      response.ok
-        ? fallbackMessage
-        : `${fallbackMessage} Код HTTP: ${response.status}.`
-    );
+    const data = JSON.parse(raw);
+    if (
+      response.status === 402
+      && data?.code === 'SUBSCRIPTION_REQUIRED'
+      && currentUser
+      && currentUser.role !== 'student'
+      && Number(currentUser.is_platform_admin) !== 1
+    ) {
+      subscriptionDataCache = {
+        ...(subscriptionDataCache || {}),
+        current: {
+          ...(subscriptionDataCache?.current || {}),
+          access_active: false,
+          status: 'expired'
+        }
+      };
+      applySubscriptionAccessState(subscriptionDataCache);
+      window.setTimeout(() => loadSubscriptionPage().catch(() => {}), 0);
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(
+        response.ok
+          ? fallbackMessage
+          : `${fallbackMessage} Код HTTP: ${response.status}.`
+      );
+    }
+    throw error;
   }
 }
 
