@@ -4791,8 +4791,7 @@ function renderSubscriptionPage(data) {
     usageNode.innerHTML = [
       ['Классы', usage.classes, currentPlan.max_classes],
       ['Ученики', usage.students, currentPlan.max_students],
-      ['Активные задания', usage.active_assignments, currentPlan.max_active_assignments],
-      ['AI', usage.ai_generations, currentPlan.ai_monthly_limit]
+      ['Активные задания', usage.active_assignments, currentPlan.max_active_assignments]
     ].map(([label, used, limit]) => {
       const limitText = limit === null || limit === undefined ? '∞' : Number(limit);
       return '<div><span>' + escapeHtml(label) + '</span><strong>' + Number(used || 0) + ' / ' + limitText + '</strong></div>';
@@ -4860,8 +4859,11 @@ async function loadYooKassaPayments() {
   if (!body) return [];
   body.innerHTML = '<tr><td colspan="7">Загрузка...</td></tr>';
 
+  const showArchived = Boolean(document.getElementById('showArchivedYooKassaPayments')?.checked);
+  const query = showArchived ? '?include_archived=1' : '';
+
   try {
-    const response = await fetch('./api/admin/payments/list.php', {
+    const response = await fetch('./api/admin/payments/list.php' + query, {
       credentials: 'same-origin',
       cache: 'no-store'
     });
@@ -4875,25 +4877,92 @@ async function loadYooKassaPayments() {
       const name = [item.last_name, item.first_name].filter(Boolean).join(' ');
       const paidAt = item.paid_at || item.created_at;
       const email = item.customer_email || item.account_email || '';
+      const archived = Boolean(item.archived_at);
+      const removalLabel = item.removal_mode === 'delete' ? 'Удалить' : 'В архив';
+      const actionButton = archived
+        ? '<button class="secondary-btn compact-btn" type="button" data-restore-payment="' + Number(item.id) + '">Вернуть</button>'
+        : '<button class="danger-btn compact-btn" type="button" data-remove-payment="' + Number(item.id) + '">' + removalLabel + '</button>';
       return `
-        <tr>
-          <td><b>#${Number(item.id)}</b><small>${escapeHtml(historyDateTime(paidAt))}</small></td>
+        <tr class="${archived ? 'payment-row-archived' : ''}">
+          <td><b>#${Number(item.id)}</b><small>${escapeHtml(historyDateTime(paidAt))}</small>${archived ? '<small>Архив</small>' : ''}</td>
           <td><b>${escapeHtml(name || 'Пользователь')}</b><small>${escapeHtml(email)}</small></td>
           <td>${escapeHtml(String(item.plan_code || '').toUpperCase())}<small>${item.billing_period === 'year' ? 'год' : 'месяц'}</small></td>
           <td><b>${escapeHtml(subscriptionMoney(Number(item.amount_minor || 0)))}</b></td>
           <td><span class="status ${statusClass}">${escapeHtml(statusText)}</span></td>
           <td><span class="status ${receiptClass}">${escapeHtml(receiptText)}</span>${item.receipt_reference ? '<small>' + escapeHtml(item.receipt_reference) + '</small>' : ''}</td>
-          <td class="row-actions-cell"><button class="secondary-btn compact-btn" type="button" data-edit-payment-receipt="${Number(item.id)}">Чек</button></td>
+          <td class="row-actions-cell">
+            <button class="secondary-btn compact-btn" type="button" data-edit-payment-receipt="${Number(item.id)}">Чек</button>
+            ${actionButton}
+          </td>
         </tr>`;
     }).join('') : '<tr><td colspan="7">Платежей пока нет.</td></tr>';
 
     body.querySelectorAll('[data-edit-payment-receipt]').forEach(button => {
       button.addEventListener('click', () => openPaymentReceiptEditor(Number(button.dataset.editPaymentReceipt)));
     });
+    body.querySelectorAll('[data-remove-payment]').forEach(button => {
+      button.addEventListener('click', () => removeYooKassaPayment(Number(button.dataset.removePayment)));
+    });
+    body.querySelectorAll('[data-restore-payment]').forEach(button => {
+      button.addEventListener('click', () => restoreYooKassaPayment(Number(button.dataset.restorePayment)));
+    });
     return yookassaPaymentsCache;
   } catch (error) {
     body.innerHTML = '<tr><td colspan="7">' + escapeHtml(error.message) + '</td></tr>';
     return [];
+  }
+}
+
+async function removeYooKassaPayment(orderId) {
+  const item = yookassaPaymentsCache.find(row => Number(row.id) === Number(orderId));
+  if (!item || Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const hardDelete = item.removal_mode === 'delete';
+  const confirmed = await appConfirm(
+    hardDelete
+      ? 'Удалить эту неуспешную или отменённую запись из внутреннего журнала UROVIA? Это действие необратимо.'
+      : 'Этот платёж нельзя безопасно уничтожить: он может быть успешным, возвращённым или ещё ожидать подтверждения ЮKassa. Переместить его в архив и скрыть из основного списка?',
+    {
+      title: hardDelete ? 'Удалить запись платежа' : 'Архивировать платёж',
+      okText: hardDelete ? 'Удалить' : 'В архив',
+      tone: hardDelete ? 'danger' : 'default'
+    }
+  );
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('./api/admin/payments/remove.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_order_id: Number(orderId) })
+    });
+    const data = await readJsonResponse(response, 'Не удалось убрать запись платежа.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось убрать запись платежа.');
+    await loadYooKassaPayments();
+    await appAlert(data.message || 'Запись обработана.', {
+      title: data.action === 'deleted' ? 'Запись удалена' : 'Платёж в архиве',
+      tone: 'success'
+    });
+  } catch (error) {
+    await appAlert(error.message, { title: 'Платежи', tone: 'danger' });
+  }
+}
+
+async function restoreYooKassaPayment(orderId) {
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+  try {
+    const response = await fetch('./api/admin/payments/restore.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_order_id: Number(orderId) })
+    });
+    const data = await readJsonResponse(response, 'Не удалось вернуть платёж из архива.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось вернуть платёж из архива.');
+    await loadYooKassaPayments();
+  } catch (error) {
+    await appAlert(error.message, { title: 'Платежи', tone: 'danger' });
   }
 }
 
@@ -4953,6 +5022,9 @@ document.getElementById('paymentReceiptForm')?.addEventListener('submit', async 
 });
 
 document.getElementById('refreshYooKassaPaymentsBtn')?.addEventListener('click', () => {
+  loadYooKassaPayments().catch(() => {});
+});
+document.getElementById('showArchivedYooKassaPayments')?.addEventListener('change', () => {
   loadYooKassaPayments().catch(() => {});
 });
 
