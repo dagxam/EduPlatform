@@ -175,8 +175,8 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   assert.equal(h.hidden(), true);
 }
 
-// Yandex Browser keeps a helper action visible after PWA installation so the user
-// can create the separate Windows desktop shortcut from the app menu.
+// Yandex Browser follows the same installed behavior: once installation is
+// confirmed, the install action disappears and no desktop-shortcut helper is shown.
 {
   const h = harness({ yandex: true });
   h.emit('beforeinstallprompt', {
@@ -185,17 +185,14 @@ assert.equal(harness({ standalone: true }).hidden(), true);
     userChoice: Promise.resolve({ outcome: 'accepted' })
   });
   await h.node('pwaInstallButton').click();
-  assert.equal(h.hidden(), false, 'Yandex must keep a shortcut helper visible after install');
-  assert.match(h.node('pwaInstallButton').innerHTML, /Создать ярлык UROVIA/);
-  assert.equal(h.node('pwaInstallGuide').classList.contains('hidden'), false);
-  assert.match(h.node('pwaGuideDescription').textContent, /установлена в Яндекс Браузере/);
+  assert.equal(h.hidden(), true, 'Yandex must hide install action after confirmed install');
+  assert.doesNotMatch(h.node('pwaInstallButton').innerHTML, /Создать ярлык UROVIA/);
 }
 
 {
   const h = harness({ yandex: true, relatedInstalled: true });
   await h.settle();
-  assert.equal(h.hidden(), false, 'already-installed Yandex web app must still expose desktop shortcut helper');
-  assert.match(h.node('pwaInstallButton').innerHTML, /Создать ярлык UROVIA/);
+  assert.equal(h.hidden(), true, 'already-installed Yandex web app must not show an extra shortcut button');
 }
 
 // On iOS the website gives share-sheet instructions; manual confirmation is session-only.
