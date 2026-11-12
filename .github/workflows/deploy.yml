@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/yandex-desktop-shortcut
   workflow_dispatch:
 
 jobs:
