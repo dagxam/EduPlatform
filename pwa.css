@@ -126,3 +126,12 @@
 .pwa-guide-actions .pwa-ios-ok{min-height:48px}
 .pwa-ios-close{z-index:2}
 @media(max-width:380px){.pwa-guide-actions{grid-template-columns:1fr}.pwa-ios-card{padding:18px 15px}}
+
+
+/* Yandex Browser: web app installed, Windows shortcut still pending */
+.pwa-install-button.pwa-shortcut-helper{
+  background:#17243a;
+}
+.pwa-install-button.pwa-shortcut-helper .pwa-install-icon{
+  background:rgba(255,255,255,.14);
+}
