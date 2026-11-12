@@ -7,7 +7,7 @@ try {
     $pdo->query('SELECT 1');
     json_response([
         'ok' => true,
-        'service' => 'UVORIA API',
+        'service' => 'UROVIA API',
     ]);
 } catch (Throwable $e) {
     json_response([
