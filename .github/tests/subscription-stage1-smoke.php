@@ -29,6 +29,11 @@ $checks = [
     [$files['bootstrap'], "'pro' => [", 'PRO plan'],
     [$files['bootstrap'], "'premium' => [", 'Premium plan'],
     [$files['bootstrap'], "'enforcement_enabled' => true", 'subscription enforcement enabled'],
+    [$files['bootstrap'], 'function enforce_staff_subscription_for_request(', 'server-side subscription gate'],
+    [$files['bootstrap'], "'SUBSCRIPTION_REQUIRED'", 'subscription-required API error code'],
+    [$files['bootstrap'], "enforce_staff_subscription_for_request(\$user);", 'require_user server gate wiring'],
+    [$files['bootstrap'], "'/api/subscription/'", 'subscription API gate exemption'],
+    [$files['bootstrap'], "'/api/auth/'", 'auth API gate exemption'],
     [$files['trial'], "'TRIAL_DISABLED'", 'paid subscription selection'],
     [$files['checkout'], 'yookassa_is_configured()', 'YooKassa checkout configuration guard'],
     [$files['checkout'], "['basic', 'pro', 'premium']", 'Basic checkout enabled'],
@@ -42,6 +47,7 @@ $checks = [
     [$files['index'], 'id="subscriptionPaymentModal"', 'payment form modal'],
     [$files['app'], 'async function loadSubscriptionPage()', 'subscription page loader'],
     [$files['app'], 'function staffSubscriptionLocked()', 'staff subscription gate'],
+    [$files['app'], "response.status === 402", 'client handles expired server subscription'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
