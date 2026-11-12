@@ -4128,7 +4128,6 @@ function renderResultsLeaderList(targetId, items, type) {
 
     let metaHtml = '';
     if (isStudent) {
-      const ratingPoints = Number(item.rating_points || 0).toLocaleString('ru-RU', { maximumFractionDigits:1 });
       const totalScore = Number(item.total_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
       const totalMax = Number(item.total_max_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
       const correctAnswers = Number(item.correct_answers_count || 0);
@@ -4136,7 +4135,7 @@ function renderResultsLeaderList(targetId, items, type) {
       const classText = item.class_name ? escapeHtml(item.class_name) + ' · ' : '';
       metaHtml =
         '<small class="leader-student-meta">' +
-          '<span>' + classText + 'выполнено работ: <b>' + works + '</b> · рейтинг: <b>' + escapeHtml(ratingPoints) + '</b></span>' +
+          '<span>' + classText + 'выполнено работ: <b>' + works + '</b> · общий результат: <b>' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</b></span>' +
           '<span>Правильных ответов: <b>' + correctAnswers + '</b>' +
             (checkedAnswers > 0 ? ' из ' + checkedAnswers : '') + '</span>' +
           '<span class="leader-student-total">Итого: <b>' + escapeHtml(totalScore) + ' / ' + escapeHtml(totalMax) +
