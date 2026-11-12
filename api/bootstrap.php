@@ -1547,9 +1547,9 @@ function subscription_plan_catalog(): array
             'name' => 'PRO',
             'monthly_price_minor' => 44900,
             'yearly_price_minor' => 449000,
-            'max_classes' => 10,
-            'max_students' => 300,
-            'max_active_assignments' => 100,
+            'max_classes' => 7,
+            'max_students' => 280,
+            'max_active_assignments' => 60,
             'ai_monthly_limit' => 50,
             'features' => [
                 'manual_assignments' => true,
