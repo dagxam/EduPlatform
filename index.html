@@ -1025,9 +1025,12 @@
               <span class="section-kicker">ЮKassa · контроль</span>
               <h3>Платежи и чеки НПД</h3>
             </div>
-            <button class="secondary-btn compact-btn" id="refreshYooKassaPaymentsBtn" type="button">↻ Обновить</button>
+            <div class="yookassa-payments-actions">
+              <label class="compact-check"><input type="checkbox" id="showArchivedYooKassaPayments"> <span>Показать архив</span></label>
+              <button class="secondary-btn compact-btn" id="refreshYooKassaPaymentsBtn" type="button">↻ Обновить</button>
+            </div>
           </div>
-          <p class="panel-note">Для самозанятого успешный платёж нужно зарегистрировать в «Мой налог» и передать чек покупателю. Здесь сохраняется email плательщика и можно отметить выданный чек.</p>
+          <p class="panel-note">Для самозанятого успешный платёж нужно зарегистрировать в «Мой налог» и передать чек покупателю. Неуспешные и отменённые записи можно удалить из журнала; оплаченные и ожидающие подтверждения платежи безопасно перемещаются в архив без потери финансовой истории.</p>
           <div class="table-wrap">
             <table class="yookassa-payments-table">
               <thead><tr><th>Платёж</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th><th>Статус</th><th>Чек</th><th></th></tr></thead>
@@ -1792,7 +1795,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=92"></script>
+  <script src="app.js?v=93"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=50"></script>
 </body>
