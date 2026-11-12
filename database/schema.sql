@@ -516,6 +516,7 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     checkout_url TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     paid_at TEXT,
+    archived_at TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (idempotence_key)
 );
