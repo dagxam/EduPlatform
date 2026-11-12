@@ -377,6 +377,7 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
     mysql_add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INT NOT NULL DEFAULT 50');
     mysql_add_column_if_missing($pdo, 'questions', 'is_active', 'TINYINT NOT NULL DEFAULT 1');
     mysql_add_column_if_missing($pdo, 'questions', 'revision_of_id', 'BIGINT UNSIGNED NULL');
+    mysql_add_column_if_missing($pdo, 'payment_orders', 'archived_at', 'DATETIME NULL');
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS assignment_students (
@@ -849,6 +850,7 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'attempt_session_hash', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'variant_index', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'attempts', 'variant_label', 'TEXT');
+    add_column_if_missing($pdo, 'payment_orders', 'archived_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'question_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'option_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'structured_order_json', 'TEXT');
