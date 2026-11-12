@@ -4690,9 +4690,7 @@ function subscriptionFeatureRows(plan) {
     ['Импорт PDF / DOCX / PPTX', features.file_import ? 'Да' : 'Нет'],
     ['Расширенная аналитика', features.advanced_analytics ? 'Да' : 'Нет'],
     ['Экспорт результатов', features.export_results ? 'Да' : 'Нет'],
-    ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет'],
-    ['AI в месяц', Number(plan.ai_monthly_limit || 0) > 0 ? String(Number(plan.ai_monthly_limit)) : 'Нет'],
-    ['Premium AI', features.premium_ai ? 'Да' : 'Нет']
+    ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет']
   ];
   return rows.map(([label, value]) =>
     '<li><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value) + '</b></li>'
