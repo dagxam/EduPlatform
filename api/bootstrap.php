@@ -1175,6 +1175,66 @@ function require_active_school(array $user, bool $manage = false): int
     return $schoolId;
 }
 
+function subscription_request_is_exempt(): bool
+{
+    if (PHP_SAPI === 'cli') {
+        return true;
+    }
+
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if ($script === '') {
+        return false;
+    }
+
+    foreach ([
+        '/api/auth/',
+        '/api/subscription/',
+    ] as $prefix) {
+        if (str_contains($script, $prefix)) {
+            return true;
+        }
+    }
+
+    foreach ([
+        '/api/schools/list.php',
+        '/api/schools/select.php',
+        '/api/school/branding/get.php',
+    ] as $suffix) {
+        if (str_ends_with($script, $suffix)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function enforce_staff_subscription_for_request(array $user): void
+{
+    if (
+        ($user['role'] ?? '') === 'student'
+        || is_platform_admin($user)
+        || subscription_request_is_exempt()
+    ) {
+        return;
+    }
+
+    if (!in_array((string)($user['role'] ?? ''), ['admin', 'teacher'], true)) {
+        return;
+    }
+
+    $state = subscription_effective_state(app_db(), $user);
+    if (!empty($state['access_active'])) {
+        return;
+    }
+
+    json_response([
+        'ok' => false,
+        'error' => 'Для работы в UROVIA требуется активная подписка.',
+        'code' => 'SUBSCRIPTION_REQUIRED',
+        'subscription_required' => true,
+    ], 402);
+}
+
 function require_user(?array $roles = null): array
 {
     $user = current_user();
@@ -1186,6 +1246,7 @@ function require_user(?array $roles = null): array
         json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
     }
 
+    enforce_staff_subscription_for_request($user);
     return $user;
 }
 
