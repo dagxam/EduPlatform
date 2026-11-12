@@ -85,7 +85,7 @@ if (!$manager) {
 $studentSql .=
     " GROUP BY u.id, u.first_name, u.last_name, c.id, c.display_name, c.name
       HAVING COUNT(*) >= 1
-      ORDER BY rating_points DESC, works_count DESC, correct_answers_count DESC, final_percent DESC, u.last_name, u.first_name
+      ORDER BY final_percent DESC, works_count DESC, correct_answers_count DESC, rating_points DESC, u.last_name, u.first_name
       LIMIT 5";
 $stmt = $pdo->prepare($studentSql);
 $stmt->execute($studentParams);
@@ -287,7 +287,7 @@ json_response([
         'class_min_completed' => 1,
         'school_min_completed' => 1,
         'leaders_limit' => 5,
-        'rating_formula' => 'Каждая завершённая работа даёт до 100 рейтинговых баллов по проценту результата; места определяются по сумме этих баллов, затем по количеству работ, правильных ответов и итоговому проценту',
+        'rating_formula' => 'Место определяется по общему итоговому проценту: сумма набранных баллов по всем выполненным работам делится на сумму максимальных баллов. При равном проценте учитываются количество выполненных работ, правильные ответы и только затем сумма процентов по работам.',
     ],
     'students' => $studentLeaders,
     'classes' => $classLeaders,
