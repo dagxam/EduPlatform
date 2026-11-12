@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 const script = readFileSync('pwa.js', 'utf8');
 const LEGACY_KEY = 'urovia-pwa-installed-v1';
 
-function harness({ standalone = false, ios = false, legacyInstalled = false, relatedInstalled = false } = {}) {
+function harness({ standalone = false, ios = false, yandex = false, legacyInstalled = false, relatedInstalled = false } = {}) {
   const store = new Map(legacyInstalled ? [[LEGACY_KEY, '1']] : []);
   const nodes = new Map();
   const windowListeners = new Map();
@@ -67,7 +67,9 @@ function harness({ standalone = false, ios = false, legacyInstalled = false, rel
     navigator: {
       userAgent: ios
         ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
-        : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36',
+        : (yandex
+          ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36 YaBrowser/26.10.0.0'
+          : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36'),
       platform: ios ? 'iPhone' : 'Win32',
       maxTouchPoints: ios ? 5 : 0,
       standalone: standalone && ios,
@@ -86,7 +88,8 @@ function harness({ standalone = false, ios = false, legacyInstalled = false, rel
       setItem: (key, value) => store.set(key, String(value)),
       removeItem: key => store.delete(key)
     },
-    addEventListener(type, callback) { windowListeners.set(type, callback); }
+    addEventListener(type, callback) { windowListeners.set(type, callback); },
+    setTimeout(callback) { callback(); return 1; }
   };
 
   const context = {
@@ -170,6 +173,29 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   });
   await h.node('pwaInstallButton').click();
   assert.equal(h.hidden(), true);
+}
+
+// Yandex Browser keeps a helper action visible after PWA installation so the user
+// can create the separate Windows desktop shortcut from the app menu.
+{
+  const h = harness({ yandex: true });
+  h.emit('beforeinstallprompt', {
+    preventDefault() {},
+    prompt: async () => {},
+    userChoice: Promise.resolve({ outcome: 'accepted' })
+  });
+  await h.node('pwaInstallButton').click();
+  assert.equal(h.hidden(), false, 'Yandex must keep a shortcut helper visible after install');
+  assert.match(h.node('pwaInstallButton').innerHTML, /Создать ярлык UROVIA/);
+  assert.equal(h.node('pwaInstallGuide').classList.contains('hidden'), false);
+  assert.match(h.node('pwaGuideDescription').textContent, /установлена в Яндекс Браузере/);
+}
+
+{
+  const h = harness({ yandex: true, relatedInstalled: true });
+  await h.settle();
+  assert.equal(h.hidden(), false, 'already-installed Yandex web app must still expose desktop shortcut helper');
+  assert.match(h.node('pwaInstallButton').innerHTML, /Создать ярлык UROVIA/);
 }
 
 // On iOS the website gives share-sheet instructions; manual confirmation is session-only.
