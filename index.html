@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=94">
+  <link rel="stylesheet" href="styles.css?v=95">
   <link rel="stylesheet" href="pwa.css?v=48">
 </head>
 <body>
@@ -591,12 +591,12 @@
         </article>
       </section>
 
-      <section class="view" id="school-management">
-        <div class="section-toolbar">
+      <section class="view school-management-view" id="school-management">
+        <div class="section-toolbar school-management-toolbar">
           <div><span class="section-kicker">Администрирование</span><h2>Управление школой</h2><p>Предметы, учителя и их назначения по классам.</p></div>
           <div class="toolbar-actions">
             <button class="secondary-btn" id="addSubjectBtn">＋ Предмет</button>
-            <button class="primary-btn" id="addTeacherBtn">＋ Учитель</button>
+            <button class="primary-btn school-manager-only hidden" id="addTeacherBtn">＋ Учитель</button>
           </div>
         </div>
         <article class="panel platform-admin-only hidden school-branding-panel">
@@ -1498,7 +1498,7 @@
   </div>
 
   <div class="modal-backdrop hidden" id="teacherModal">
-    <div class="modal">
+    <div class="modal school-staff-modal">
       <button class="modal-close" data-close-modal="teacherModal">×</button>
       <span class="section-kicker">Сотрудник школы</span>
       <h2>Добавить учителя</h2>
@@ -1569,7 +1569,7 @@
   </div>
 
   <div class="modal-backdrop hidden" id="teacherAssignmentsModal">
-    <div class="modal class-details-modal">
+    <div class="modal class-details-modal school-assignments-modal">
       <button class="modal-close" data-close-modal="teacherAssignmentsModal">×</button>
       <span class="section-kicker">Права учителя</span>
       <h2 id="teacherAssignmentsTitle">Назначения</h2>
@@ -1795,7 +1795,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=94"></script>
+  <script src="app.js?v=95"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=50"></script>
 </body>
