@@ -479,6 +479,7 @@ function applyUser(user) {
   const admin = user.role === 'admin';
   const platformAdmin = admin && Number(user.is_platform_admin) === 1;
   const teacher = !student && (user.role === 'teacher' || Boolean(user.can_teach));
+  const schoolManager = admin && (platformAdmin || Boolean(user.can_manage_school));
 
   document.body.classList.toggle('student-session', student);
   document.querySelectorAll('.teacher-nav [data-view]').forEach(button => {
@@ -492,6 +493,7 @@ function applyUser(user) {
   document.querySelectorAll('.teacher-only').forEach(el => el.classList.toggle('hidden', !teacher));
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
   document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.toggle('hidden', !platformAdmin));
+  document.querySelectorAll('.school-manager-only').forEach(el => el.classList.toggle('hidden', !schoolManager));
   document.querySelectorAll('.school-staff-only').forEach(el => el.classList.toggle('hidden', student || platformAdmin));
   document.querySelectorAll('.assignment-author-only').forEach(el => el.classList.toggle('hidden', student));
 
@@ -7240,7 +7242,9 @@ document.getElementById('adminSubscriptionPlan')?.addEventListener('change', eve
 });
 
 async function loadSchoolManagement() {
-  if (currentUser?.role !== 'admin') return;
+  const canManageSchool = currentUser?.role === 'admin'
+    && (Number(currentUser?.is_platform_admin) === 1 || Boolean(currentUser?.can_manage_school));
+  if (!canManageSchool) return;
   if (Number(currentUser?.is_platform_admin) === 1) loadAdminSubscriptionGrants().catch(() => {});
   loadAssignmentReviewSettings().catch(() => {});
   loadIncomingMaterials().catch(() => {});
@@ -7284,18 +7288,18 @@ async function loadSchoolManagement() {
       const accessSent = Boolean(teacher.credentials_sent_at);
       const loginText = teacher.login_name ? `Логин: ${escapeHtml(teacher.login_name)}` : 'Логин будет создан при отправке';
       return `
-        <tr>
-          <td>
+        <tr class="school-staff-row">
+          <td data-label="Учитель">
             <b>${escapeHtml(teacher.last_name)} ${escapeHtml(teacher.first_name)}</b>
             ${alsoAdmin ? '<small class="role-note">Администратор + учитель</small>' : ''}
           </td>
-          <td>
+          <td data-label="Контакты">
             <span class="teacher-email">${escapeHtml(teacher.email)}</span>
             <small class="teacher-login">${loginText}</small>
             <small class="access-state ${accessSent ? 'sent' : 'pending'}">${accessSent ? 'Доступ отправлен' : 'Доступ ещё не отправлен'}</small>
           </td>
-          <td><small>${escapeHtml(assignmentText)}</small></td>
-          <td class="row-actions-cell">
+          <td data-label="Назначения"><small>${escapeHtml(assignmentText)}</small></td>
+          <td class="row-actions-cell" data-label="Действия">
             <button class="secondary-btn compact-btn" type="button" data-staff-profile="${teacher.id}">Профиль</button>
             <button class="secondary-btn compact-btn" type="button" data-teacher-assign="${teacher.id}">Назначить</button>
             <button class="primary-btn compact-btn" type="button" data-send-teacher-access="${teacher.id}">${accessSent ? 'Отправить новый доступ' : 'Отправить доступ'}</button>
@@ -7326,17 +7330,17 @@ async function loadSchoolManagement() {
       adminsBody.innerHTML = schoolAdminsCache.length ? schoolAdminsCache.map(admin => {
         const teaches = Number(admin.can_teach) === 1;
         return `
-        <tr>
-          <td>
+        <tr class="school-staff-row">
+          <td data-label="Администратор">
             <b>${escapeHtml(admin.last_name)} ${escapeHtml(admin.first_name)}</b>
             ${teaches ? '<small class="role-note">Администратор + учитель</small>' : ''}
           </td>
-          <td>${escapeHtml(admin.email)}</td>
-          <td>
+          <td data-label="Email">${escapeHtml(admin.email)}</td>
+          <td data-label="Статус">
             <span class="status green">Администратор</span>
             ${teaches ? '<span class="status blue">Учитель</span>' : ''}
           </td>
-          <td class="row-actions-cell">
+          <td class="row-actions-cell" data-label="Действия">
             <button class="secondary-btn compact-btn" type="button" data-staff-profile="${admin.id}">Профиль</button>
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-edit-school-admin="${admin.id}">Изменить</button>` : ''}
             ${canEditAdminAccounts ? `<button class="secondary-btn compact-btn" type="button" data-toggle-admin-teacher="${admin.id}" data-enabled="${teaches ? '0' : '1'}">${teaches ? 'Убрать роль учителя' : '＋ Сделать также учителем'}</button>` : ''}
