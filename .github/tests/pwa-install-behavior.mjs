@@ -185,7 +185,7 @@ assert.equal(harness({ standalone: true }).hidden(), true);
 // Android tablet uses the native PWA install prompt when the browser provides it.
 {
   const h = harness({ android: true });
-  assert.match(h.node('pwaInstallButton').innerHTML, /Android · как приложение/);
+  assert.match(h.node('pwaInstallButton').innerHTML, /Android · установить как приложение/);
   let promptCalled = false;
   h.emit('beforeinstallprompt', {
     preventDefault() {},
