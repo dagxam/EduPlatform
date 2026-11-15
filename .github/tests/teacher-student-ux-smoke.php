@@ -120,12 +120,16 @@ must_contain('index.html', [
     'school-management-toolbar',
     'school-manager-note',
     'school-staff-modal',
+    'school-management-sections',
+    'school-curriculum-section',
+    'school-staff-section',
 ]);
 
 must_contain('styles.css', [
     '@media (max-width:1180px)',
     '#school-management .school-teachers-table tr.school-staff-row',
     '.school-assignments-modal',
+    '#school-management .school-management-sections',
 ]);
 
 echo "Teacher/student UX stage 2 wiring OK\n";
