@@ -42,4 +42,11 @@ assert(pwa.includes("install.className = 'pwa-install-button';"), 'install actio
 assert(pwa.includes('Обновить UROVIA'), 'PWA update action must be clearly distinguished from assignment completion');
 assert(pwa.includes('urovia:assessment-state'), 'PWA updates must listen to assessment state');
 assert(pwa.includes('assessmentUiVisible'), 'PWA update toast must be deferred while a student assessment is visible');
+assert(pwa.includes('Android · как приложение'), 'Android install button should be device-aware');
+assert(pwa.includes('Готово, установлено ✓'), 'iOS guide must include explicit post-install confirmation');
+assert(pwa.includes('Отдельный APK-файл скачивать не нужно'), 'Android guide should explain browser app installation');
+assert(pwa.includes("if (isIOS()) {\n        showInstallGuide();"), 'iOS button must open installation instructions directly');
+assert(pwa.includes('Открываем установку…'), 'native Android prompt should show clear progress state');
+assert(read('pwa.css').includes('Device-aware install action v47'), 'tablet install controls must include device-aware styling');
+assert(read('pwa.css').includes('@media (min-width:641px) and (max-width:1180px) and (pointer:coarse)'), 'tablet PWA install button must have dedicated touch layout');
 console.log('Tablet layout and cross-browser PWA regression checks OK');
