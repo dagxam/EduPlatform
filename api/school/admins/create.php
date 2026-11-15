@@ -4,7 +4,7 @@ require dirname(__DIR__, 2) . '/bootstrap.php';
 
 $user = require_user(['admin']);
 if (!is_platform_admin($user)) {
-    json_response(['ok' => false, 'error' => 'Доступно только администратору UVORIA.'], 403);
+    json_response(['ok' => false, 'error' => 'Доступно только администратору UROVIA.'], 403);
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
@@ -32,7 +32,7 @@ $existing = $stmt->fetch();
 
 if ($existing) {
     if ((int)$existing['is_platform_admin'] === 1) {
-        json_response(['ok' => false, 'error' => 'Главный администратор UVORIA не назначается администратором отдельной школы.'], 409);
+        json_response(['ok' => false, 'error' => 'Главный администратор UROVIA не назначается администратором отдельной школы.'], 409);
     }
     if (($existing['role'] ?? '') !== 'admin') {
         json_response(['ok' => false, 'error' => 'Этот email уже принадлежит аккаунту с другой ролью.'], 409);
