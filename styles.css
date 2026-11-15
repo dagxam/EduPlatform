@@ -10449,3 +10449,223 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
 .compact-check input{width:16px;height:16px;margin:0}
 .yookassa-payments-table .row-actions-cell{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .yookassa-payments-table .payment-row-archived{opacity:.72}
+
+
+/* School management: staff controls and tablet layout */
+#school-management .school-management-toolbar{
+  gap:18px;
+}
+#school-management .school-management-toolbar .toolbar-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+}
+#school-management .school-manager-note{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  margin:0 0 18px;
+  padding:14px 16px;
+  border:1px solid #dbe8ff;
+  border-radius:16px;
+  background:#f6f9ff;
+}
+#school-management .school-manager-note.hidden{display:none}
+#school-management .school-manager-note-icon{
+  flex:0 0 auto;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  background:#e7f8ee;
+  color:#19834a;
+  font-weight:900;
+}
+#school-management .school-manager-note b,
+#school-management .school-manager-note span{
+  display:block;
+}
+#school-management .school-manager-note b{
+  color:#25364b;
+  font-size:14px;
+  margin-bottom:3px;
+}
+#school-management .school-manager-note div>span{
+  color:#718095;
+  font-size:13px;
+  line-height:1.45;
+}
+#school-management .subject-admin-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+#school-management .school-teachers-table td,
+#school-management .school-admins-table td{
+  vertical-align:top;
+}
+#school-management .school-teachers-table .row-actions-cell,
+#school-management .school-admins-table .row-actions-cell{
+  min-width:210px;
+}
+#school-management .teacher-email,
+#school-management .teacher-login,
+#school-management .access-state{
+  overflow-wrap:anywhere;
+}
+.school-staff-modal{
+  width:min(660px,100%);
+}
+.school-assignments-modal{
+  width:min(820px,100%);
+}
+
+@media (max-width:1180px){
+  #school-management .school-management-toolbar{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:end;
+  }
+  #school-management .school-management-toolbar>div:first-child{
+    min-width:0;
+  }
+  #school-management .school-management-toolbar .toolbar-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(135px,1fr));
+    width:min(330px,100%);
+  }
+  #school-management .school-management-toolbar .toolbar-actions button{
+    width:100%;
+    min-height:44px;
+  }
+  #school-management .school-admin-grid{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+  #school-management .panel{
+    min-width:0;
+  }
+  #school-management .table-wrap{
+    overflow:visible;
+  }
+  #school-management .school-teachers-table,
+  #school-management .school-admins-table{
+    display:block;
+    min-width:0;
+    width:100%;
+  }
+  #school-management .school-teachers-table thead,
+  #school-management .school-admins-table thead{
+    display:none;
+  }
+  #school-management .school-teachers-table tbody,
+  #school-management .school-admins-table tbody{
+    display:grid;
+    gap:12px;
+  }
+  #school-management .school-teachers-table tr.school-staff-row,
+  #school-management .school-admins-table tr.school-staff-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:0 18px;
+    padding:15px 16px;
+    border:1px solid #e5ebf2;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 6px 20px rgba(28,45,67,.04);
+  }
+  #school-management .school-teachers-table tr.school-staff-row td,
+  #school-management .school-admins-table tr.school-staff-row td{
+    display:block;
+    min-width:0;
+    padding:10px 0;
+    border-top:0;
+  }
+  #school-management .school-teachers-table tr.school-staff-row td::before,
+  #school-management .school-admins-table tr.school-staff-row td::before{
+    content:attr(data-label);
+    display:block;
+    margin-bottom:5px;
+    color:#94a0ad;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  #school-management .school-teachers-table tr.school-staff-row .row-actions-cell,
+  #school-management .school-admins-table tr.school-staff-row .row-actions-cell{
+    grid-column:1/-1;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    min-width:0;
+    gap:8px;
+    padding-top:12px;
+    border-top:1px solid #edf1f5;
+  }
+  #school-management .school-teachers-table tr.school-staff-row .row-actions-cell::before,
+  #school-management .school-admins-table tr.school-staff-row .row-actions-cell::before{
+    grid-column:1/-1;
+    margin-bottom:0;
+  }
+  #school-management .row-actions-cell .compact-btn,
+  #school-management .row-actions-cell .mini-action{
+    width:100%;
+    min-height:40px;
+    white-space:normal;
+    line-height:1.25;
+  }
+  #school-management .school-workflow-settings-panel,
+  #school-management .school-grade-scale-panel,
+  #school-management .school-branding-panel,
+  #school-management .admin-subscription-panel{
+    margin-top:14px;
+  }
+  .school-staff-modal,
+  .school-assignments-modal{
+    width:min(760px,calc(100vw - 40px));
+    max-height:90vh;
+  }
+  .school-assignments-modal .assignment-matrix{
+    max-height:55vh;
+    overflow:auto;
+    padding-right:4px;
+  }
+}
+
+@media (max-width:780px){
+  #school-management .school-management-toolbar{
+    display:flex;
+    align-items:stretch;
+  }
+  #school-management .school-management-toolbar .toolbar-actions{
+    width:100%;
+  }
+  #school-management .school-manager-note{
+    padding:13px;
+  }
+  #school-management .school-teachers-table tr.school-staff-row,
+  #school-management .school-admins-table tr.school-staff-row{
+    grid-template-columns:1fr;
+    gap:0;
+    padding:14px;
+  }
+  #school-management .school-teachers-table tr.school-staff-row .row-actions-cell,
+  #school-management .school-admins-table tr.school-staff-row .row-actions-cell{
+    grid-column:auto;
+  }
+  .school-staff-modal,
+  .school-assignments-modal{
+    width:100%;
+  }
+}
+
+@media (max-width:520px){
+  #school-management .school-management-toolbar .toolbar-actions,
+  #school-management .school-teachers-table tr.school-staff-row .row-actions-cell,
+  #school-management .school-admins-table tr.school-staff-row .row-actions-cell{
+    grid-template-columns:1fr;
+  }
+}
