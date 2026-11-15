@@ -3,6 +3,7 @@
 
   // Installation is controlled by the browser/OS, never by the website alone.
   const LEGACY_INSTALLED_KEY = 'urovia-pwa-installed-v1';
+  const INSTALLED_HINT_KEY = 'urovia-pwa-installed-v2';
   const RELOAD_KEY = 'uvoria-sw-reloading';
   let deferredInstallPrompt = null;
   let registration = null;
@@ -35,11 +36,24 @@
     try { window.localStorage.removeItem(LEGACY_INSTALLED_KEY); } catch {}
   }
 
-  function markInstalled() {
+  function readInstalledHint() {
+    try { return window.localStorage.getItem(INSTALLED_HINT_KEY) === '1'; } catch { return false; }
+  }
+
+  function saveInstalledHint() {
+    try { window.localStorage.setItem(INSTALLED_HINT_KEY, '1'); } catch {}
+  }
+
+  function clearInstalledHint() {
+    try { window.localStorage.removeItem(INSTALLED_HINT_KEY); } catch {}
+  }
+
+  function markInstalled({ persist = true } = {}) {
     installedThisSession = true;
     relatedPwaInstalled = true;
     deferredInstallPrompt = null;
     clearLegacyInstalledFlag();
+    if (persist) saveInstalledHint();
     document.getElementById('pwaInstallGuide')?.classList.add('hidden');
     refreshInstallButton();
   }
@@ -47,6 +61,7 @@
   async function detectInstalledPwa() {
     if (isStandalone()) {
       relatedPwaInstalled = true;
+      saveInstalledHint();
       refreshInstallButton();
       return true;
     }
@@ -60,6 +75,7 @@
         || String(app?.url || '').includes('manifest.webmanifest')
         || String(app?.id || '').includes('urovia.ru')
       );
+      if (relatedPwaInstalled) saveInstalledHint();
       refreshInstallButton();
       return relatedPwaInstalled;
     } catch {
@@ -216,8 +232,9 @@
           await prompt.prompt();
           const choice = await prompt.userChoice;
           if (choice?.outcome === 'accepted') {
-            // Fallback for browsers that do not dispatch appinstalled.
-            markInstalled();
+            // Persist the confirmed install so ordinary browser tabs do not
+            // show the install button again when installed-app detection is unavailable.
+            markInstalled({ persist: true });
           } else {
             refreshInstallButton();
           }
@@ -232,7 +249,7 @@
     const closeGuide = () => guide.classList.add('hidden');
     document.getElementById('pwaGuideClose')?.addEventListener('click', closeGuide);
     document.getElementById('pwaGuideDone')?.addEventListener('click', closeGuide);
-    document.getElementById('pwaInstallConfirmed')?.addEventListener('click', markInstalled);
+    document.getElementById('pwaInstallConfirmed')?.addEventListener('click', () => markInstalled({ persist: false }));
     guide.addEventListener('click', event => {
       if (event.target === guide) closeGuide();
     });
@@ -314,10 +331,11 @@
     installedThisSession = false;
     relatedPwaInstalled = false;
     clearLegacyInstalledFlag();
+    clearInstalledHint();
     deferredInstallPrompt = event;
     refreshInstallButton();
   });
-  window.addEventListener('appinstalled', markInstalled);
+  window.addEventListener('appinstalled', () => markInstalled({ persist: true }));
   window.addEventListener('pageshow', () => {
     refreshInstallButton();
     detectInstalledPwa().catch(() => {});
@@ -339,8 +357,10 @@
   });
 
   async function initializePwa() {
-    // Remove obsolete v1 persistence so uninstall can never leave the button hidden.
+    // Remove obsolete v1 persistence. The v2 hint is cleared automatically
+    // when the browser exposes a fresh beforeinstallprompt after uninstall.
     clearLegacyInstalledFlag();
+    installedThisSession = readInstalledHint();
     ensureUi();
     refreshInstallButton();
     await detectInstalledPwa();
