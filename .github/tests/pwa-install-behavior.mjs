@@ -4,9 +4,13 @@ import { runInNewContext } from 'node:vm';
 
 const script = readFileSync('pwa.js', 'utf8');
 const LEGACY_KEY = 'urovia-pwa-installed-v1';
+const INSTALLED_HINT_KEY = 'urovia-pwa-installed-v2';
 
-function harness({ standalone = false, ios = false, yandex = false, legacyInstalled = false, relatedInstalled = false } = {}) {
-  const store = new Map(legacyInstalled ? [[LEGACY_KEY, '1']] : []);
+function harness({ standalone = false, ios = false, yandex = false, legacyInstalled = false, installedHint = false, relatedInstalled = false } = {}) {
+  const entries = [];
+  if (legacyInstalled) entries.push([LEGACY_KEY, '1']);
+  if (installedHint) entries.push([INSTALLED_HINT_KEY, '1']);
+  const store = new Map(entries);
   const nodes = new Map();
   const windowListeners = new Map();
 
@@ -139,6 +143,17 @@ function harness({ standalone = false, ios = false, yandex = false, legacyInstal
   assert.equal(h.store.has(LEGACY_KEY), false, 'legacy flag is cleared during initialization');
 }
 
+// Confirmed installation remains hidden after reopening an ordinary browser tab.
+{
+  const h = harness();
+  h.emit('appinstalled');
+  assert.equal(h.hidden(), true);
+  assert.equal(h.store.get(INSTALLED_HINT_KEY), '1', 'confirmed install persists an installed hint');
+
+  const reopened = harness({ installedHint: true });
+  assert.equal(reopened.hidden(), true, 'confirmed installed PWA keeps install action hidden after browser reopen');
+}
+
 // Installed PWA launched from its icon: no duplicate install action.
 assert.equal(harness({ standalone: true }).hidden(), true);
 
@@ -150,9 +165,10 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   assert.equal(h.hidden(), true, 'installed related PWA hides duplicate install action');
 }
 
-// A fresh native prompt is authoritative evidence that installation is available now.
+// A fresh native prompt is authoritative evidence that installation is available now
+// and clears a persisted installed hint after uninstall.
 {
-  const h = harness({ legacyInstalled: true });
+  const h = harness({ legacyInstalled: true, installedHint: true });
   let prevented = false;
   h.emit('beforeinstallprompt', {
     preventDefault() { prevented = true; },
@@ -161,6 +177,7 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   });
   assert.equal(prevented, true);
   assert.equal(h.hidden(), false);
+  assert.equal(h.store.has(INSTALLED_HINT_KEY), false, 'fresh native prompt clears stale installed hint');
 }
 
 // Accepted native install hides the button for the current browser session.
