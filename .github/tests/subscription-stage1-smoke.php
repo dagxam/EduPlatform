@@ -10,6 +10,8 @@ $files = [
     'status' => file_get_contents(__DIR__ . '/../../api/subscription/status.php'),
     'trial' => file_get_contents(__DIR__ . '/../../api/subscription/start-trial.php'),
     'checkout' => file_get_contents(__DIR__ . '/../../api/subscription/create-checkout.php'),
+    'teacher_create' => file_get_contents(__DIR__ . '/../../api/school/teachers/create.php'),
+    'admin_create' => file_get_contents(__DIR__ . '/../../api/school/admins/create.php'),
 ];
 
 foreach ($files as $name => $content) {
@@ -48,6 +50,8 @@ $checks = [
     [$files['app'], 'async function loadSubscriptionPage()', 'subscription page loader'],
     [$files['app'], 'function staffSubscriptionLocked()', 'staff subscription gate'],
     [$files['app'], "response.status === 402", 'client handles expired server subscription'],
+    [$files['app'], "'Тариф не назначен'", 'no default tariff in admin UI'],
+    [$files['app'], "'Тариф не выбран'", 'no-plan usage state'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
@@ -65,6 +69,14 @@ foreach (['user_subscriptions', 'subscription_usage_monthly', 'payment_orders'] 
     $stmt->execute(['name' => $table]);
     if ((int)$stmt->fetchColumn() !== 1) {
         fwrite(STDERR, "Subscription smoke failed: {$table} missing after SQLite schema load.\n");
+        exit(1);
+    }
+}
+
+foreach (['teacher_create', 'admin_create'] as $sourceName) {
+    if (str_contains($files[$sourceName], 'user_subscriptions')
+        || str_contains($files[$sourceName], 'subscription_admin_grants')) {
+        fwrite(STDERR, "Subscription smoke failed: new staff creation must not auto-assign a tariff.\n");
         exit(1);
     }
 }
