@@ -4,7 +4,7 @@ require dirname(__DIR__, 2) . '/bootstrap.php';
 
 $user = require_user(['admin']);
 if (!is_platform_admin($user)) {
-    json_response(['ok' => false, 'error' => 'Доступно только администратору UVORIA.'], 403);
+    json_response(['ok' => false, 'error' => 'Доступно только администратору UROVIA.'], 403);
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
