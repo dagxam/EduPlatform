@@ -24,13 +24,19 @@ if ($manager) {
          )
          OR EXISTS (
              SELECT 1
+             FROM teacher_subjects school_teacher_subject
+             WHERE school_teacher_subject.school_id = ?
+               AND school_teacher_subject.subject_id = s.id
+         )
+         OR EXISTS (
+             SELECT 1
              FROM assignments subject_assignment
              WHERE subject_assignment.school_id = ?
                AND subject_assignment.subject_id = s.id
          )
          ORDER BY s.name'
     );
-    $subjectStmt->execute([$schoolId, $schoolId]);
+    $subjectStmt->execute([$schoolId, $schoolId, $schoolId]);
 } else {
     $subjectStmt = $pdo->prepare(
         'SELECT DISTINCT s.id, s.name
@@ -147,7 +153,17 @@ if ($subjectId > 0) {
     $studentParams[] = $subjectId;
 }
 if (!$manager) {
-    $studentSql .= ' AND a.teacher_id = ?';
+    $studentSql .= ' AND (
+        a.teacher_id = ?
+        OR EXISTS (
+            SELECT 1
+            FROM teacher_subjects access_ts
+            WHERE access_ts.school_id = a.school_id
+              AND access_ts.teacher_id = ?
+              AND access_ts.subject_id = a.subject_id
+        )
+    )';
+    $studentParams[] = $teacherId;
     $studentParams[] = $teacherId;
 }
 $studentSql .=
@@ -238,7 +254,17 @@ foreach ($classRows as $classRow) {
         $attemptParams[] = $subjectId;
     }
     if (!$manager) {
-        $attemptSql .= ' AND a.teacher_id = ?';
+        $attemptSql .= ' AND (
+            a.teacher_id = ?
+            OR EXISTS (
+                SELECT 1
+                FROM teacher_subjects access_ts
+                WHERE access_ts.school_id = a.school_id
+                  AND access_ts.teacher_id = ?
+                  AND access_ts.subject_id = a.subject_id
+            )
+        )';
+        $attemptParams[] = $teacherId;
         $attemptParams[] = $teacherId;
     }
     $attemptStmt = $pdo->prepare($attemptSql);

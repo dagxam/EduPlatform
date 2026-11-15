@@ -4,8 +4,9 @@ declare(strict_types=1);
 $analytics = file_get_contents(__DIR__ . '/../../api/results/analytics.php');
 $app = file_get_contents(__DIR__ . '/../../app.js');
 $index = file_get_contents(__DIR__ . '/../../index.html');
+$resultsList = file_get_contents(__DIR__ . '/../../api/results/list.php');
 
-if ($analytics === false || $app === false || $index === false) {
+if ($analytics === false || $app === false || $index === false || $resultsList === false) {
     fwrite(STDERR, "Leaderboard smoke failed: cannot read source files.\n");
     exit(1);
 }
@@ -34,7 +35,9 @@ $checks = [
     'analytics exposes selected subject' => "'selected_subject' => \$selectedSubject",
     'manager subject list includes assignment fallback' => "FROM assignments subject_assignment",
     'manager subject fallback is scoped to school' => "subject_assignment.school_id = ?",
+    'manager subject list includes school teacher-subject fallback' => "FROM teacher_subjects school_teacher_subject",
     'teacher subject fallback is scoped to teacher' => "subject_assignment.teacher_id = ?",
+    'teacher analytics access matches subject grants' => "FROM teacher_subjects access_ts",
 ];
 
 foreach ($checks as $label => $needle) {
@@ -42,6 +45,16 @@ foreach ($checks as $label => $needle) {
         fwrite(STDERR, "Leaderboard smoke failed: {$label}.\n");
         exit(1);
     }
+}
+
+if (!str_contains($resultsList, "'subject_id' => \$row['subject_id'] !== null ? (int)\$row['subject_id'] : null")) {
+    fwrite(STDERR, "Leaderboard smoke failed: results API does not expose subject id fallback.\n");
+    exit(1);
+}
+
+if (!str_contains($index, 'app.js?v=97') || !str_contains($index, 'styles.css?v=97')) {
+    fwrite(STDERR, "Leaderboard smoke failed: leaderboard assets are not cache-busted.\n");
+    exit(1);
 }
 
 if (!str_contains($app, 'items.slice(0,5)')) {
@@ -75,6 +88,8 @@ if (!str_contains($index, 'Главный показатель — итогов�
 if (!str_contains($app, "analyticsUrl.searchParams.set('subject_id'")
     || !str_contains($app, "resultsLeaderboardSubjectFilter")
     || !str_contains($app, "data.filters?.subjects")
+    || !str_contains($app, "resultSubjectMap")
+    || !str_contains($app, "item.subject_id")
     || !str_contains($app, "data.selected_subject?.name")
     || !str_contains($app, "subjectSelect.disabled = subjects.length === 0")
     || !str_contains($app, "Доступно предметов:")

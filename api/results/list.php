@@ -59,6 +59,7 @@ foreach ($rows as $row) {
         'attempt_id' => (int)$row['id'],
         'assignment_id' => (int)$row['assignment_id'],
         'assignment_title' => (string)$row['assignment_title'],
+        'subject_id' => $row['subject_id'] !== null ? (int)$row['subject_id'] : null,
         'subject_name' => (string)($row['subject_name'] ?? ''),
         'student_id' => (int)$row['student_id'],
         'student_first_name' => (string)($row['student_first_name'] ?? ''),

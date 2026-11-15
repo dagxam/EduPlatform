@@ -4197,7 +4197,21 @@ async function loadResultsAnalytics() {
     const data = await readJsonResponse(response, 'Не удалось загрузить аналитику.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить аналитику.');
 
-    const subjects = Array.isArray(data.filters?.subjects) ? data.filters.subjects : [];
+    const analyticsSubjects = Array.isArray(data.filters?.subjects) ? data.filters.subjects : [];
+    const resultSubjectMap = new Map();
+    (Array.isArray(resultsCache) ? resultsCache : []).forEach(item => {
+      const id = Number(item.subject_id || 0);
+      const name = String(item.subject_name || '').trim();
+      if (id > 0 && name) resultSubjectMap.set(id, { id, name });
+    });
+    analyticsSubjects.forEach(item => {
+      const id = Number(item.id || 0);
+      const name = String(item.name || '').trim();
+      if (id > 0 && name) resultSubjectMap.set(id, { id, name });
+    });
+    const subjects = Array.from(resultSubjectMap.values())
+      .sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+
     if (subjectSelect) {
       const previousValue = String(selectedSubjectId || '');
       subjectSelect.innerHTML = '<option value="">Все предметы</option>' + subjects
