@@ -4102,10 +4102,14 @@ function renderResultsLeaderList(targetId, items, type) {
   const target = document.getElementById(targetId);
   if (!target) return;
   if (!Array.isArray(items) || !items.length) {
-    const message = type === 'student'
-      ? 'Рейтинг появится после первой выполненной работы.'
+    const scope = document.getElementById('resultsLeaderboardScopeLabel')?.textContent?.trim() || 'Все предметы';
+    const subjectSelected = type !== 'school' && scope !== 'Все предметы';
+    const message = subjectSelected
+      ? (type === 'student'
+          ? 'По предмету «' + scope + '» пока нет завершённых работ учеников.'
+          : 'По предмету «' + scope + '» пока нет завершённых работ для рейтинга классов.')
       : 'Рейтинг появится после первой выполненной работы.';
-    target.innerHTML = '<div class="history-empty"><b>Рейтинг ещё формируется</b><span>' + escapeHtml(message) + '</span></div>';
+    target.innerHTML = '<div class="history-empty leaderboard-empty"><b>Рейтинг ещё формируется</b><span>' + escapeHtml(message) + '</span></div>';
     return;
   }
 
@@ -4144,8 +4148,10 @@ function renderResultsLeaderList(targetId, items, type) {
           ' балл.</b> · ' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</span>' +
         '</small>';
     } else {
-      const meta = ['выполнено: ' + works, Math.round(percent) + '% средний результат'].join(' · ');
-      metaHtml = '<small>' + escapeHtml(meta) + '</small>';
+      const studentsCount = Number(item.students_count || 0);
+      const metaParts = ['выполнено: ' + works, Math.round(percent) + '% средний результат'];
+      if (studentsCount > 0) metaParts.push('учеников: ' + studentsCount);
+      metaHtml = '<small>' + escapeHtml(metaParts.join(' · ')) + '</small>';
     }
 
     return `
@@ -4172,6 +4178,9 @@ async function loadResultsAnalytics() {
   const schoolCard = document.getElementById('resultsSchoolLeaderCard');
   const subjectSelect = document.getElementById('resultsLeaderboardSubjectFilter');
   const scopeLabel = document.getElementById('resultsLeaderboardScopeLabel');
+  const subjectCount = document.getElementById('resultsLeaderboardSubjectCount');
+  const studentScope = document.getElementById('resultsStudentLeaderScope');
+  const classScope = document.getElementById('resultsClassLeaderScope');
   const selectedSubjectId = Number(subjectSelect?.value || 0);
 
   if (students) students.innerHTML = '<div class="history-empty">Загрузка рейтинга...</div>';
@@ -4188,17 +4197,24 @@ async function loadResultsAnalytics() {
     const data = await readJsonResponse(response, 'Не удалось загрузить аналитику.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить аналитику.');
 
+    const subjects = Array.isArray(data.filters?.subjects) ? data.filters.subjects : [];
     if (subjectSelect) {
       const previousValue = String(selectedSubjectId || '');
-      const subjects = Array.isArray(data.filters?.subjects) ? data.filters.subjects : [];
       subjectSelect.innerHTML = '<option value="">Все предметы</option>' + subjects
         .map(item => `<option value="${Number(item.id)}">${escapeHtml(item.name)}</option>`).join('');
       subjectSelect.value = subjects.some(item => Number(item.id) === selectedSubjectId) ? previousValue : '';
+      subjectSelect.disabled = subjects.length === 0;
     }
 
     const selectedSubjectName = data.selected_subject?.name ? String(data.selected_subject.name) : '';
-    if (scopeLabel) {
-      scopeLabel.textContent = selectedSubjectName || 'Все предметы';
+    const scopeName = selectedSubjectName || 'Все предметы';
+    if (scopeLabel) scopeLabel.textContent = scopeName;
+    if (studentScope) studentScope.textContent = scopeName;
+    if (classScope) classScope.textContent = scopeName;
+    if (subjectCount) {
+      subjectCount.textContent = subjects.length > 0
+        ? 'Доступно предметов: ' + subjects.length
+        : 'Предметы появятся после добавления предмета или задания';
     }
 
     renderResultsLeaderList('resultsStudentLeaders', data.students || [], 'student');

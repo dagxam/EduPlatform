@@ -64,6 +64,9 @@ if (!str_contains($app, 'item.final_percent')
 
 if (!str_contains($index, 'Главный показатель — итоговый процент')
     || !str_contains($index, 'resultsLeaderboardSubjectFilter')
+    || !str_contains($index, 'resultsLeaderboardSubjectCount')
+    || !str_contains($index, 'resultsStudentLeaderScope')
+    || !str_contains($index, 'resultsClassLeaderScope')
     || !str_contains($index, 'Рейтинг по предмету')) {
     fwrite(STDERR, "Leaderboard smoke failed: subject-aware leaderboard explanation/filter is missing.\n");
     exit(1);
@@ -72,7 +75,11 @@ if (!str_contains($index, 'Главный показатель — итогов�
 if (!str_contains($app, "analyticsUrl.searchParams.set('subject_id'")
     || !str_contains($app, "resultsLeaderboardSubjectFilter")
     || !str_contains($app, "data.filters?.subjects")
-    || !str_contains($app, "data.selected_subject?.name")) {
+    || !str_contains($app, "data.selected_subject?.name")
+    || !str_contains($app, "subjectSelect.disabled = subjects.length === 0")
+    || !str_contains($app, "Доступно предметов:")
+    || !str_contains($app, "resultsStudentLeaderScope")
+    || !str_contains($app, "resultsClassLeaderScope")) {
     fwrite(STDERR, "Leaderboard smoke failed: subject filter is not wired in UI.\n");
     exit(1);
 }
