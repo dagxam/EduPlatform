@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=95">
+  <link rel="stylesheet" href="styles.css?v=96">
   <link rel="stylesheet" href="pwa.css?v=48">
 </head>
 <body>
@@ -691,13 +691,25 @@
           </form>
         </article>
 
-        <div class="content-grid school-admin-grid">
-          <article class="panel">
-            <div class="panel-head"><div><span class="section-kicker">Учебный план</span><h3>Предметы</h3></div></div>
+        <div class="school-management-sections">
+          <article class="panel school-management-section school-curriculum-section">
+            <div class="panel-head school-management-section-head">
+              <div>
+                <span class="section-kicker">Учебный план</span>
+                <h3>Предметы школы</h3>
+                <p>Предметы вынесены в отдельный блок и используются при назначении учителей и создании заданий.</p>
+              </div>
+            </div>
             <div id="schoolSubjectsList" class="subject-admin-list"><p>Загрузка предметов...</p></div>
           </article>
-          <article class="panel">
-            <div class="panel-head"><div><span class="section-kicker">Сотрудники</span><h3>Учителя</h3></div></div>
+          <article class="panel school-management-section school-staff-section">
+            <div class="panel-head school-management-section-head">
+              <div>
+                <span class="section-kicker">Сотрудники</span>
+                <h3>Учителя школы</h3>
+                <p>Добавление учителей, отправка доступа и назначения по предметам и классам.</p>
+              </div>
+            </div>
             <div class="table-wrap">
               <table class="school-teachers-table">
                 <thead><tr><th>Учитель</th><th>Email</th><th>Предметы и классы</th><th></th></tr></thead>
@@ -705,7 +717,7 @@
               </table>
             </div>
           </article>
-          <article class="panel admin-only hidden school-admins-panel">
+          <article class="panel admin-only hidden school-admins-panel school-management-section">
             <div class="panel-head">
               <div><span class="section-kicker">Контроль доступа</span><h3>Администраторы школы</h3></div>
               <button class="primary-btn compact-btn platform-admin-only hidden" id="addSchoolAdminBtn" type="button">＋ Администратор</button>
@@ -1222,9 +1234,9 @@
         <input type="hidden" id="adminSubscriptionUserId" name="user_id">
         <label>Тариф
           <select id="adminSubscriptionPlan" name="plan_code" required>
+            <option value="none">Нет тарифа — снять ручное назначение</option>
             <option value="pro">PRO</option>
             <option value="premium">Premium</option>
-            <option value="basic">Базовый — снять ручной доступ</option>
           </select>
         </label>
         <label>Срок
@@ -1241,7 +1253,7 @@
         </label>
         <div class="form-error hidden" id="adminSubscriptionError"></div>
         <button class="primary-btn full" type="submit">Сохранить подписку</button>
-        <small class="field-help">При выборе «Базовый» снимается только ручной PRO/Premium-доступ. Будущая оплаченная подписка пользователя не удаляется.</small>
+        <small class="field-help">«Нет тарифа» снимает только ручное назначение. Если у сотрудника есть оплаченный тариф, он сохраняется; если оплаты нет — рабочий доступ останется закрыт.</small>
       </form>
     </div>
   </div>
@@ -1802,7 +1814,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=95"></script>
+  <script src="app.js?v=96"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=50"></script>
 </body>
