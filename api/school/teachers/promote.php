@@ -4,7 +4,7 @@ require dirname(__DIR__, 2) . '/bootstrap.php';
 
 $user = require_user(['admin']);
 if (!is_platform_admin($user)) {
-    json_response(['ok' => false, 'error' => 'Назначать администраторов может только главный администратор UVORIA.'], 403);
+    json_response(['ok' => false, 'error' => 'Назначать администраторов может только главный администратор UROVIA.'], 403);
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
@@ -39,7 +39,7 @@ if (!$teacher) {
     json_response(['ok' => false, 'error' => 'Учитель не найден в выбранной школе.'], 404);
 }
 if ((int)($teacher['is_platform_admin'] ?? 0) === 1) {
-    json_response(['ok' => false, 'error' => 'Главный администратор UVORIA уже имеет максимальные права.'], 409);
+    json_response(['ok' => false, 'error' => 'Главный администратор UROVIA уже имеет максимальные права.'], 409);
 }
 if (in_array(($teacher['school_role'] ?? ''), ['school_admin', 'owner'], true)) {
     json_response(['ok' => false, 'error' => 'Этот пользователь уже является администратором школы.'], 409);
