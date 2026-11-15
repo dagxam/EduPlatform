@@ -4811,14 +4811,18 @@ function renderSubscriptionPage(data) {
   const usage = data?.usage || {};
   const usageNode = document.getElementById('subscriptionUsage');
   if (usageNode) {
-    usageNode.innerHTML = [
-      ['Классы', usage.classes, currentPlan.max_classes],
-      ['Ученики', usage.students, currentPlan.max_students],
-      ['Активные задания', usage.active_assignments, currentPlan.max_active_assignments]
-    ].map(([label, used, limit]) => {
-      const limitText = limit === null || limit === undefined ? '∞' : Number(limit);
-      return '<div><span>' + escapeHtml(label) + '</span><strong>' + Number(used || 0) + ' / ' + limitText + '</strong></div>';
-    }).join('');
+    if (!current.access_active || !current.plan) {
+      usageNode.innerHTML = '<div class="subscription-no-plan-usage"><span>Лимиты</span><strong>Тариф не выбран</strong><small>Лимиты появятся после назначения или успешной оплаты тарифа.</small></div>';
+    } else {
+      usageNode.innerHTML = [
+        ['Классы', usage.classes, currentPlan.max_classes],
+        ['Ученики', usage.students, currentPlan.max_students],
+        ['Активные задания', usage.active_assignments, currentPlan.max_active_assignments]
+      ].map(([label, used, limit]) => {
+        const limitText = limit === null || limit === undefined ? '∞' : Number(limit);
+        return '<div><span>' + escapeHtml(label) + '</span><strong>' + Number(used || 0) + ' / ' + limitText + '</strong></div>';
+      }).join('');
+    }
   }
 
   const plansNode = document.getElementById('subscriptionPlans');
@@ -7136,7 +7140,8 @@ async function loadAdminSubscriptionGrants() {
     body.innerHTML = adminSubscriptionStaffCache.length ? adminSubscriptionStaffCache.map(item => {
       const hasGrant = Boolean(item.grant_plan_code);
       const grantName = item.grant_plan_code === 'premium' ? 'Premium' : item.grant_plan_code === 'pro' ? 'PRO' : 'Нет';
-      const effectiveName = item.effective_plan_name || 'Базовый';
+      const hasEffectivePlan = Boolean(item.effective_plan_code && item.effective_plan_name);
+      const effectiveName = hasEffectivePlan ? item.effective_plan_name : 'Тариф не назначен';
       return `
         <tr>
           <td>
@@ -7145,8 +7150,8 @@ async function loadAdminSubscriptionGrants() {
           </td>
           <td><span class="status blue">${escapeHtml(adminSubscriptionRoleLabel(item))}</span></td>
           <td>
-            <b class="admin-subscription-plan">${escapeHtml(effectiveName)}</b>
-            <small>${item.effective_ends_at ? 'до ' + escapeHtml(adminSubscriptionEndLabel(item.effective_ends_at)) : (item.effective_status === 'admin_grant' ? 'бессрочно' : escapeHtml(item.effective_status || ''))}</small>
+            <b class="admin-subscription-plan ${hasEffectivePlan ? '' : 'is-empty'}">${escapeHtml(effectiveName)}</b>
+            <small>${hasEffectivePlan ? (item.effective_ends_at ? 'до ' + escapeHtml(adminSubscriptionEndLabel(item.effective_ends_at)) : (item.effective_status === 'admin_grant' ? 'бессрочно' : (item.effective_status === 'active' ? 'оплачено' : escapeHtml(item.effective_status || '')))) : 'Ожидает назначения или оплаты'}</small>
           </td>
           <td>
             ${hasGrant
@@ -7176,7 +7181,7 @@ function openAdminSubscriptionGrant(userId) {
   document.getElementById('adminSubscriptionUserId').value = String(item.id);
   document.getElementById('adminSubscriptionPerson').textContent =
     [item.last_name, item.first_name].filter(Boolean).join(' ') + ' · ' + adminSubscriptionRoleLabel(item);
-  document.getElementById('adminSubscriptionPlan').value = item.grant_plan_code || 'pro';
+  document.getElementById('adminSubscriptionPlan').value = item.grant_plan_code || 'none';
   document.getElementById('adminSubscriptionDuration').value = '30';
   document.getElementById('adminSubscriptionNote').value = item.grant_note || '';
   const error = document.getElementById('adminSubscriptionError');
@@ -7238,7 +7243,7 @@ document.getElementById('adminSubscriptionForm')?.addEventListener('submit', asy
 
 document.getElementById('adminSubscriptionPlan')?.addEventListener('change', event => {
   const duration = document.getElementById('adminSubscriptionDuration');
-  if (duration) duration.disabled = event.currentTarget.value === 'basic';
+  if (duration) duration.disabled = event.currentTarget.value === 'none';
 });
 
 async function loadSchoolManagement() {
