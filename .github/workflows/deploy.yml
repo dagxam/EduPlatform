@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/tablet-mobile-pwa-install
   workflow_dispatch:
 
 jobs:
