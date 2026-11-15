@@ -43,7 +43,7 @@ if (!$target) {
     json_response(['ok' => false, 'error' => 'Сотрудник не найден в выбранной школе.'], 404);
 }
 
-if ($planCode === 'basic') {
+if ($planCode === 'none') {
     $pdo->prepare('DELETE FROM subscription_admin_grants WHERE user_id = :user_id')
         ->execute(['user_id' => $targetUserId]);
 
@@ -53,12 +53,12 @@ if ($planCode === 'basic') {
 
     json_response([
         'ok' => true,
-        'message' => 'Ручной PRO/Premium-доступ снят. Будет использоваться обычная подписка пользователя или Базовый тариф.',
+        'message' => 'Ручное назначение снято. Если оплаченной подписки нет, сотрудник останется без тарифа до назначения или покупки.',
     ]);
 }
 
 if (!in_array($planCode, ['pro', 'premium'], true)) {
-    json_response(['ok' => false, 'error' => 'Можно назначить только PRO или Premium.'], 422);
+    json_response(['ok' => false, 'error' => 'Можно назначить PRO/Premium или снять ручное назначение.'], 422);
 }
 
 $endsAt = null;
