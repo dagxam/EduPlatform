@@ -15,6 +15,20 @@ function must_contain(string $path, array $needles): void {
     }
 }
 
+function must_not_contain(string $path, array $needles): void {
+    $content = file_get_contents($path);
+    if ($content === false) {
+        fwrite(STDERR, "Cannot read {$path}\n");
+        exit(1);
+    }
+    foreach ($needles as $needle) {
+        if (str_contains($content, $needle)) {
+            fwrite(STDERR, "{$path} contains forbidden marker: {$needle}\n");
+            exit(1);
+        }
+    }
+}
+
 must_contain('database/schema.sql', [
     'CREATE TABLE IF NOT EXISTS library_reactions',
     'idx_library_reactions_item',
@@ -72,6 +86,46 @@ must_contain('app.js', [
     'async function updateLibraryReaction',
     'class-work-metrics',
     'studentProgressGrid',
+]);
+
+must_contain('api/school/teachers/create.php', [
+    "require_user(['admin'])",
+    'require_active_school($user, true)',
+    "audit_event('teacher_created'",
+]);
+
+must_not_contain('api/school/teachers/create.php', [
+    'if (!is_platform_admin($user))',
+]);
+
+must_contain('api/school/teachers/send-access.php', [
+    "require_user(['admin'])",
+    'require_active_school($user, true)',
+    "audit_event('teacher_credentials_sent'",
+]);
+
+must_not_contain('api/school/teachers/send-access.php', [
+    'if (!is_platform_admin($user))',
+]);
+
+must_contain('app.js', [
+    "Boolean(user.can_manage_school)",
+    "document.querySelectorAll('.school-manager-only')",
+    "data-send-teacher-access",
+    "data-teacher-assign",
+]);
+
+must_contain('index.html', [
+    'school-manager-only hidden" id="addTeacherBtn"',
+    'school-management-toolbar',
+    'school-manager-note',
+    'school-staff-modal',
+]);
+
+must_contain('styles.css', [
+    '@media (max-width:1180px)',
+    '#school-management .school-teachers-table tr.school-staff-row',
+    '.school-assignments-modal',
 ]);
 
 echo "Teacher/student UX stage 2 wiring OK\n";
