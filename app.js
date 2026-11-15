@@ -7183,6 +7183,7 @@ function openAdminSubscriptionGrant(userId) {
     [item.last_name, item.first_name].filter(Boolean).join(' ') + ' · ' + adminSubscriptionRoleLabel(item);
   document.getElementById('adminSubscriptionPlan').value = item.grant_plan_code || 'none';
   document.getElementById('adminSubscriptionDuration').value = '30';
+  document.getElementById('adminSubscriptionDuration').disabled = !item.grant_plan_code;
   document.getElementById('adminSubscriptionNote').value = item.grant_note || '';
   const error = document.getElementById('adminSubscriptionError');
   if (error) {
