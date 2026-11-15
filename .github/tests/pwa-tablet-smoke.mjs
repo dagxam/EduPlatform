@@ -42,11 +42,15 @@ assert(pwa.includes("install.className = 'pwa-install-button';"), 'install actio
 assert(pwa.includes('Обновить UROVIA'), 'PWA update action must be clearly distinguished from assignment completion');
 assert(pwa.includes('urovia:assessment-state'), 'PWA updates must listen to assessment state');
 assert(pwa.includes('assessmentUiVisible'), 'PWA update toast must be deferred while a student assessment is visible');
-assert(pwa.includes('Android · как приложение'), 'Android install button should be device-aware');
+assert(pwa.includes('Android · установить как приложение'), 'Android install button should be device-aware');
 assert(pwa.includes('Готово, установлено ✓'), 'iOS guide must include explicit post-install confirmation');
-assert(pwa.includes('Отдельный APK-файл скачивать не нужно'), 'Android guide should explain browser app installation');
+assert(pwa.includes('APK-файл для этого не требуется'), 'Android guide should explain browser app installation');
 assert(pwa.includes("if (isIOS()) {\n        showInstallGuide();"), 'iOS button must open installation instructions directly');
 assert(pwa.includes('Открываем установку…'), 'native Android prompt should show clear progress state');
+assert(pwa.includes("typeof navigator.install === 'function'"), 'Android should detect the modern Web Install API when available');
+assert(pwa.includes('await navigator.install()'), 'Android should invoke the modern Web Install API from the install action');
 assert(read('pwa.css').includes('Device-aware install action v47'), 'tablet install controls must include device-aware styling');
-assert(read('pwa.css').includes('@media (min-width:641px) and (max-width:1180px) and (pointer:coarse)'), 'tablet PWA install button must have dedicated touch layout');
+assert(read('pwa.css').includes('@media (min-width:641px) and (max-width:1180px) and (pointer:coarse)'), 'tablet PWA install button must keep the base touch layout');
+assert(read('pwa.css').includes('Android tablet install CTA v48'), 'Android tablets must have a larger install CTA');
+assert(read('pwa.css').includes('@media (min-width:641px) and (max-width:1366px) and (pointer:coarse)'), 'Android tablet install CTA must cover common tablet widths');
 console.log('Tablet layout and cross-browser PWA regression checks OK');
