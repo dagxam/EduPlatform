@@ -44,7 +44,9 @@ if ($subjectId > 0) {
         }
     }
     if ($selectedSubject === null) {
-        json_response(['ok' => false, 'error' => 'Выбранный предмет недоступен в этой школе.'], 400);
+        // A school switch can leave the previous school's subject id in the UI briefly.
+        // Reset safely to the overall ranking instead of failing the analytics request.
+        $subjectId = 0;
     }
 }
 
