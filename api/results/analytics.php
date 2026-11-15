@@ -13,22 +13,45 @@ $subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
 
 if ($manager) {
     $subjectStmt = $pdo->prepare(
-        'SELECT s.id, s.name
-         FROM school_subjects ss
-         JOIN subjects s ON s.id = ss.subject_id
-         WHERE ss.school_id = ? AND ss.is_active = 1
+        'SELECT DISTINCT s.id, s.name
+         FROM subjects s
+         WHERE EXISTS (
+             SELECT 1
+             FROM school_subjects ss
+             WHERE ss.school_id = ?
+               AND ss.subject_id = s.id
+               AND ss.is_active = 1
+         )
+         OR EXISTS (
+             SELECT 1
+             FROM assignments subject_assignment
+             WHERE subject_assignment.school_id = ?
+               AND subject_assignment.subject_id = s.id
+         )
          ORDER BY s.name'
     );
-    $subjectStmt->execute([$schoolId]);
+    $subjectStmt->execute([$schoolId, $schoolId]);
 } else {
     $subjectStmt = $pdo->prepare(
         'SELECT DISTINCT s.id, s.name
-         FROM teacher_subjects ts
-         JOIN subjects s ON s.id = ts.subject_id
-         WHERE ts.school_id = ? AND ts.teacher_id = ?
+         FROM subjects s
+         WHERE EXISTS (
+             SELECT 1
+             FROM teacher_subjects ts
+             WHERE ts.school_id = ?
+               AND ts.teacher_id = ?
+               AND ts.subject_id = s.id
+         )
+         OR EXISTS (
+             SELECT 1
+             FROM assignments subject_assignment
+             WHERE subject_assignment.school_id = ?
+               AND subject_assignment.teacher_id = ?
+               AND subject_assignment.subject_id = s.id
+         )
          ORDER BY s.name'
     );
-    $subjectStmt->execute([$schoolId, $teacherId]);
+    $subjectStmt->execute([$schoolId, $teacherId, $schoolId, $teacherId]);
 }
 $subjectRows = array_map(static fn(array $row): array => [
     'id' => (int)$row['id'],

@@ -32,6 +32,9 @@ $checks = [
     'class ranking filters by subject' => "\$attemptSql .= ' AND a.subject_id = ?'",
     'analytics exposes subject options' => "'subjects' => \$subjectRows",
     'analytics exposes selected subject' => "'selected_subject' => \$selectedSubject",
+    'manager subject list includes assignment fallback' => "FROM assignments subject_assignment",
+    'manager subject fallback is scoped to school' => "subject_assignment.school_id = ?",
+    'teacher subject fallback is scoped to teacher' => "subject_assignment.teacher_id = ?",
 ];
 
 foreach ($checks as $label => $needle) {
