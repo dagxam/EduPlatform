@@ -6,7 +6,7 @@ const script = readFileSync('pwa.js', 'utf8');
 const LEGACY_KEY = 'urovia-pwa-installed-v1';
 const INSTALLED_HINT_KEY = 'urovia-pwa-installed-v2';
 
-function harness({ standalone = false, ios = false, yandex = false, legacyInstalled = false, installedHint = false, relatedInstalled = false } = {}) {
+function harness({ standalone = false, ios = false, android = false, yandex = false, legacyInstalled = false, installedHint = false, relatedInstalled = false } = {}) {
   const entries = [];
   if (legacyInstalled) entries.push([LEGACY_KEY, '1']);
   if (installedHint) entries.push([INSTALLED_HINT_KEY, '1']);
@@ -71,9 +71,11 @@ function harness({ standalone = false, ios = false, yandex = false, legacyInstal
     navigator: {
       userAgent: ios
         ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
-        : (yandex
-          ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36 YaBrowser/26.10.0.0'
-          : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36'),
+        : (android
+          ? 'Mozilla/5.0 (Linux; Android 15; Tablet) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
+          : (yandex
+            ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36 YaBrowser/26.10.0.0'
+            : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36')),
       platform: ios ? 'iPhone' : 'Win32',
       maxTouchPoints: ios ? 5 : 0,
       standalone: standalone && ios,
@@ -180,6 +182,22 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   assert.equal(h.store.has(INSTALLED_HINT_KEY), false, 'fresh native prompt clears stale installed hint');
 }
 
+// Android tablet uses the native PWA install prompt when the browser provides it.
+{
+  const h = harness({ android: true });
+  assert.match(h.node('pwaInstallButton').innerHTML, /Android · как приложение/);
+  let promptCalled = false;
+  h.emit('beforeinstallprompt', {
+    preventDefault() {},
+    prompt: async () => { promptCalled = true; },
+    userChoice: Promise.resolve({ outcome: 'accepted' })
+  });
+  await h.node('pwaInstallButton').click();
+  assert.equal(promptCalled, true, 'Android install button must open the native install prompt');
+  assert.equal(h.hidden(), true, 'accepted Android install must hide the button');
+  assert.equal(h.store.get(INSTALLED_HINT_KEY), '1', 'accepted Android install persists installed state');
+}
+
 // Accepted native install hides the button for the current browser session.
 {
   const h = harness();
@@ -212,17 +230,21 @@ assert.equal(harness({ standalone: true }).hidden(), true);
   assert.equal(h.hidden(), true, 'already-installed Yandex web app must not show an extra shortcut button');
 }
 
-// On iOS the website gives share-sheet instructions; manual confirmation is session-only.
+// On iOS the button opens share-sheet instructions. After the user confirms that
+// the app was added to the Home Screen, the install action remains hidden.
 {
   const h = harness({ ios: true });
+  assert.match(h.node('pwaInstallButton').innerHTML, /iPhone \/ iPad/);
   await h.node('pwaInstallButton').click();
   assert.equal(h.node('pwaInstallGuide').classList.contains('hidden'), false);
   assert.match(h.node('pwaGuideDescription').textContent, /Safari/);
+  assert.equal(h.node('pwaInstallConfirmed').textContent, 'Готово, установлено ✓');
   await h.node('pwaInstallConfirmed').click();
   assert.equal(h.hidden(), true);
+  assert.equal(h.store.get(INSTALLED_HINT_KEY), '1', 'iOS manual install confirmation persists installed state');
 
-  const reopened = harness({ ios: true, legacyInstalled: true });
-  assert.equal(reopened.hidden(), false, 'reopened normal browser must offer install again unless real install state is detectable');
+  const reopened = harness({ ios: true, installedHint: true });
+  assert.equal(reopened.hidden(), true, 'confirmed iOS install must keep the button hidden after reopening Safari');
 }
 
-console.log('PWA installation behavior OK: always-visible fallback, prompt, standalone, related-app detection and reinstall');
+console.log('PWA installation behavior OK: Android native install, iOS instructions, persistent installed state and reinstall');
