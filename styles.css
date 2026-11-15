@@ -10725,3 +10725,63 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
     font-size:12px;
   }
 }
+
+
+/* Results leaderboard subject filter v66 */
+.results-leaderboard-filter{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  margin:0 0 14px;
+  padding:14px 16px;
+  border:1px solid #e7ecf1;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 5px 18px rgba(30,45,62,.035);
+}
+.results-leaderboard-filter>div{
+  min-width:0;
+}
+.results-leaderboard-filter strong{
+  display:block;
+  margin-top:3px;
+  color:#273a4f;
+  font-size:15px;
+}
+.results-leaderboard-filter small{
+  display:block;
+  margin-top:4px;
+  color:#8a96a2;
+  font-size:11px;
+  line-height:1.4;
+}
+.results-leaderboard-filter label{
+  display:grid;
+  gap:5px;
+  flex:0 0 min(280px,40%);
+  color:#6f7c89;
+  font-size:11px;
+  font-weight:800;
+}
+.results-leaderboard-filter select{
+  width:100%;
+  min-height:42px;
+  border:1px solid #dfe5eb;
+  border-radius:10px;
+  padding:9px 34px 9px 11px;
+  background:#fff;
+  color:#33404d;
+  font-weight:700;
+}
+@media(max-width:720px){
+  .results-leaderboard-filter{
+    align-items:stretch;
+    flex-direction:column;
+    gap:12px;
+  }
+  .results-leaderboard-filter label{
+    flex-basis:auto;
+    width:100%;
+  }
+}

@@ -817,13 +817,27 @@
           <article class="result-overview-card"><span>Требуют внимания</span><strong id="resultsOverviewAttention">—</strong><small>проверка или черновик</small></article>
         </div>
 
+        <div class="results-leaderboard-filter">
+          <div>
+            <span class="section-kicker">Рейтинг по предмету</span>
+            <strong id="resultsLeaderboardScopeLabel">Все предметы</strong>
+            <small>Фильтр применяется к лучшим ученикам и классам. Рейтинг школ остаётся общим.</small>
+          </div>
+          <label>
+            <span>Предмет</span>
+            <select id="resultsLeaderboardSubjectFilter" aria-label="Предмет для рейтинга учеников и классов">
+              <option value="">Все предметы</option>
+            </select>
+          </label>
+        </div>
+
         <div class="results-leaderboard-grid" id="resultsLeaderboardGrid">
           <article class="panel result-leader-card">
             <div class="result-leader-head">
               <div><span class="section-kicker">Лидер</span><h3>Лучшие ученики</h3></div>
               <span class="result-leader-icon">★</span>
             </div>
-            <p>Главный показатель — общий итоговый процент по всем выполненным работам: суммируются набранные и максимальные баллы, после чего рассчитывается общий процент. Поэтому ученик с меньшим количеством работ, но более высоким общим результатом, занимает место выше. При равном проценте учитываются количество работ и правильные ответы.</p>
+            <p>Главный показатель — итоговый процент по выполненным работам. В режиме «Все предметы» учитываются все работы, а при выборе предмета — только работы этого предмета. При равном проценте учитываются количество работ и правильные ответы.</p>
             <div class="result-leader-list" id="resultsStudentLeaders"><div class="history-empty">Загрузка рейтинга...</div></div>
           </article>
           <article class="panel result-leader-card">
@@ -831,7 +845,7 @@
               <div><span class="section-kicker">Классы</span><h3>Классы-лидеры</h3></div>
               <span class="result-leader-icon">▦</span>
             </div>
-            <p>Рейтинг классов по средней оценке всех выполненных работ. Показываются до 5 лидеров.</p>
+            <p>Рейтинг классов по средней оценке выполненных работ. При выборе предмета учитываются только работы этого предмета. Показываются до 5 лидеров.</p>
             <div class="result-leader-list" id="resultsClassLeaders"><div class="history-empty">Загрузка рейтинга...</div></div>
           </article>
           <article class="panel result-leader-card hidden" id="resultsSchoolLeaderCard">

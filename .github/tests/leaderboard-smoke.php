@@ -27,6 +27,11 @@ $checks = [
     'API exposes one-work student rule' => "'student_min_works' => 1",
     'API exposes one-work class rule' => "'class_min_completed' => 1",
     'API exposes one-work school rule' => "'school_min_completed' => 1",
+    'analytics accepts subject filter' => "\$subjectId = max(0, (int)(\$_GET['subject_id'] ?? 0))",
+    'student ranking filters by subject' => "\$studentSql .= ' AND a.subject_id = ?'",
+    'class ranking filters by subject' => "\$attemptSql .= ' AND a.subject_id = ?'",
+    'analytics exposes subject options' => "'subjects' => \$subjectRows",
+    'analytics exposes selected subject' => "'selected_subject' => \$selectedSubject",
 ];
 
 foreach ($checks as $label => $needle) {
@@ -54,8 +59,18 @@ if (!str_contains($app, 'item.final_percent')
     exit(1);
 }
 
-if (!str_contains($index, 'Главный показатель — общий итоговый процент')) {
-    fwrite(STDERR, "Leaderboard smoke failed: percent-first student leaderboard explanation is missing.\n");
+if (!str_contains($index, 'Главный показатель — итоговый процент')
+    || !str_contains($index, 'resultsLeaderboardSubjectFilter')
+    || !str_contains($index, 'Рейтинг по предмету')) {
+    fwrite(STDERR, "Leaderboard smoke failed: subject-aware leaderboard explanation/filter is missing.\n");
+    exit(1);
+}
+
+if (!str_contains($app, "analyticsUrl.searchParams.set('subject_id'")
+    || !str_contains($app, "resultsLeaderboardSubjectFilter")
+    || !str_contains($app, "data.filters?.subjects")
+    || !str_contains($app, "data.selected_subject?.name")) {
+    fwrite(STDERR, "Leaderboard smoke failed: subject filter is not wired in UI.\n");
     exit(1);
 }
 

@@ -4170,17 +4170,36 @@ async function loadResultsAnalytics() {
   const classes = document.getElementById('resultsClassLeaders');
   const schools = document.getElementById('resultsSchoolLeaders');
   const schoolCard = document.getElementById('resultsSchoolLeaderCard');
+  const subjectSelect = document.getElementById('resultsLeaderboardSubjectFilter');
+  const scopeLabel = document.getElementById('resultsLeaderboardScopeLabel');
+  const selectedSubjectId = Number(subjectSelect?.value || 0);
 
   if (students) students.innerHTML = '<div class="history-empty">Загрузка рейтинга...</div>';
   if (classes) classes.innerHTML = '<div class="history-empty">Загрузка рейтинга...</div>';
 
   try {
-    const response = await fetch('./api/results/analytics.php', {
+    const analyticsUrl = new URL('./api/results/analytics.php', window.location.href);
+    if (selectedSubjectId > 0) analyticsUrl.searchParams.set('subject_id', String(selectedSubjectId));
+
+    const response = await fetch(analyticsUrl, {
       credentials:'same-origin',
       cache:'no-store'
     });
     const data = await readJsonResponse(response, 'Не удалось загрузить аналитику.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить аналитику.');
+
+    if (subjectSelect) {
+      const previousValue = String(selectedSubjectId || '');
+      const subjects = Array.isArray(data.filters?.subjects) ? data.filters.subjects : [];
+      subjectSelect.innerHTML = '<option value="">Все предметы</option>' + subjects
+        .map(item => `<option value="${Number(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+      subjectSelect.value = subjects.some(item => Number(item.id) === selectedSubjectId) ? previousValue : '';
+    }
+
+    const selectedSubjectName = data.selected_subject?.name ? String(data.selected_subject.name) : '';
+    if (scopeLabel) {
+      scopeLabel.textContent = selectedSubjectName || 'Все предметы';
+    }
 
     renderResultsLeaderList('resultsStudentLeaders', data.students || [], 'student');
     renderResultsLeaderList('resultsClassLeaders', data.classes || [], 'class');
@@ -4634,6 +4653,9 @@ document.getElementById('refreshLiveExecutionBtn')?.addEventListener('click', ()
 document.getElementById('resultsSearch')?.addEventListener('input', renderResults);
 document.getElementById('resultsClassFilter')?.addEventListener('change', renderResults);
 document.getElementById('resultsAssignmentFilter')?.addEventListener('change', renderResults);
+document.getElementById('resultsLeaderboardSubjectFilter')?.addEventListener('change', () => {
+  loadResultsAnalytics().catch(() => {});
+});
 document.getElementById('journalClassFilter')?.addEventListener('change', () => {
   populateJournalSubjectFilter();
   const assignmentSelect = document.getElementById('journalAssignmentFilter');

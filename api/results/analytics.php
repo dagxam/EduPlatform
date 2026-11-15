@@ -9,6 +9,45 @@ $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
 $teacherId = (int)$user['id'];
 
+$subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
+
+if ($manager) {
+    $subjectStmt = $pdo->prepare(
+        'SELECT s.id, s.name
+         FROM school_subjects ss
+         JOIN subjects s ON s.id = ss.subject_id
+         WHERE ss.school_id = ? AND ss.is_active = 1
+         ORDER BY s.name'
+    );
+    $subjectStmt->execute([$schoolId]);
+} else {
+    $subjectStmt = $pdo->prepare(
+        'SELECT DISTINCT s.id, s.name
+         FROM teacher_subjects ts
+         JOIN subjects s ON s.id = ts.subject_id
+         WHERE ts.school_id = ? AND ts.teacher_id = ?
+         ORDER BY s.name'
+    );
+    $subjectStmt->execute([$schoolId, $teacherId]);
+}
+$subjectRows = array_map(static fn(array $row): array => [
+    'id' => (int)$row['id'],
+    'name' => (string)$row['name'],
+], $subjectStmt->fetchAll());
+
+$selectedSubject = null;
+if ($subjectId > 0) {
+    foreach ($subjectRows as $subjectRow) {
+        if ((int)$subjectRow['id'] === $subjectId) {
+            $selectedSubject = $subjectRow;
+            break;
+        }
+    }
+    if ($selectedSubject === null) {
+        json_response(['ok' => false, 'error' => 'Выбранный предмет недоступен в этой школе.'], 400);
+    }
+}
+
 $latestAttemptSql =
     "at.id = (
         SELECT MAX(at2.id)
@@ -78,6 +117,10 @@ $studentSql =
        AND at.status IN ('submitted', 'needs_review')
        AND {$latestAttemptSql}";
 $studentParams = [$schoolId];
+if ($subjectId > 0) {
+    $studentSql .= ' AND a.subject_id = ?';
+    $studentParams[] = $subjectId;
+}
 if (!$manager) {
     $studentSql .= ' AND a.teacher_id = ?';
     $studentParams[] = $teacherId;
@@ -165,6 +208,10 @@ foreach ($classRows as $classRow) {
            AND at.status IN ('submitted', 'needs_review')
            AND {$latestAttemptSql}";
     $attemptParams = [$classId, $schoolId];
+    if ($subjectId > 0) {
+        $attemptSql .= ' AND a.subject_id = ?';
+        $attemptParams[] = $subjectId;
+    }
     if (!$manager) {
         $attemptSql .= ' AND a.teacher_id = ?';
         $attemptParams[] = $teacherId;
@@ -287,8 +334,12 @@ json_response([
         'class_min_completed' => 1,
         'school_min_completed' => 1,
         'leaders_limit' => 5,
-        'rating_formula' => 'Место определяется по общему итоговому проценту: сумма набранных баллов по всем выполненным работам делится на сумму максимальных баллов. При равном проценте учитываются количество выполненных работ, правильные ответы и только затем сумма процентов по работам.',
+        'rating_formula' => 'Место определяется по общему итоговому проценту: сумма набранных баллов по выполненным работам делится на сумму максимальных баллов. При выборе предмета учитываются только работы этого предмета. При равном проценте учитываются количество выполненных работ, правильные ответы и только затем сумма процентов по работам.',
     ],
+    'filters' => [
+        'subjects' => $subjectRows,
+    ],
+    'selected_subject' => $selectedSubject,
     'students' => $studentLeaders,
     'classes' => $classLeaders,
     'schools' => $schoolLeaders,
