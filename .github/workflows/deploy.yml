@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/school-admin-teacher-tablet
   workflow_dispatch:
 
 jobs:
