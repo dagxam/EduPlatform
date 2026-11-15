@@ -27,6 +27,7 @@
     !/chrome|crios|fxios|edgios|yabrowser|opr|opera|android/i.test(navigator.userAgent);
 
   const isAndroid = () => /android/i.test(navigator.userAgent);
+  const supportsWebInstall = () => typeof navigator.install === 'function';
   const isYandex = () => /yabrowser/i.test(navigator.userAgent);
   const isFirefox = () => /firefox|fxios/i.test(navigator.userAgent);
   const isMac = () => /macintosh|mac os x/i.test(navigator.userAgent) && !isIOS();
@@ -93,7 +94,7 @@
     if (isAndroid()) {
       return {
         label: 'Установить UROVIA',
-        hint: 'Android · как приложение'
+        hint: 'Android · установить как приложение'
       };
     }
     return {
@@ -123,7 +124,7 @@
         title: 'UROVIA на Android',
         description: isYandex()
           ? 'Если системное окно не появилось, установите UROVIA через меню Яндекс Браузера.'
-          : 'UROVIA устанавливается прямо из браузера как отдельное приложение. Отдельный APK-файл скачивать не нужно.',
+          : 'UROVIA устанавливается прямо из браузера и на Android выглядит как обычное приложение: со своей иконкой и отдельным окном. APK-файл для этого не требуется.',
         steps: [
           'Если появилось системное окно, нажмите «Установить».',
           'Если окна нет, откройте меню браузера (⋮ или ≡).',
@@ -258,6 +259,26 @@
         showInstallGuide();
         return;
       }
+
+      // Prefer the current Chromium Web Install API on Android when available.
+      // It opens browser-controlled installation UI from this direct user gesture.
+      if (isAndroid() && supportsWebInstall()) {
+        try {
+          install.disabled = true;
+          install.classList.add('pwa-installing');
+          install.innerHTML =
+            '<span class="pwa-install-icon" aria-hidden="true">…</span>' +
+            '<span class="pwa-install-copy"><span>Открываем установку…</span><small>Подтвердите установку UROVIA</small></span>';
+          await navigator.install();
+          markInstalled({ persist: true });
+        } catch (error) {
+          refreshInstallButton();
+          // Cancellation is normal: leave the button available for another try.
+          if (error?.name !== 'AbortError') showInstallGuide();
+        }
+        return;
+      }
+
       if (deferredInstallPrompt) {
         // prompt() must be initiated from a direct user interaction.
         const prompt = deferredInstallPrompt;
