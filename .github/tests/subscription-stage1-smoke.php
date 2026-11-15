@@ -51,7 +51,7 @@ $checks = [
     [$files['app'], 'function staffSubscriptionLocked()', 'staff subscription gate'],
     [$files['app'], "response.status === 402", 'client handles expired server subscription'],
     [$files['app'], "'Тариф не назначен'", 'no default tariff in admin UI'],
-    [$files['app'], "'Тариф не выбран'", 'no-plan usage state'],
+    [$files['app'], 'Тариф не выбран</strong>', 'no-plan usage state'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
