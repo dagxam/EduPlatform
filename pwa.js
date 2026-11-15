@@ -83,33 +83,54 @@
     }
   }
 
+  function installButtonCopy() {
+    if (isIOS()) {
+      return {
+        label: 'Установить UROVIA',
+        hint: 'iPhone / iPad'
+      };
+    }
+    if (isAndroid()) {
+      return {
+        label: 'Установить UROVIA',
+        hint: 'Android · как приложение'
+      };
+    }
+    return {
+      label: 'Установить UROVIA',
+      hint: 'Приложение'
+    };
+  }
+
   function guideCopy() {
     if (isIOS()) {
       return {
         title: 'UROVIA на iPhone и iPad',
         description: isSafari()
-          ? 'iPhone и iPad требуют вашего подтверждения установки через системное меню Safari.'
-          : 'Попробуйте меню «Поделиться» в текущем браузере. Если пункта «На экран Домой» нет, откройте urovia.ru в Safari.',
+          ? 'На iPhone и iPad установка выполняется через системное меню Safari.'
+          : 'Для установки откройте urovia.ru в Safari: другие браузеры iOS могут не показывать пункт добавления на экран Домой.',
         steps: [
-          'Откройте меню «Поделиться» (значок со стрелкой вверх).',
-          'Выберите «На экран Домой» или «Добавить на экран Домой».',
-          'Подтвердите «Добавить». На экране Домой появится иконка UROVIA.'
+          'Нажмите «Поделиться» — значок квадрата со стрелкой вверх.',
+          'Прокрутите меню и выберите «На экран Домой» или «Добавить на экран Домой».',
+          'Нажмите «Добавить». На экране Домой появится UROVIA как отдельное приложение.',
+          'Вернитесь на эту страницу и нажмите «Готово, установлено ✓».'
         ],
-        note: 'Автоматически установить приложение без вашего действия iOS не разрешает.'
+        note: 'iOS не разрешает сайту установить приложение автоматически. После подтверждения ниже кнопка «Установить UROVIA» исчезнет.'
       };
     }
     if (isAndroid()) {
       return {
         title: 'UROVIA на Android',
         description: isYandex()
-          ? 'Яндекс Браузер может не показывать системное окно установки. Попробуйте его меню.'
-          : 'Если системное окно не открылось, установите UROVIA через меню браузера.',
+          ? 'Если системное окно не появилось, установите UROVIA через меню Яндекс Браузера.'
+          : 'UROVIA устанавливается прямо из браузера как отдельное приложение. Отдельный APK-файл скачивать не нужно.',
         steps: [
-          'Откройте меню браузера (⋮ или ≡).',
-          'Найдите «Установить приложение» или «Добавить на главный экран».',
-          'Подтвердите установку. Значок появится на главном экране или в списке приложений.'
+          'Если появилось системное окно, нажмите «Установить».',
+          'Если окна нет, откройте меню браузера (⋮ или ≡).',
+          'Выберите «Установить приложение» или «Добавить на главный экран» и подтвердите.',
+          'После установки UROVIA появится среди приложений Android и кнопка установки исчезнет.'
         ],
-        note: 'Если браузер умеет создавать только обычный ярлык, для установки в отдельном окне используйте актуальный Chrome.'
+        note: 'Лучше использовать актуальный Chrome или другой Chromium-браузер, который поддерживает установку PWA.'
       };
     }
 
@@ -161,6 +182,10 @@
       steps.append(item);
     });
     note.textContent = copy.note;
+    const confirm = document.getElementById('pwaInstallConfirmed');
+    if (confirm) {
+      confirm.textContent = isIOS() ? 'Готово, установлено ✓' : 'Уже установлено ✓';
+    }
     guide.classList.remove('hidden');
     document.getElementById('pwaGuideClose')?.focus();
   }
@@ -172,11 +197,16 @@
     const installed = standalone || installedThisSession || relatedPwaInstalled;
 
     document.documentElement.classList.toggle('pwa-standalone', standalone);
+    const copy = installButtonCopy();
     button.classList.toggle('hidden', installed);
     button.disabled = installed;
-    button.classList.remove('pwa-shortcut-helper');
-    button.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span>Установить UROVIA</span>';
-    button.setAttribute('aria-label', 'Установить UROVIA как приложение');
+    button.classList.remove('pwa-shortcut-helper', 'pwa-installing');
+    button.classList.toggle('pwa-install-android', isAndroid());
+    button.classList.toggle('pwa-install-ios', isIOS());
+    button.innerHTML =
+      '<span class="pwa-install-icon" aria-hidden="true">↓</span>' +
+      '<span class="pwa-install-copy"><span>' + copy.label + '</span><small>' + copy.hint + '</small></span>';
+    button.setAttribute('aria-label', copy.label + ' как приложение');
 
     if (installed) {
       document.getElementById('pwaInstallGuide')?.classList.add('hidden');
@@ -190,7 +220,7 @@
     install.id = 'pwaInstallButton';
     install.type = 'button';
     install.className = 'pwa-install-button';
-    install.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span>Установить UROVIA</span>';
+    install.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span class="pwa-install-copy"><span>Установить UROVIA</span><small>Приложение</small></span>';
     install.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
     const update = document.createElement('div');
@@ -224,11 +254,20 @@
         refreshInstallButton();
         return;
       }
+      if (isIOS()) {
+        showInstallGuide();
+        return;
+      }
       if (deferredInstallPrompt) {
         // prompt() must be initiated from a direct user interaction.
         const prompt = deferredInstallPrompt;
         deferredInstallPrompt = null;
         try {
+          install.disabled = true;
+          install.classList.add('pwa-installing');
+          install.innerHTML =
+            '<span class="pwa-install-icon" aria-hidden="true">…</span>' +
+            '<span class="pwa-install-copy"><span>Открываем установку…</span><small>Подтвердите в системном окне</small></span>';
           await prompt.prompt();
           const choice = await prompt.userChoice;
           if (choice?.outcome === 'accepted') {
@@ -239,6 +278,7 @@
             refreshInstallButton();
           }
         } catch {
+          refreshInstallButton();
           showInstallGuide();
         }
         return;
@@ -249,7 +289,7 @@
     const closeGuide = () => guide.classList.add('hidden');
     document.getElementById('pwaGuideClose')?.addEventListener('click', closeGuide);
     document.getElementById('pwaGuideDone')?.addEventListener('click', closeGuide);
-    document.getElementById('pwaInstallConfirmed')?.addEventListener('click', () => markInstalled({ persist: false }));
+    document.getElementById('pwaInstallConfirmed')?.addEventListener('click', () => markInstalled({ persist: true }));
     guide.addEventListener('click', event => {
       if (event.target === guide) closeGuide();
     });
