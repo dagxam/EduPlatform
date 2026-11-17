@@ -5,6 +5,7 @@
   const LEGACY_INSTALLED_KEY = 'urovia-pwa-installed-v1';
   const INSTALLED_HINT_KEY = 'urovia-pwa-installed-v2';
   const RELOAD_KEY = 'uvoria-sw-reloading';
+  const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 1000;
   let deferredInstallPrompt = null;
   let registration = null;
   let assessmentActive = false;
@@ -12,6 +13,9 @@
   let reloadPending = false;
   let installedThisSession = false;
   let relatedPwaInstalled = false;
+  let releaseUpdateAvailable = false;
+  let latestReleaseVersion = '';
+  let updateCheckTimer = null;
 
   const modes = ['standalone'];
   const isStandalone = () =>
@@ -224,11 +228,19 @@
     install.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span class="pwa-install-copy"><span>Установить UROVIA</span><small>Приложение</small></span>';
     install.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
+    const updateShortcut = document.createElement('button');
+    updateShortcut.id = 'pwaUpdateShortcut';
+    updateShortcut.type = 'button';
+    updateShortcut.className = 'pwa-update-shortcut hidden';
+    updateShortcut.innerHTML =
+      '<span class="pwa-update-shortcut-icon" aria-hidden="true">↻</span>' +
+      '<span class="pwa-update-shortcut-copy"><b>Обновить UROVIA</b><small>Доступна новая версия</small></span>';
+
     const update = document.createElement('div');
     update.id = 'pwaUpdateToast';
     update.className = 'pwa-update-toast hidden';
-    update.innerHTML = '<div><b>Доступно обновление UROVIA</b><span>Новая версия готова к установке.</span></div>' +
-      '<button type="button" id="pwaUpdateButton">Обновить UROVIA</button>';
+    update.innerHTML = '<div><b>Доступно обновление UROVIA</b><span>Нажмите «Обновить», чтобы загрузить новую версию.</span></div>' +
+      '<button type="button" id="pwaUpdateButton">Обновить</button>';
 
     const guide = document.createElement('div');
     guide.id = 'pwaInstallGuide';
@@ -244,7 +256,7 @@
       '<button class="pwa-ios-ok" type="button" id="pwaGuideDone">Закрыть</button>' +
       '</div></div>';
 
-    document.body.append(install, update, guide);
+    document.body.append(install, updateShortcut, update, guide);
 
     install.addEventListener('click', async () => {
       if (isStandalone()) {
@@ -317,15 +329,80 @@
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !guide.classList.contains('hidden')) closeGuide();
     });
-    document.getElementById('pwaUpdateButton')?.addEventListener('click', () => {
-      if (assessmentActive || assessmentUiVisible()) {
-        updatePending = true;
-        hideUpdateReady();
-        return;
-      }
-      if (!registration?.waiting) return;
+    document.getElementById('pwaUpdateButton')?.addEventListener('click', applyAvailableUpdate);
+    updateShortcut.addEventListener('click', applyAvailableUpdate);
+  }
+
+  function loadedReleaseVersion() {
+    return String(
+      document.querySelector?.('meta[name="urovia-release"]')?.getAttribute?.('content') || ''
+    ).trim();
+  }
+
+  async function checkForReleaseUpdate() {
+    if (typeof window.fetch !== 'function') return;
+    const loaded = loadedReleaseVersion();
+    if (!loaded || loaded === 'dev') return;
+
+    try {
+      const response = await window.fetch('./version.json?t=' + Date.now(), {
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const remote = String(payload?.version || payload?.sha || '').trim();
+      if (!remote) return;
+
+      latestReleaseVersion = remote;
+      releaseUpdateAvailable = remote !== loaded;
+      if (releaseUpdateAvailable) showUpdateReady();
+    } catch {
+      // Service Worker update detection remains the fallback.
+    }
+  }
+
+  async function checkForUpdates() {
+    if (registration) {
+      try { await registration.update(); } catch {}
+    }
+    await checkForReleaseUpdate();
+  }
+
+  function hardReloadToLatest() {
+    if (!window.location) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('urovia_update', (latestReleaseVersion || Date.now().toString()).slice(0, 16));
+    sessionStorage.setItem(RELOAD_KEY, '1');
+    window.location.replace(url.toString());
+  }
+
+  async function applyAvailableUpdate() {
+    if (assessmentActive || assessmentUiVisible()) {
+      updatePending = true;
+      hideUpdateReady();
+      return;
+    }
+
+    const toastButton = document.getElementById('pwaUpdateButton');
+    const shortcut = document.getElementById('pwaUpdateShortcut');
+    if (toastButton) {
+      toastButton.disabled = true;
+      toastButton.textContent = 'Обновляем…';
+    }
+    if (shortcut) shortcut.classList.add('pwa-update-applying');
+
+    try {
+      if (registration) await registration.update();
+    } catch {}
+
+    if (registration?.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    });
+      window.setTimeout(() => hardReloadToLatest(), 2500);
+      return;
+    }
+
+    hardReloadToLatest();
   }
 
   function assessmentUiVisible() {
@@ -339,6 +416,7 @@
 
   function hideUpdateReady() {
     document.getElementById('pwaUpdateToast')?.classList.add('hidden');
+    document.getElementById('pwaUpdateShortcut')?.classList.add('hidden');
   }
 
   function showUpdateReady() {
@@ -349,6 +427,7 @@
     }
     updatePending = false;
     document.getElementById('pwaUpdateToast')?.classList.remove('hidden');
+    document.getElementById('pwaUpdateShortcut')?.classList.remove('hidden');
   }
 
   window.addEventListener('urovia:assessment-state', event => {
@@ -367,7 +446,7 @@
       return;
     }
 
-    if (updatePending && registration?.waiting && navigator.serviceWorker.controller) {
+    if (updatePending && ((registration?.waiting && navigator.serviceWorker.controller) || releaseUpdateAvailable)) {
       window.setTimeout(showUpdateReady, 700);
     }
   });
@@ -404,11 +483,13 @@
   window.addEventListener('focus', () => {
     refreshInstallButton();
     detectInstalledPwa().catch(() => {});
+    checkForUpdates().catch(() => {});
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       refreshInstallButton();
       detectInstalledPwa().catch(() => {});
+      checkForUpdates().catch(() => {});
     }
   });
   modes.forEach(mode => {
@@ -439,7 +520,16 @@
         sessionStorage.setItem(RELOAD_KEY, '1');
         window.location.reload();
       });
-      window.addEventListener('load', () => reg.update().catch(() => {}));
+      window.addEventListener('load', () => checkForUpdates().catch(() => {}));
+      if (typeof window.setInterval === 'function' && updateCheckTimer === null) {
+        updateCheckTimer = window.setInterval(() => {
+          if (!document.hidden) checkForUpdates().catch(() => {});
+        }, UPDATE_CHECK_INTERVAL_MS);
+      }
+      checkForReleaseUpdate().catch(() => {});
+      window.setTimeout(() => {
+        if (typeof sessionStorage.removeItem === 'function') sessionStorage.removeItem(RELOAD_KEY);
+      }, 1500);
     } catch {
       // Web access remains available if the browser disables service workers.
     }

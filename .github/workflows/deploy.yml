@@ -122,6 +122,16 @@ jobs:
       - name: Validate 300-student MySQL concurrency
         run: php .github/tests/mysql-concurrency-smoke.php
 
+      - name: Stamp release metadata
+        if: github.ref == 'refs/heads/main'
+        run: |
+          printf '{"version":"%s","deployed_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          for file in index.html login.html; do
+            sed -E -i "s/(<meta name=\"urovia-release\" content=\")[^\"]*(\">)/\1${GITHUB_SHA}\2/" "$file"
+            sed -E -i "s/\?v=[0-9]+/?v=${SHORT_SHA}/g" "$file"
+          done
+
       - name: Upload site over FTP
         if: github.ref == 'refs/heads/main'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0

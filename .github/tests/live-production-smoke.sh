@@ -17,6 +17,23 @@ php -r '
   echo "Production API + database OK\n";
 ' "$HEALTH_FILE"
 
+VERSION_FILE="$(mktemp)"
+trap 'rm -f "$HEALTH_FILE" "$VERSION_FILE"' EXIT
+
+curl --fail --location --silent --show-error \
+  --retry 5 --retry-delay 4 --retry-all-errors \
+  --connect-timeout 10 --max-time 30 \
+  "https://urovia.ru/version.json?check=$(date +%s)" > "$VERSION_FILE"
+
+php -r '
+  $data = json_decode(file_get_contents($argv[1]), true);
+  if (!is_array($data) || empty($data["version"]) || strlen((string)$data["version"]) < 12) {
+      fwrite(STDERR, "Production release marker check failed.\n");
+      exit(1);
+  }
+  echo "Production release marker OK\n";
+' "$VERSION_FILE"
+
 for url in   "https://urovia.ru/login.html"   "https://urovia.ru/pricing.php"   "https://urovia.ru/payment-info.php"   "https://urovia.ru/offer.php"
 do
   echo "Checking $url"
