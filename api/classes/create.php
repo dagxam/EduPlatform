@@ -30,6 +30,7 @@ function generate_join_code(PDO $pdo): string
 
 $pdo = app_db();
 $schoolId = require_active_school($user, true);
+subscription_assert_class_capacity($pdo, $user, $schoolId, 1);
 
 if ($schoolId !== null) {
     $stmt = $pdo->prepare(

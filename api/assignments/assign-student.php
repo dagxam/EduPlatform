@@ -40,6 +40,9 @@ if (!$assignment) {
 if (!in_array((string)$assignment['workflow_status'], ['ready','assigned'], true)) {
     json_response(['ok'=>false,'error'=>'Сначала переведите задание в статус «Готово».'],409);
 }
+if ((string)$assignment['workflow_status'] !== 'assigned') {
+    subscription_assert_active_assignment_capacity($pdo, $user, $schoolId, 1);
+}
 
 $stmt = $pdo->prepare(
     'SELECT u.id, cs.class_id

@@ -12,6 +12,10 @@ $files = [
     'checkout' => file_get_contents(__DIR__ . '/../../api/subscription/create-checkout.php'),
     'teacher_create' => file_get_contents(__DIR__ . '/../../api/school/teachers/create.php'),
     'admin_create' => file_get_contents(__DIR__ . '/../../api/school/admins/create.php'),
+    'class_create' => file_get_contents(__DIR__ . '/../../api/classes/create.php'),
+    'assign_class' => file_get_contents(__DIR__ . '/../../api/assignments/assign.php'),
+    'assign_student' => file_get_contents(__DIR__ . '/../../api/assignments/assign-student.php'),
+    'assignment_import' => file_get_contents(__DIR__ . '/../../api/assignments/import-file.php'),
 ];
 
 foreach ($files as $name => $content) {
@@ -27,9 +31,17 @@ $checks = [
     [$files['mysql'], 'CREATE TABLE IF NOT EXISTS user_subscriptions', 'MySQL subscription table'],
     [$files['mysql'], 'CREATE TABLE IF NOT EXISTS payment_orders', 'MySQL payment orders'],
     [$files['bootstrap'], 'function subscription_plan_catalog()', 'plan catalog helper'],
+    [$files['bootstrap'], "'free' => [", 'Free plan'],
     [$files['bootstrap'], "'basic' => [", 'Basic plan'],
     [$files['bootstrap'], "'pro' => [", 'PRO plan'],
     [$files['bootstrap'], "'premium' => [", 'Premium plan'],
+    [$files['bootstrap'], "'status' => 'free'", 'automatic free fallback'],
+    [$files['bootstrap'], "'plan_code' => 'free'", 'free effective plan'],
+    [$files['bootstrap'], "'max_classes' => 1", 'Free class limit'],
+    [$files['bootstrap'], "'max_students' => 10", 'Free student limit'],
+    [$files['bootstrap'], "'max_active_assignments' => 1", 'Free active assignment limit'],
+    [$files['bootstrap'], 'function subscription_assert_class_capacity(', 'class capacity helper'],
+    [$files['bootstrap'], 'function subscription_assert_active_assignment_capacity(', 'active assignment capacity helper'],
     [$files['bootstrap'], "'enforcement_enabled' => true", 'subscription enforcement enabled'],
     [$files['bootstrap'], 'function enforce_staff_subscription_for_request(', 'server-side subscription gate'],
     [$files['bootstrap'], "'SUBSCRIPTION_REQUIRED'", 'subscription-required API error code'],
@@ -40,7 +52,11 @@ $checks = [
     [$files['checkout'], 'yookassa_is_configured()', 'YooKassa checkout configuration guard'],
     [$files['checkout'], "['basic', 'pro', 'premium']", 'Basic checkout enabled'],
     [$files['bootstrap'], "'max_students' => 50", 'Basic student limit'],
-    [$files['bootstrap'], "'manual_student_add' => false", 'Basic manual student restriction'],
+    [$files['bootstrap'], "'manual_student_add' => false", 'manual student restriction on starter plans'],
+    [$files['class_create'], 'subscription_assert_class_capacity', 'class limit enforced'],
+    [$files['assign_class'], 'subscription_assert_active_assignment_capacity', 'class assignment active limit'],
+    [$files['assign_student'], 'subscription_assert_active_assignment_capacity', 'student assignment active limit'],
+    [$files['assignment_import'], "'file_import'", 'assignment file import paid-gated'],
     [$files['bootstrap'], "'max_classes' => 7", 'PRO class limit'],
     [$files['bootstrap'], "'max_students' => 280", 'PRO student limit'],
     [$files['bootstrap'], "'max_active_assignments' => 60", 'PRO active assignment limit'],
@@ -50,8 +66,9 @@ $checks = [
     [$files['app'], 'async function loadSubscriptionPage()', 'subscription page loader'],
     [$files['app'], 'function staffSubscriptionLocked()', 'staff subscription gate'],
     [$files['app'], "response.status === 402", 'client handles expired server subscription'],
-    [$files['app'], "'Тариф не назначен'", 'no default tariff in admin UI'],
-    [$files['app'], 'Тариф не выбран</strong>', 'no-plan usage state'],
+    [$files['app'], 'Бесплатный тариф активирован автоматически', 'free current status copy'],
+    [$files['app'], 'Доступен автоматически', 'free plan is not checkout action'],
+    [$files['index'], '1 класс, до 10 учеников и 1 активное задание', 'free plan UI copy'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {
@@ -76,7 +93,7 @@ foreach (['user_subscriptions', 'subscription_usage_monthly', 'payment_orders'] 
 foreach (['teacher_create', 'admin_create'] as $sourceName) {
     if (str_contains($files[$sourceName], 'user_subscriptions')
         || str_contains($files[$sourceName], 'subscription_admin_grants')) {
-        fwrite(STDERR, "Subscription smoke failed: new staff creation must not auto-assign a tariff.\n");
+        fwrite(STDERR, "Subscription smoke failed: free access must not create paid subscription rows for new staff.\n");
         exit(1);
     }
 }

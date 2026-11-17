@@ -48,6 +48,9 @@ if (!in_array((string)$assignment['workflow_status'], ['ready', 'assigned'], tru
         'code' => 'ASSIGNMENT_NOT_READY',
     ], 409);
 }
+if ((string)$assignment['workflow_status'] !== 'assigned') {
+    subscription_assert_active_assignment_capacity($pdo, $user, $schoolId, 1);
+}
 
 if (can_manage_school($user, $schoolId)) {
     $stmt = $pdo->prepare(

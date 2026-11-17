@@ -10122,7 +10122,7 @@ body.student-session .assignment-author-only {
 }
 .subscription-plans{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:16px;
   margin-bottom:20px;
 }
@@ -10133,6 +10133,13 @@ body.student-session .assignment-author-only {
   border-radius:20px;
   padding:20px;
   box-shadow:0 8px 28px rgba(31,45,61,.05);
+}
+.subscription-plan-card.free{
+  border-color:#d9e6df;
+  background:linear-gradient(180deg,#fbfffc,#fff);
+}
+.subscription-plan-card.free .subscription-price strong{
+  color:#238457;
 }
 .subscription-plan-card.featured{
   border-color:color-mix(in srgb,var(--brand) 42%,#dfe5ec);
@@ -10249,7 +10256,10 @@ body.student-session .assignment-author-only {
   color:#7c8893;
   line-height:1.45;
 }
-@media(max-width:980px){
+@media(max-width:1180px){
+  .subscription-plans{grid-template-columns:1fr 1fr}
+}
+@media(max-width:720px){
   .subscription-plans{grid-template-columns:1fr}
   .subscription-current{align-items:flex-start;flex-direction:column}
   .subscription-usage{width:100%;grid-template-columns:1fr 1fr}

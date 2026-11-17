@@ -32,7 +32,7 @@ $checks = [
     [$files['app'], 'function openAdminSubscriptionGrant', 'admin subscription editor'],
     [$files['index'], 'value="none">Нет тарифа — снять ручное назначение', 'explicit no-tariff option'],
     [$files['set'], "if (\$planCode === 'none')", 'explicit no-tariff removal sentinel'],
-    [$files['set'], 'останется без тарифа до назначения или покупки', 'no implicit Basic after grant removal'],
+    [$files['set'], 'автоматически перейдёт на Бесплатный тариф', 'free fallback after grant removal'],
 ];
 
 foreach ($checks as [$content, $needle, $label]) {

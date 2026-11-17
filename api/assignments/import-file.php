@@ -46,6 +46,12 @@ if ($title === '') {
 
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
+subscription_require_feature(
+    $pdo,
+    $user,
+    'file_import',
+    'Импорт заданий из PDF, DOCX, PPT и PPTX доступен на PRO/Premium.'
+);
 $isSchoolManager = can_manage_school($user, $schoolId);
 
 if (!$isSchoolManager && !can_teach_school($user, $schoolId)) {

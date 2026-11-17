@@ -1583,6 +1583,28 @@ function subscription_activate_from_payment(PDO $pdo, array $order, array $payme
 function subscription_plan_catalog(): array
 {
     return [
+        'free' => [
+            'code' => 'free',
+            'name' => 'Бесплатный',
+            'monthly_price_minor' => 0,
+            'yearly_price_minor' => 0,
+            'max_classes' => 1,
+            'max_students' => 10,
+            'max_active_assignments' => 1,
+            'ai_monthly_limit' => 0,
+            'features' => [
+                'manual_assignments' => true,
+                'auto_grading' => true,
+                'journal' => true,
+                'library_access' => false,
+                'file_import' => false,
+                'advanced_analytics' => false,
+                'export_results' => false,
+                'marketplace_sell' => false,
+                'premium_ai' => false,
+                'manual_student_add' => false,
+            ],
+        ],
         'basic' => [
             'code' => 'basic',
             'name' => 'Базовый',
@@ -1655,12 +1677,12 @@ function subscription_plan_catalog(): array
 function subscription_effective_state(PDO $pdo, array $user): array
 {
     $plans = subscription_plan_catalog();
-    $basic = $plans['basic'];
+    $free = $plans['free'];
 
     if (($user['role'] ?? '') === 'student') {
         return [
-            'plan_code' => 'basic',
-            'plan' => $basic,
+            'plan_code' => 'free',
+            'plan' => $free,
             'status' => 'student',
             'trial_ends_at' => null,
             'ends_at' => null,
@@ -1738,19 +1760,31 @@ function subscription_effective_state(PDO $pdo, array $user): array
     }
 
     $accessActive = in_array($status, ['trial', 'active'], true) && isset($plans[$storedPlanCode]);
-    $planCode = $accessActive ? $storedPlanCode : null;
-    $plan = $accessActive ? $plans[$storedPlanCode] : null;
+    if ($accessActive) {
+        return [
+            'plan_code' => $storedPlanCode,
+            'plan' => $plans[$storedPlanCode],
+            'status' => $status,
+            'trial_ends_at' => is_array($row) ? ($row['trial_ends_at'] ?? null) : null,
+            'ends_at' => is_array($row) ? ($row['ends_at'] ?? null) : null,
+            'auto_renew' => is_array($row) ? (bool)($row['auto_renew'] ?? 0) : false,
+            'billing_period' => is_array($row) ? ($row['billing_period'] ?? null) : null,
+            'payment_provider' => is_array($row) ? ($row['payment_provider'] ?? null) : null,
+            'access_active' => true,
+            'enforcement_enabled' => true,
+        ];
+    }
 
     return [
-        'plan_code' => $planCode,
-        'plan' => $plan,
-        'status' => $status,
-        'trial_ends_at' => is_array($row) ? ($row['trial_ends_at'] ?? null) : null,
-        'ends_at' => is_array($row) ? ($row['ends_at'] ?? null) : null,
-        'auto_renew' => $accessActive && is_array($row) ? (bool)($row['auto_renew'] ?? 0) : false,
-        'billing_period' => $accessActive && is_array($row) ? ($row['billing_period'] ?? null) : null,
-        'payment_provider' => is_array($row) ? ($row['payment_provider'] ?? null) : null,
-        'access_active' => $accessActive,
+        'plan_code' => 'free',
+        'plan' => $free,
+        'status' => 'free',
+        'trial_ends_at' => null,
+        'ends_at' => null,
+        'auto_renew' => false,
+        'billing_period' => null,
+        'payment_provider' => 'free',
+        'access_active' => true,
         'enforcement_enabled' => true,
     ];
 }
@@ -1772,7 +1806,7 @@ function subscription_require_staff_access(PDO $pdo, array $user): array
     if (empty($state['access_active'])) {
         json_response([
             'ok' => false,
-            'error' => 'Для этой функции нужна активная подписка UROVIA. Выберите Базовый, PRO или Premium.',
+            'error' => 'Для этой функции нужен доступ UROVIA.',
             'code' => 'SUBSCRIPTION_REQUIRED',
         ], 402);
     }
@@ -1789,6 +1823,48 @@ function subscription_require_feature(PDO $pdo, array $user, string $feature, st
             'error' => $message,
             'code' => 'SUBSCRIPTION_UPGRADE_REQUIRED',
         ], 403);
+    }
+    return $state;
+}
+
+function subscription_assert_class_capacity(PDO $pdo, array $user, ?int $schoolId, int $additionalClasses = 1): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) return $state;
+    $limit = $state['plan']['max_classes'] ?? null;
+    if ($limit === null) return $state;
+    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+    $current = (int)($usage['classes'] ?? 0);
+    $additionalClasses = max(0, $additionalClasses);
+    if (($current + $additionalClasses) > (int)$limit) {
+        json_response([
+            'ok' => false,
+            'error' => 'Лимит тарифа: ' . (int)$limit . ' класс(а). Сейчас используется ' . $current . '. Для создания ещё одного класса выберите платный тариф.',
+            'code' => 'CLASS_LIMIT_REACHED',
+            'limit' => (int)$limit,
+            'used' => $current,
+        ], 409);
+    }
+    return $state;
+}
+
+function subscription_assert_active_assignment_capacity(PDO $pdo, array $user, ?int $schoolId, int $additionalAssignments = 1): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (($user['role'] ?? '') === 'student' || is_platform_admin($user)) return $state;
+    $limit = $state['plan']['max_active_assignments'] ?? null;
+    if ($limit === null) return $state;
+    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+    $current = (int)($usage['active_assignments'] ?? 0);
+    $additionalAssignments = max(0, $additionalAssignments);
+    if (($current + $additionalAssignments) > (int)$limit) {
+        json_response([
+            'ok' => false,
+            'error' => 'Лимит тарифа: ' . (int)$limit . ' активное задание. Завершите текущее задание или выберите платный тариф.',
+            'code' => 'ACTIVE_ASSIGNMENT_LIMIT_REACHED',
+            'limit' => (int)$limit,
+            'used' => $current,
+        ], 409);
     }
     return $state;
 }

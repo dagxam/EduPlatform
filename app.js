@@ -4774,6 +4774,9 @@ function subscriptionFeatureRows(plan) {
 
 function subscriptionStatusText(data) {
   const current = data?.current || {};
+  if (current.status === 'free') {
+    return 'Бесплатный тариф активирован автоматически и не ограничен по времени.';
+  }
   if (current.status === 'admin_grant') {
     return 'Тариф выдан главным администратором UROVIA' + (current.ends_at ? ' до ' + historyDateTime(current.ends_at) : '') + '.';
   }
@@ -4784,9 +4787,9 @@ function subscriptionStatusText(data) {
     return 'Подписка активна до ' + historyDateTime(current.ends_at) + (current.auto_renew ? ' · автопродление включено.' : '.');
   }
   if (current.status === 'expired') {
-    return 'Подписка закончилась. Выберите тариф, чтобы снова открыть рабочие разделы.';
+    return 'Платная подписка закончилась — доступ автоматически продолжен на Бесплатном тарифе.';
   }
-  return 'Подписка пока не выбрана. Для работы в UROVIA активируйте Базовый, PRO или Premium.';
+  return 'Бесплатный тариф активируется автоматически. Для расширения лимитов выберите Базовый, PRO или Premium.';
 }
 
 function staffSubscriptionLocked() {
@@ -4808,7 +4811,7 @@ function applySubscriptionAccessState(data) {
     button.classList.toggle('subscription-gated', gated);
     if (gated) {
       button.setAttribute('aria-disabled', 'true');
-      button.dataset.subscriptionHint = 'Требуется подписка — выберите Базовый, PRO или Premium';
+      button.dataset.subscriptionHint = 'Доступ ограничен — выберите подходящий тариф';
       button.title = 'Требуется активная подписка';
     } else {
       button.removeAttribute('aria-disabled');
@@ -4891,12 +4894,22 @@ function renderSubscriptionPage(data) {
       : '<strong>0 ₽</strong><span>Навсегда</span>';
 
     let action = '<button class="secondary-btn full" type="button" disabled>Текущий тариф</button>';
-    if (!isCurrent && ['basic','pro','premium'].includes(plan.code)) {
+    if (!isCurrent && plan.code === 'free') {
+      action = '<button class="secondary-btn full" type="button" disabled>Доступен автоматически</button>';
+    } else if (!isCurrent && ['basic','pro','premium'].includes(plan.code)) {
       action = '<button class="primary-btn full" type="button" data-open-subscription-payment="' + escapeHtml(plan.code) + '">Выбрать ' + escapeHtml(plan.name) + '</button>';
     }
 
-    return '<article class="subscription-plan-card ' + (plan.code === 'pro' ? 'featured' : '') + (isCurrent ? ' current' : '') + '">' +
-      '<div class="subscription-plan-head"><div><span class="section-kicker">' + (plan.code === 'basic' ? 'Старт' : plan.code === 'pro' ? 'Для учителя' : 'Для профессионала') + '</span>' +
+    const kicker = plan.code === 'free'
+      ? 'Старт бесплатно'
+      : plan.code === 'basic'
+        ? 'Базовый'
+        : plan.code === 'pro'
+          ? 'Для учителя'
+          : 'Для профессионала';
+
+    return '<article class="subscription-plan-card ' + (plan.code === 'free' ? 'free ' : '') + (plan.code === 'pro' ? 'featured ' : '') + (isCurrent ? 'current' : '') + '">' +
+      '<div class="subscription-plan-head"><div><span class="section-kicker">' + kicker + '</span>' +
       '<h3>' + escapeHtml(plan.name) + '</h3></div>' +
       (isCurrent ? '<span class="status green">Текущий</span>' : plan.code === 'pro' ? '<span class="status blue">Рекомендуем</span>' : '') +
       '</div><div class="subscription-price">' + priceHtml + '</div>' +
