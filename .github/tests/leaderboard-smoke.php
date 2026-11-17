@@ -24,6 +24,8 @@ $checks = [
     'student leaderboard sums maximum points' => "SUM(COALESCE(at.max_score, 0)) AS total_max_score",
     'student leaderboard exposes final percent' => "'final_percent' => \$finalPercent",
     'student leaderboard exposes final grade' => "'final_grade' => \$finalGrade",
+    'student leaderboard exposes school name' => "'school_name' => \$schoolName",
+    'student leaderboard exposes school id' => "'school_id' => \$schoolId",
     'API exposes five-leader rule' => "'leaders_limit' => 5",
     'API exposes one-work student rule' => "'student_min_works' => 1",
     'API exposes one-work class rule' => "'class_min_completed' => 1",
@@ -52,7 +54,7 @@ if (!str_contains($resultsList, "'subject_id' => \$row['subject_id'] !== null ? 
     exit(1);
 }
 
-if (!str_contains($index, 'app.js?v=98') || !str_contains($index, 'styles.css?v=98')) {
+if (!str_contains($index, 'app.js?v=99') || !str_contains($index, 'styles.css?v=99')) {
     fwrite(STDERR, "Leaderboard smoke failed: leaderboard assets are not cache-busted.\n");
     exit(1);
 }
@@ -70,7 +72,10 @@ if (!str_contains($app, 'item.final_percent')
     || !str_contains($app, 'item.total_score')
     || !str_contains($app, 'item.total_max_score')
     || !str_contains($app, 'Правильных ответов:')
-    || !str_contains($app, 'Итого:')) {
+    || !str_contains($app, 'Итого:')
+    || !str_contains($app, 'leader-school-badge')
+    || !str_contains($app, 'leader-class-badge')
+    || !str_contains($app, 'item.school_name')) {
     fwrite(STDERR, "Leaderboard smoke failed: cumulative student result is not rendered.\n");
     exit(1);
 }
@@ -80,6 +85,8 @@ if (!str_contains($index, 'Главный показатель — итогов�
     || !str_contains($index, 'resultsLeaderboardSubjectCount')
     || !str_contains($index, 'resultsStudentLeaderScope')
     || !str_contains($index, 'resultsClassLeaderScope')
+    || !str_contains($index, 'У каждого ученика указаны школа и класс')
+    || !str_contains($index, 'У каждого класса указана школа')
     || !str_contains($index, 'Рейтинг по предмету')) {
     fwrite(STDERR, "Leaderboard smoke failed: subject-aware leaderboard explanation/filter is missing.\n");
     exit(1);

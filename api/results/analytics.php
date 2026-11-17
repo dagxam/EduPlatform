@@ -9,6 +9,10 @@ $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
 $teacherId = (int)$user['id'];
 
+$schoolNameStmt = $pdo->prepare('SELECT name FROM schools WHERE id = ? LIMIT 1');
+$schoolNameStmt->execute([$schoolId]);
+$schoolName = trim((string)($schoolNameStmt->fetchColumn() ?: ''));
+
 $subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
 
 if ($manager) {
@@ -176,7 +180,7 @@ $stmt->execute($studentParams);
 $studentRows = $stmt->fetchAll();
 
 $studentScale = school_grade_scale($pdo, $schoolId);
-$studentLeaders = array_map(static function(array $row) use ($studentScale): array {
+$studentLeaders = array_map(static function(array $row) use ($studentScale, $schoolId, $schoolName): array {
     $ratingPoints = round((float)($row['rating_points'] ?? 0), 1);
     $averagePercent = round((float)($row['average_percent'] ?? 0), 1);
     $averageGrade = round((float)($row['average_grade'] ?? 0), 2);
@@ -192,6 +196,8 @@ $studentLeaders = array_map(static function(array $row) use ($studentScale): arr
         'id' => (int)$row['id'],
         'name' => trim((string)$row['last_name'] . ' ' . (string)$row['first_name']),
         'class_name' => (string)($row['class_name'] ?? ''),
+        'school_id' => $schoolId,
+        'school_name' => $schoolName,
         'works_count' => (int)$row['works_count'],
         'rating_points' => $ratingPoints,
         'correct_answers_count' => (int)($row['correct_answers_count'] ?? 0),
@@ -286,6 +292,8 @@ foreach ($classRows as $classRow) {
     $classLeaders[] = [
         'id' => $classId,
         'name' => (string)$classRow['name'],
+        'school_id' => $schoolId,
+        'school_name' => $schoolName,
         'students_count' => $studentsCount,
         'works_count' => $completed,
         'completed' => $completed,

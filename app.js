@@ -4132,16 +4132,38 @@ function renderResultsLeaderList(targetId, items, type) {
       ? resultGradeClass(gradeValue)
       : resultGradeClass(String(Math.max(2, Math.min(5, Math.round(gradeValue || 2)))));
 
+    const schoolName = String(item.school_name || '').trim();
+    const className = isStudent ? String(item.class_name || '').trim() : '';
+    const originParts = [];
+    if (type !== 'school' && schoolName) {
+      originParts.push(
+        '<span class="leader-school-badge" title="Школа: ' + escapeHtml(schoolName) + '">' +
+          '<span class="leader-origin-label">Школа</span>' +
+          '<span class="leader-origin-value">' + escapeHtml(schoolName) + '</span>' +
+        '</span>'
+      );
+    }
+    if (isStudent && className) {
+      originParts.push(
+        '<span class="leader-class-badge" title="Класс: ' + escapeHtml(className) + '">' +
+          '<span class="leader-origin-label">Класс</span>' +
+          '<span class="leader-origin-value">' + escapeHtml(className) + '</span>' +
+        '</span>'
+      );
+    }
+    const originHtml = originParts.length
+      ? '<div class="result-leader-origin">' + originParts.join('') + '</div>'
+      : '';
+
     let metaHtml = '';
     if (isStudent) {
       const totalScore = Number(item.total_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
       const totalMax = Number(item.total_max_score || 0).toLocaleString('ru-RU', { maximumFractionDigits:2 });
       const correctAnswers = Number(item.correct_answers_count || 0);
       const checkedAnswers = Number(item.checked_answers_count || 0);
-      const classText = item.class_name ? escapeHtml(item.class_name) + ' · ' : '';
       metaHtml =
         '<small class="leader-student-meta">' +
-          '<span>' + classText + 'выполнено работ: <b>' + works + '</b> · общий результат: <b>' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</b></span>' +
+          '<span>Выполнено работ: <b>' + works + '</b> · общий результат: <b>' + escapeHtml(percent.toLocaleString('ru-RU', { maximumFractionDigits:1 })) + '%</b></span>' +
           '<span>Правильных ответов: <b>' + correctAnswers + '</b>' +
             (checkedAnswers > 0 ? ' из ' + checkedAnswers : '') + '</span>' +
           '<span class="leader-student-total">Итого: <b>' + escapeHtml(totalScore) + ' / ' + escapeHtml(totalMax) +
@@ -4159,6 +4181,7 @@ function renderResultsLeaderList(targetId, items, type) {
         <span class="result-leader-rank">${index + 1}</span>
         <div class="result-leader-copy">
           <b>${escapeHtml(item.name || '—')}</b>
+          ${originHtml}
           ${metaHtml}
         </div>
         <div class="result-leader-score" title="${isStudent ? 'Итоговая оценка по всем выполненным работам' : 'Средняя оценка'}">
