@@ -215,57 +215,15 @@
   }
 }
 
-
-/* Persistent release update action v50 */
-.pwa-update-shortcut{
-  position:fixed;
-  top:78px;
-  right:18px;
-  z-index:119;
-  display:flex;
-  align-items:center;
-  gap:9px;
-  min-height:48px;
-  padding:9px 12px;
-  border:1px solid rgba(255,255,255,.16);
-  border-radius:14px;
-  background:#17243a;
-  color:#fff;
-  box-shadow:0 12px 34px rgba(17,31,52,.25);
-  cursor:pointer;
-  touch-action:manipulation;
-}
-.pwa-update-shortcut:hover{filter:brightness(1.06)}
-.pwa-update-shortcut-icon{
-  width:29px;
-  height:29px;
-  display:grid;
-  place-items:center;
-  flex:0 0 29px;
-  border-radius:9px;
-  background:rgba(255,255,255,.13);
-  font-size:18px;
-  font-weight:900;
-}
-.pwa-update-shortcut-copy{
-  display:grid;
-  gap:2px;
-  text-align:left;
-  line-height:1.08;
-}
-.pwa-update-shortcut-copy b{font-size:12px}
-.pwa-update-shortcut-copy small{color:#bfc9d8;font-size:9px;font-weight:700}
-.pwa-update-shortcut.pwa-update-applying{opacity:.7;cursor:progress}
+/* Single release update toast v51 */
 @media(max-width:640px){
   .pwa-update-toast{
     align-items:stretch;
     flex-direction:column;
     bottom:max(12px,env(safe-area-inset-bottom));
   }
-  .pwa-update-toast button{width:100%;min-height:46px}
-  .pwa-update-shortcut{
-    top:max(68px,calc(env(safe-area-inset-top) + 58px));
-    right:12px;
+  .pwa-update-toast button{
+    width:100%;
     min-height:46px;
   }
 }

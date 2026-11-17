@@ -41,7 +41,8 @@ assert(pwa.includes('getInstalledRelatedApps'), 'supported browsers should detec
 assert(Array.isArray(manifest.related_applications) && manifest.related_applications.some(app => app.platform === 'webapp' && app.url.includes('manifest.webmanifest')));
 assert(pwa.includes("install.className = 'pwa-install-button';"), 'install action must be visible by default in an ordinary browser');
 assert(pwa.includes('Обновить UROVIA'), 'PWA update action must be clearly distinguished from assignment completion');
-assert(pwa.includes('pwaUpdateShortcut'), 'PWA must keep a persistent update shortcut while a release is waiting');
+assert(pwa.includes('pwaUpdateToast'), 'PWA must render one update notification');
+assert(!pwa.includes('pwaUpdateShortcut'), 'PWA must not render a duplicate update shortcut');
 assert(pwa.includes('checkForReleaseUpdate'), 'PWA must detect deploy releases independently from Service Worker byte changes');
 assert(pwa.includes('UPDATE_CHECK_INTERVAL_MS'), 'PWA must periodically check for a new release');
 assert(pwa.includes("window.addEventListener('focus'"), 'PWA must check updates after returning to the app');
@@ -49,7 +50,8 @@ assert(index.includes('name="urovia-release" content="dev"'), 'app entry must ex
 assert(login.includes('name="urovia-release" content="dev"'), 'login entry must expose a release marker for deployment stamping');
 assert(deploy.includes('version.json'), 'deployment must publish a version marker on every release');
 assert(deploy.includes('Stamp release metadata'), 'deployment must stamp the current commit into entry pages');
-assert(read('pwa.css').includes('Persistent release update action v50'), 'update shortcut must have responsive styling');
+assert(read('pwa.css').includes('Single release update toast v51'), 'single update notification must have responsive styling');
+assert(!read('pwa.css').includes('.pwa-update-shortcut'), 'duplicate update shortcut styling must be removed');
 assert(pwa.includes('urovia:assessment-state'), 'PWA updates must listen to assessment state');
 assert(pwa.includes('assessmentUiVisible'), 'PWA update toast must be deferred while a student assessment is visible');
 assert(pwa.includes('Android · установить как приложение'), 'Android install button should be device-aware');

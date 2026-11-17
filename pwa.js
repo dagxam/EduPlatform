@@ -228,19 +228,11 @@
     install.innerHTML = '<span class="pwa-install-icon" aria-hidden="true">↓</span><span class="pwa-install-copy"><span>Установить UROVIA</span><small>Приложение</small></span>';
     install.setAttribute('aria-label', 'Установить UROVIA как приложение');
 
-    const updateShortcut = document.createElement('button');
-    updateShortcut.id = 'pwaUpdateShortcut';
-    updateShortcut.type = 'button';
-    updateShortcut.className = 'pwa-update-shortcut hidden';
-    updateShortcut.innerHTML =
-      '<span class="pwa-update-shortcut-icon" aria-hidden="true">↻</span>' +
-      '<span class="pwa-update-shortcut-copy"><b>Обновить UROVIA</b><small>Доступна новая версия</small></span>';
-
     const update = document.createElement('div');
     update.id = 'pwaUpdateToast';
     update.className = 'pwa-update-toast hidden';
     update.innerHTML = '<div><b>Доступно обновление UROVIA</b><span>Нажмите «Обновить», чтобы загрузить новую версию.</span></div>' +
-      '<button type="button" id="pwaUpdateButton">Обновить</button>';
+      '<button type="button" id="pwaUpdateButton">Обновить UROVIA</button>';
 
     const guide = document.createElement('div');
     guide.id = 'pwaInstallGuide';
@@ -256,7 +248,7 @@
       '<button class="pwa-ios-ok" type="button" id="pwaGuideDone">Закрыть</button>' +
       '</div></div>';
 
-    document.body.append(install, updateShortcut, update, guide);
+    document.body.append(install, update, guide);
 
     install.addEventListener('click', async () => {
       if (isStandalone()) {
@@ -330,7 +322,6 @@
       if (event.key === 'Escape' && !guide.classList.contains('hidden')) closeGuide();
     });
     document.getElementById('pwaUpdateButton')?.addEventListener('click', applyAvailableUpdate);
-    updateShortcut.addEventListener('click', applyAvailableUpdate);
   }
 
   function loadedReleaseVersion() {
@@ -385,12 +376,10 @@
     }
 
     const toastButton = document.getElementById('pwaUpdateButton');
-    const shortcut = document.getElementById('pwaUpdateShortcut');
     if (toastButton) {
       toastButton.disabled = true;
       toastButton.textContent = 'Обновляем…';
     }
-    if (shortcut) shortcut.classList.add('pwa-update-applying');
 
     try {
       if (registration) await registration.update();
@@ -416,7 +405,6 @@
 
   function hideUpdateReady() {
     document.getElementById('pwaUpdateToast')?.classList.add('hidden');
-    document.getElementById('pwaUpdateShortcut')?.classList.add('hidden');
   }
 
   function showUpdateReady() {
@@ -427,7 +415,6 @@
     }
     updatePending = false;
     document.getElementById('pwaUpdateToast')?.classList.remove('hidden');
-    document.getElementById('pwaUpdateShortcut')?.classList.remove('hidden');
   }
 
   window.addEventListener('urovia:assessment-state', event => {
