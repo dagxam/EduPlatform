@@ -48,7 +48,7 @@ growth_expect($aiGenerate, 'question_editor_normalize_payload($candidate)', 'AI 
 growth_expect($aiGenerate, 'subscription_assert_ai_capacity($pdo, $user, $schoolId)', 'AI generation is not subscription-gated');
 growth_expect($aiGenerate, "'ai_assignment_generated'", 'AI assignment audit event is missing');
 growth_expect($aiGenerate, '"draft", "draft"', 'AI generation must create a normal draft');
-growth_expect($aiStatus, "in_array($planCode, ['pro', 'premium'], true)", 'AI status does not restrict access to PRO/Premium');
+growth_expect($aiStatus, "in_array(\$planCode, ['pro', 'premium'], true)", 'AI status does not restrict access to PRO/Premium');
 growth_expect($aiStatus, "'paid_feature' => true", 'AI paid feature flag is missing');
 growth_expect($aiAdminGet, "'provider' => 'groq'", 'AI admin endpoint is not configured for Groq');
 growth_expect($aiAdminSet, "'provider' => 'groq'", 'AI configuration does not persist Groq provider');
