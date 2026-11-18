@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=100">
+  <link rel="stylesheet" href="styles.css?v=101">
   <link rel="stylesheet" href="pwa.css?v=51">
 </head>
 <body>
@@ -1080,14 +1080,14 @@
           <p class="panel-note">ИИ создаёт только черновик задания. Учитель всегда проверяет вопросы и правильные ответы в обычном конструкторе перед назначением. Данные учеников в генерацию не отправляются.</p>
           <form id="aiConfigForm" class="profile-form">
             <div class="form-row">
-              <label>API-ключ OpenAI
+              <label>API-ключ Groq
                 <input id="aiApiKey" name="api_key" type="password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять">
               </label>
               <label>Модель
-                <input id="aiModel" name="model" value="gpt-6-luna" autocomplete="off">
+                <input id="aiModel" name="model" value="openai/gpt-oss-20b" autocomplete="off">
               </label>
             </div>
-            <small class="field-help">Ключ хранится в закрытом storage на сервере и не записывается в GitHub. PRO получает до 50 ИИ-созданий в месяц, Premium — до 300.</small>
+            <small class="field-help">Groq имеет бесплатный тариф API. Ключ хранится в закрытом storage на сервере и не записывается в GitHub. ИИ-создание заданий доступно на всех тарифах UROVIA.</small>
             <div class="form-error hidden" id="aiConfigError"></div>
             <div class="import-result hidden" id="aiConfigResult"></div>
             <button class="primary-btn" type="submit">Сохранить ИИ</button>
@@ -1382,7 +1382,7 @@
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
         <button class="secondary-btn full ai-task-open" id="openAiTaskBtn" type="button">✦ Создать с ИИ</button>
-        <small class="field-help">ИИ доступен на PRO/Premium и создаёт обычный редактируемый черновик в конструкторе.</small>
+        <small class="field-help">Бесплатный ИИ через Groq доступен на всех тарифах и создаёт обычный редактируемый черновик в конструкторе.</small>
       </form>
     </div>
   </div>
@@ -1934,7 +1934,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=100"></script>
+  <script src="app.js?v=101"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=54"></script>
 </body>

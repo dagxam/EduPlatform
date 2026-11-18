@@ -1444,14 +1444,20 @@ function ai_runtime_config(): array
 function ai_config(): array
 {
     $stored = ai_runtime_config();
-    $apiKey = trim((string)($stored['api_key'] ?? getenv('OPENAI_API_KEY') ?: ''));
-    $model = trim((string)($stored['model'] ?? getenv('UROVIA_AI_MODEL') ?: 'gpt-6-luna'));
-    if ($model === '') $model = 'gpt-6-luna';
+    $provider = trim((string)($stored['provider'] ?? ''));
+    $storedKey = $provider === 'groq' ? trim((string)($stored['api_key'] ?? '')) : '';
+    $storedModel = $provider === 'groq' ? trim((string)($stored['model'] ?? '')) : '';
+    $apiKey = $storedKey !== '' ? $storedKey : trim((string)(getenv('GROQ_API_KEY') ?: ''));
+    $model = $storedModel !== ''
+        ? $storedModel
+        : trim((string)(getenv('UROVIA_AI_MODEL') ?: 'openai/gpt-oss-20b'));
+    if ($model === '') $model = 'openai/gpt-oss-20b';
 
     return [
+        'provider' => 'groq',
         'api_key' => $apiKey,
         'model' => $model,
-        'api_base' => 'https://api.openai.com/v1',
+        'api_base' => 'https://api.groq.com/openai/v1',
     ];
 }
 
@@ -1524,35 +1530,6 @@ function ai_response_text(array $response): string
         }
     }
     return '';
-}
-
-function subscription_assert_ai_capacity(PDO $pdo, array $user, ?int $schoolId): array
-{
-    $state = subscription_require_staff_access($pdo, $user);
-    if (is_platform_admin($user)) return $state;
-
-    $limit = (int)($state['plan']['ai_monthly_limit'] ?? 0);
-    if ($limit < 1) {
-        json_response([
-            'ok' => false,
-            'error' => 'ИИ-создание заданий доступно на тарифах PRO и Premium.',
-            'code' => 'SUBSCRIPTION_UPGRADE_REQUIRED',
-        ], 403);
-    }
-
-    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
-    $used = (int)($usage['ai_generations'] ?? 0);
-    if ($used >= $limit) {
-        json_response([
-            'ok' => false,
-            'error' => 'Лимит ИИ-созданий на этот месяц исчерпан: ' . $used . ' из ' . $limit . '.',
-            'code' => 'AI_MONTHLY_LIMIT_REACHED',
-            'limit' => $limit,
-            'used' => $used,
-        ], 429);
-    }
-
-    return $state;
 }
 
 function subscription_record_ai_generation(PDO $pdo, int $userId): void
@@ -1744,7 +1721,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 1,
             'max_students' => 10,
             'max_active_assignments' => 1,
-            'ai_monthly_limit' => 0,
+            'ai_monthly_limit' => null,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1766,7 +1743,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 2,
             'max_students' => 50,
             'max_active_assignments' => 10,
-            'ai_monthly_limit' => 0,
+            'ai_monthly_limit' => null,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1788,7 +1765,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 7,
             'max_students' => 280,
             'max_active_assignments' => 60,
-            'ai_monthly_limit' => 50,
+            'ai_monthly_limit' => null,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1810,7 +1787,7 @@ function subscription_plan_catalog(): array
             'max_classes' => null,
             'max_students' => null,
             'max_active_assignments' => null,
-            'ai_monthly_limit' => 300,
+            'ai_monthly_limit' => null,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,

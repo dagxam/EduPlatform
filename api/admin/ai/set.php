@@ -12,20 +12,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = read_json_body();
 $apiKey = trim((string)($data['api_key'] ?? ''));
-$model = trim((string)($data['model'] ?? 'gpt-6-luna'));
+$model = trim((string)($data['model'] ?? 'openai/gpt-oss-20b'));
 $current = ai_runtime_config();
+$currentGroqKey = (string)($current['provider'] ?? '') === 'groq'
+    ? trim((string)($current['api_key'] ?? ''))
+    : '';
 
-if ($apiKey === '' && empty($current['api_key']) && trim((string)(getenv('OPENAI_API_KEY') ?: '')) === '') {
-    json_response(['ok' => false, 'error' => 'Укажите API-ключ OpenAI.'], 422);
+if ($apiKey === '' && $currentGroqKey === '' && trim((string)(getenv('GROQ_API_KEY') ?: '')) === '') {
+    json_response(['ok' => false, 'error' => 'Укажите бесплатный API-ключ Groq.'], 422);
 }
 if ($apiKey === '') {
-    $apiKey = trim((string)($current['api_key'] ?? ''));
+    $apiKey = $currentGroqKey;
 }
 if ($model === '' || !preg_match('/^[a-zA-Z0-9._-]{2,80}$/', $model)) {
     json_response(['ok' => false, 'error' => 'Укажите корректное название модели.'], 422);
 }
 
 $config = [
+    'provider' => 'groq',
     'api_key' => $apiKey,
     'model' => $model,
 ];
@@ -41,9 +45,9 @@ if (file_put_contents($path, $php, LOCK_EX) === false) {
 }
 @chmod($path, 0600);
 
-audit_event('ai_config_updated', 'system', 1, ['model' => $model], null, (int)$user['id']);
+audit_event('ai_config_updated', 'system', 1, ['provider' => 'groq', 'model' => $model], null, (int)$user['id']);
 
 json_response([
     'ok' => true,
-    'message' => 'ИИ UROVIA настроен. API-ключ хранится только в закрытом storage и не попадает в GitHub.',
+    'message' => 'Бесплатный ИИ UROVIA через Groq настроен. API-ключ хранится только в закрытом storage и не попадает в GitHub.',
 ]);

@@ -4024,18 +4024,11 @@ async function openAttemptReview(attemptId) {
     const browserClosed = resultClosedByBrowser(attempt)
       ? resultBrowserCloseBadge()
       : '';
-    const remediationCount = Number(summary.incorrect || 0) + Number(summary.unanswered || 0);
-    const remediationAction = currentUser?.role !== 'student' && remediationCount > 0
-      ? `<button class="attempt-review-grade-action remediation-action" type="button" data-review-remediation="${id}">
-          <span class="attempt-review-grade-action-icon">↺</span>
-          <span class="attempt-review-grade-action-copy"><b>Работа над ошибками</b><small>PRO/Premium · создать отдельный черновик из ${remediationCount} проблемных вопросов</small></span>
-        </button>`
-      : '';
     const staffActions = currentUser?.role !== 'student'
       ? `<button class="attempt-review-grade-action" type="button" data-review-edit="${id}">
           <span class="attempt-review-grade-action-icon">${resultActionIcon('edit')}</span>
           <span class="attempt-review-grade-action-copy"><b>Изменить оценку</b><small>Баллы, итоговая оценка и комментарий ученику</small></span>
-        </button>${remediationAction}`
+        </button>`
       : '';
 
     content.innerHTML = `
@@ -4101,41 +4094,6 @@ async function openAttemptReview(attemptId) {
         });
       }
     });
-    content.querySelector('[data-review-remediation]')?.addEventListener('click', async event => {
-      const button = event.currentTarget;
-      const attemptId = Number(button.dataset.reviewRemediation || 0);
-      if (!attemptId) return;
-
-      const originalHtml = button.innerHTML;
-      button.disabled = true;
-      button.classList.add('is-loading');
-      button.innerHTML = '<span class="attempt-review-grade-action-copy"><b>Создаём...</b><small>Собираем ошибки ученика в отдельный черновик</small></span>';
-
-      try {
-        const response = await fetch('./api/results/create-remediation.php', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ attempt_id: attemptId })
-        });
-        const data = await readJsonResponse(response, 'Не удалось создать работу над ошибками.');
-        if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать работу над ошибками.');
-
-        closeModal(attemptReviewModal);
-        await loadAssignments();
-        showView('assignments');
-        await openAssignmentEditor(Number(data.assignment_id || 0));
-      } catch (error) {
-        button.disabled = false;
-        button.classList.remove('is-loading');
-        button.innerHTML = originalHtml;
-        await appAlert(error?.message || 'Не удалось создать работу над ошибками.', {
-          title:'Работа над ошибками',
-          tone:'danger'
-        });
-      }
-    });
-
     content.querySelectorAll('[data-answer-save]').forEach(button => {
       button.addEventListener('click', () => {
         const questionId = Number(button.dataset.answerSave || 0);
@@ -5386,7 +5344,7 @@ async function loadAIAdminConfig() {
       ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
       : 'Вставьте API-ключ OpenAI';
   }
-  if (model) model.value = config.model || 'gpt-6-luna';
+  if (model) model.value = config.model || 'openai/gpt-oss-20b';
   if (state) {
     state.textContent = config.api_key_configured ? 'ИИ подключён' : 'API-ключ не настроен';
     state.classList.toggle('green', Boolean(config.api_key_configured));
@@ -5415,7 +5373,7 @@ document.getElementById('aiConfigForm')?.addEventListener('submit', async event 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: document.getElementById('aiApiKey')?.value || '',
-        model: document.getElementById('aiModel')?.value || 'gpt-6-luna'
+        model: document.getElementById('aiModel')?.value || 'openai/gpt-oss-20b'
       })
     });
     const data = await readJsonResponse(response, 'Не удалось сохранить настройки ИИ.');
@@ -7163,15 +7121,12 @@ async function openAiTaskCreator() {
     const data = await readJsonResponse(response, 'Не удалось проверить доступ к ИИ.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось проверить доступ к ИИ.');
 
-    const limitText = data.limit === null
-      ? 'без лимита для главного администратора'
-      : ('использовано ' + Number(data.used || 0) + ' из ' + Number(data.limit || 0) + ' в этом месяце');
+    const usageText = 'создано в этом месяце: ' + Number(data.used || 0);
     if (status) {
-      status.textContent = data.available
-        ? ('ИИ-доступ: ' + limitText + (data.configured ? '' : ' · API-ключ ещё не настроен'))
-        : 'ИИ-создание доступно на PRO/Premium.';
+      status.textContent = 'Бесплатный ИИ через Groq · ' + usageText +
+        (data.configured ? '' : ' · API-ключ Groq ещё не настроен');
     }
-    submit.disabled = !data.available || !data.configured;
+    submit.disabled = !data.configured;
   } catch (err) {
     if (error) {
       error.textContent = err.message;

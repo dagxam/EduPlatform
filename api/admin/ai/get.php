@@ -13,7 +13,7 @@ json_response([
     'config' => [
         'model' => (string)$config['model'],
         'api_key_configured' => (string)$config['api_key'] !== '',
-        'provider' => 'openai',
-        'endpoint' => 'https://api.openai.com/v1/responses',
+        'provider' => 'groq',
+        'endpoint' => 'https://api.groq.com/openai/v1/responses',
     ],
 ]);

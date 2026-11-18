@@ -11044,7 +11044,7 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
 }
 
 
-/* Teacher growth features — AI, remediation and marketplace stage 1 v69 */
+/* Teacher growth features — AI and marketplace stage 1 v70 */
 .ai-task-open{
   margin-top:8px;
 }
@@ -11069,13 +11069,6 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
 .marketplace-purchase-soon{
   cursor:not-allowed;
   opacity:.72;
-}
-.attempt-review-grade-action.remediation-action{
-  border-color:color-mix(in srgb,#238457 30%,#dce4eb);
-}
-.attempt-review-grade-action.remediation-action .attempt-review-grade-action-icon{
-  background:#e9f7ef;
-  color:#238457;
 }
 @media(max-width:640px){
   .ai-task-modal,
