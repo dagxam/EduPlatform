@@ -529,8 +529,9 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
          ON DUPLICATE KEY UPDATE id = VALUES(id)"
     );
 
-    mysql_add_column_if_missing($pdo, 'library_items', 'sale_mode', "VARCHAR(16) NOT NULL DEFAULT 'free'");
+    mysql_add_column_if_missing($pdo, 'library_items', 'sale_mode', 'VARCHAR(16) NULL');
     mysql_add_column_if_missing($pdo, 'library_items', 'price_minor', 'BIGINT NOT NULL DEFAULT 0');
+    $pdo->exec("UPDATE library_items SET sale_mode = 'free' WHERE sale_mode IS NULL OR sale_mode = ''");
     mysql_add_column_if_missing($pdo, 'payment_orders', 'customer_email', 'VARCHAR(191) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_status', 'VARCHAR(32) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_reference', 'VARCHAR(500) NULL');
