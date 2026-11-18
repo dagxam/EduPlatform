@@ -35,6 +35,14 @@ if (!$row) {
 }
 
 $sourceSchoolId = (int)$row['library_source_school_id'];
+if ((string)($row['sale_mode'] ?? 'free') === 'paid' && $sourceSchoolId !== $targetSchoolId) {
+    json_response([
+        'ok' => false,
+        'error' => 'Это платный материал. Бесплатное копирование отключено; покупка будет подключена отдельным безопасным этапом.',
+        'code' => 'MARKETPLACE_PURCHASE_REQUIRED',
+        'price_minor' => (int)($row['price_minor'] ?? 0),
+    ], 402);
+}
 if ($sourceSchoolId === $targetSchoolId) {
     json_response(['ok' => false, 'error' => 'Это материал вашей школы — импорт не требуется.'], 409);
 }

@@ -529,6 +529,8 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
          ON DUPLICATE KEY UPDATE id = VALUES(id)"
     );
 
+    mysql_add_column_if_missing($pdo, 'library_items', 'sale_mode', "VARCHAR(16) NOT NULL DEFAULT 'free'");
+    mysql_add_column_if_missing($pdo, 'library_items', 'price_minor', 'BIGINT NOT NULL DEFAULT 0');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'customer_email', 'VARCHAR(191) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_status', 'VARCHAR(32) NULL');
     mysql_add_column_if_missing($pdo, 'payment_orders', 'receipt_reference', 'VARCHAR(500) NULL');
@@ -850,6 +852,8 @@ function apply_schema_migrations(PDO $pdo): void
     add_column_if_missing($pdo, 'attempts', 'attempt_session_hash', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'variant_index', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'attempts', 'variant_label', 'TEXT');
+    add_column_if_missing($pdo, 'library_items', 'sale_mode', "TEXT NOT NULL DEFAULT 'free'");
+    add_column_if_missing($pdo, 'library_items', 'price_minor', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'payment_orders', 'archived_at', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'question_order_json', 'TEXT');
     add_column_if_missing($pdo, 'attempts', 'option_order_json', 'TEXT');
@@ -1419,6 +1423,154 @@ function site_legal_profile(PDO $pdo): array
         ];
     }
     return $row;
+}
+
+function ai_config_path(): string
+{
+    return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'ai-config.php';
+}
+
+function ai_runtime_config(): array
+{
+    $path = ai_config_path();
+    if (!is_file($path)) {
+        return [];
+    }
+    $config = require $path;
+    return is_array($config) ? $config : [];
+}
+
+function ai_config(): array
+{
+    $stored = ai_runtime_config();
+    $apiKey = trim((string)($stored['api_key'] ?? getenv('OPENAI_API_KEY') ?: ''));
+    $model = trim((string)($stored['model'] ?? getenv('UROVIA_AI_MODEL') ?: 'gpt-6-luna'));
+    if ($model === '') $model = 'gpt-6-luna';
+
+    return [
+        'api_key' => $apiKey,
+        'model' => $model,
+        'api_base' => 'https://api.openai.com/v1',
+    ];
+}
+
+function ai_is_configured(): bool
+{
+    return ai_config()['api_key'] !== '';
+}
+
+function ai_request(array $payload): array
+{
+    $config = ai_config();
+    if ($config['api_key'] === '') {
+        throw new RuntimeException('ИИ UROVIA ещё не настроен главным администратором.');
+    }
+    if (!extension_loaded('curl')) {
+        throw new RuntimeException('На сервере недоступен cURL для подключения ИИ.');
+    }
+
+    $curl = curl_init(rtrim((string)$config['api_base'], '/') . '/responses');
+    if ($curl === false) {
+        throw new RuntimeException('Не удалось подготовить подключение ИИ.');
+    }
+
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 12,
+        CURLOPT_TIMEOUT => 75,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $config['api_key'],
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POSTFIELDS => $body,
+    ]);
+    $raw = curl_exec($curl);
+    $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+
+    if ($raw === false || $curlError !== '') {
+        throw new RuntimeException('Не удалось связаться с ИИ: ' . ($curlError !== '' ? $curlError : 'ошибка соединения.'));
+    }
+
+    $data = json_decode((string)$raw, true);
+    if (!is_array($data)) {
+        throw new RuntimeException('ИИ вернул некорректный ответ.');
+    }
+    if ($status < 200 || $status >= 300) {
+        $message = trim((string)($data['error']['message'] ?? ''));
+        throw new RuntimeException($message !== '' ? 'Ошибка ИИ: ' . $message : 'Сервис ИИ временно недоступен.');
+    }
+
+    return $data;
+}
+
+function ai_response_text(array $response): string
+{
+    if (isset($response['output_text']) && is_string($response['output_text'])) {
+        return trim($response['output_text']);
+    }
+    foreach ((array)($response['output'] ?? []) as $output) {
+        if (!is_array($output)) continue;
+        foreach ((array)($output['content'] ?? []) as $content) {
+            if (!is_array($content)) continue;
+            if (isset($content['text']) && is_string($content['text'])) {
+                $text = trim($content['text']);
+                if ($text !== '') return $text;
+            }
+        }
+    }
+    return '';
+}
+
+function subscription_assert_ai_capacity(PDO $pdo, array $user, ?int $schoolId): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (is_platform_admin($user)) return $state;
+
+    $limit = (int)($state['plan']['ai_monthly_limit'] ?? 0);
+    if ($limit < 1) {
+        json_response([
+            'ok' => false,
+            'error' => 'ИИ-создание заданий доступно на тарифах PRO и Premium.',
+            'code' => 'SUBSCRIPTION_UPGRADE_REQUIRED',
+        ], 403);
+    }
+
+    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+    $used = (int)($usage['ai_generations'] ?? 0);
+    if ($used >= $limit) {
+        json_response([
+            'ok' => false,
+            'error' => 'Лимит ИИ-созданий на этот месяц исчерпан: ' . $used . ' из ' . $limit . '.',
+            'code' => 'AI_MONTHLY_LIMIT_REACHED',
+            'limit' => $limit,
+            'used' => $used,
+        ], 429);
+    }
+
+    return $state;
+}
+
+function subscription_record_ai_generation(PDO $pdo, int $userId): void
+{
+    $periodKey = gmdate('Y-m');
+    $stmt = $pdo->prepare(
+        'UPDATE subscription_usage_monthly
+         SET ai_generations = ai_generations + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = :user_id AND period_key = :period_key'
+    );
+    $stmt->execute(['user_id' => $userId, 'period_key' => $periodKey]);
+    if ($stmt->rowCount() > 0) return;
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO subscription_usage_monthly
+         (user_id, period_key, ai_generations, created_at, updated_at)
+         VALUES (:user_id, :period_key, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+    );
+    $stmt->execute(['user_id' => $userId, 'period_key' => $periodKey]);
 }
 
 function yookassa_config_path(): string

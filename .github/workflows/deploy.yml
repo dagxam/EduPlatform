@@ -94,6 +94,9 @@ jobs:
       - name: Validate UROVIA library UX
         run: php .github/tests/library-ux-smoke.php
 
+      - name: Validate teacher growth features
+        run: php .github/tests/teacher-growth-features-smoke.php
+
       - name: Validate teacher and student UX stage 2
         run: php .github/tests/teacher-student-ux-smoke.php
 
@@ -163,6 +166,8 @@ jobs:
             storage/db-config.php.tmp
             storage/yookassa-config.php
             storage/yookassa-config.php.tmp
+            storage/ai-config.php
+            storage/ai-config.php.tmp
             storage/maintenance.flag
             storage/.mysql-migration.lock
             storage/mysql-migration.json

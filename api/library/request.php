@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = read_json_body();
 $assignmentId = (int)($data['assignment_id'] ?? 0);
+$saleMode = (string)($data['sale_mode'] ?? 'free');
+$priceMinor = max(0, (int)($data['price_minor'] ?? 0));
+if (!in_array($saleMode, ['free', 'paid'], true)) $saleMode = 'free';
 if ($assignmentId < 1) {
     json_response(['ok' => false, 'error' => 'Не выбрано задание.'], 422);
 }
@@ -16,6 +19,20 @@ if ($assignmentId < 1) {
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
 $manager = can_manage_school($user, $schoolId);
+
+if ($saleMode === 'paid') {
+    subscription_require_feature(
+        $pdo,
+        $user,
+        'marketplace_sell',
+        'Продажа материалов доступна на тарифах PRO и Premium.'
+    );
+    if ($priceMinor < 100 || $priceMinor > 10000000) {
+        json_response(['ok' => false, 'error' => 'Для платного материала укажите цену от 1 ₽ до 100 000 ₽.'], 422);
+    }
+} else {
+    $priceMinor = 0;
+}
 
 $stmt = $pdo->prepare(
     'SELECT a.*, s.name AS subject_name
@@ -67,16 +84,16 @@ $approvedBy = $manager ? (int)$user['id'] : null;
 $stmt = $pdo->prepare(
     'INSERT INTO library_items
      (source_school_id, source_assignment_id, subject_id, submitted_by, approved_by,
-      status, title_snapshot, description_snapshot, questions_count_snapshot, published_at)
+      status, title_snapshot, description_snapshot, questions_count_snapshot, sale_mode, price_minor, published_at)
      VALUES
      (:school_id, :assignment_id, :subject_id, :submitted_by, :approved_by,
-      :status, :title, :description, :questions_count,
+      :status, :title, :description, :questions_count, :sale_mode, :price_minor,
       CASE WHEN :status2 = "published" THEN CURRENT_TIMESTAMP ELSE NULL END)'
     . db_upsert_clause(
         $pdo,
         ['source_school_id', 'source_assignment_id'],
         ['subject_id', 'submitted_by', 'approved_by', 'status', 'title_snapshot',
-         'description_snapshot', 'questions_count_snapshot', 'published_at', 'updated_at']
+         'description_snapshot', 'questions_count_snapshot', 'sale_mode', 'price_minor', 'published_at', 'updated_at']
     )
 );
 $stmt->execute([
@@ -90,6 +107,8 @@ $stmt->execute([
     'title' => (string)$assignment['title'],
     'description' => $assignment['description'],
     'questions_count' => $questionCount,
+    'sale_mode' => $saleMode,
+    'price_minor' => $priceMinor,
 ]);
 
 $itemId = (int)$pdo->lastInsertId();
@@ -106,7 +125,12 @@ audit_event(
     $status === 'published' ? 'library_item_published' : 'library_item_submitted',
     'library_item',
     $itemId,
-    ['assignment_id' => $assignmentId, 'questions_count' => $questionCount],
+    [
+        'assignment_id' => $assignmentId,
+        'questions_count' => $questionCount,
+        'sale_mode' => $saleMode,
+        'price_minor' => $priceMinor,
+    ],
     $schoolId,
     (int)$user['id']
 );
@@ -115,6 +139,8 @@ json_response([
     'ok' => true,
     'item_id' => $itemId,
     'status' => $status,
+    'sale_mode' => $saleMode,
+    'price_minor' => $priceMinor,
     'message' => $status === 'published'
         ? 'Задание опубликовано в библиотеке UVORIA.'
         : 'Задание отправлено администратору школы на публикацию.',

@@ -56,6 +56,8 @@ json_response([
         'subject_name' => $item['subject_name'],
         'questions_count' => (int)$item['questions_count_snapshot'],
         'status' => (string)$item['status'],
+        'sale_mode' => (string)($item['sale_mode'] ?? 'free'),
+        'price_minor' => (int)($item['price_minor'] ?? 0),
     ],
     'questions' => $questions,
 ]);

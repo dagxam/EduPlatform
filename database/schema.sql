@@ -419,6 +419,8 @@ CREATE TABLE IF NOT EXISTS library_items (
     title_snapshot TEXT NOT NULL,
     description_snapshot TEXT,
     questions_count_snapshot INTEGER NOT NULL DEFAULT 0,
+    sale_mode TEXT NOT NULL DEFAULT 'free' CHECK (sale_mode IN ('free', 'paid')),
+    price_minor INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     published_at TEXT,

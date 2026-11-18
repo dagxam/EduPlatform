@@ -11042,3 +11042,44 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
     max-width:min(52vw,210px);
   }
 }
+
+
+/* Teacher growth features — AI, remediation and marketplace stage 1 v69 */
+.ai-task-open{
+  margin-top:8px;
+}
+.ai-task-modal .ai-task-status{
+  margin:4px 0 12px;
+  padding:10px 12px;
+  border:1px solid #dfe7ef;
+  border-radius:12px;
+  background:#f7f9fc;
+  color:#647383;
+  font-size:12px;
+  line-height:1.45;
+}
+.library-publish-modal #libraryPublishAssignmentTitle{
+  margin:0 0 14px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  font-weight:800;
+}
+.marketplace-purchase-soon{
+  cursor:not-allowed;
+  opacity:.72;
+}
+.attempt-review-grade-action.remediation-action{
+  border-color:color-mix(in srgb,#238457 30%,#dce4eb);
+}
+.attempt-review-grade-action.remediation-action .attempt-review-grade-action-icon{
+  background:#e9f7ef;
+  color:#238457;
+}
+@media(max-width:640px){
+  .ai-task-modal,
+  .library-publish-modal{
+    width:min(100%,calc(100vw - 20px));
+  }
+}

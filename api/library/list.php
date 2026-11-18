@@ -5,6 +5,8 @@ require dirname(__DIR__) . '/bootstrap.php';
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
 $pdo = app_db();
+$subscriptionState = subscription_effective_state($pdo, $user);
+$canSell = is_platform_admin($user) || !empty($subscriptionState['plan']['features']['marketplace_sell']);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $subjectId = max(0, (int)($_GET['subject_id'] ?? 0));
@@ -27,6 +29,7 @@ if ($subjectId > 0) {
 $stmt = $pdo->prepare(
     'SELECT li.id, li.source_school_id, li.source_assignment_id, li.subject_id,
             li.title_snapshot, li.description_snapshot, li.questions_count_snapshot,
+            li.sale_mode, li.price_minor,
             li.published_at, li.created_at,
             sch.name AS school_name, sch.city AS school_city,
             s.name AS subject_name,
@@ -95,7 +98,8 @@ $items = $stmt->fetchAll();
 
 $ownStmt = $pdo->prepare(
     'SELECT li.id, li.source_assignment_id, li.subject_id, li.status,
-            li.title_snapshot, li.questions_count_snapshot, li.created_at, li.published_at,
+            li.title_snapshot, li.questions_count_snapshot, li.sale_mode, li.price_minor,
+            li.created_at, li.published_at,
             s.name AS subject_name,
             u.first_name AS submitted_first_name, u.last_name AS submitted_last_name
      FROM library_items li
@@ -112,5 +116,6 @@ json_response([
     'own_items' => $ownStmt->fetchAll(),
     'can_manage' => can_manage_school($user, $schoolId),
     'can_import' => can_manage_school($user, $schoolId) || can_teach_school($user, $schoolId),
+    'can_sell' => $canSell,
     'active_school_id' => $schoolId,
 ]);

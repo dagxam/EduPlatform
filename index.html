@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=99">
+  <link rel="stylesheet" href="styles.css?v=100">
   <link rel="stylesheet" href="pwa.css?v=51">
 </head>
 <body>
@@ -1069,6 +1069,31 @@
           </form>
         </article>
 
+        <article class="panel platform-admin-only hidden">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ИИ UROVIA</span>
+              <h3>Создание заданий с ИИ</h3>
+            </div>
+            <span class="status amber" id="aiConnectionState">API-ключ не настроен</span>
+          </div>
+          <p class="panel-note">ИИ создаёт только черновик задания. Учитель всегда проверяет вопросы и правильные ответы в обычном конструкторе перед назначением. Данные учеников в генерацию не отправляются.</p>
+          <form id="aiConfigForm" class="profile-form">
+            <div class="form-row">
+              <label>API-ключ OpenAI
+                <input id="aiApiKey" name="api_key" type="password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять">
+              </label>
+              <label>Модель
+                <input id="aiModel" name="model" value="gpt-6-luna" autocomplete="off">
+              </label>
+            </div>
+            <small class="field-help">Ключ хранится в закрытом storage на сервере и не записывается в GitHub. PRO получает до 50 ИИ-созданий в месяц, Premium — до 300.</small>
+            <div class="form-error hidden" id="aiConfigError"></div>
+            <div class="import-result hidden" id="aiConfigResult"></div>
+            <button class="primary-btn" type="submit">Сохранить ИИ</button>
+          </form>
+        </article>
+
         <article class="panel platform-admin-only hidden yookassa-payments-panel">
           <div class="panel-head">
             <div>
@@ -1356,6 +1381,70 @@
 
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
+        <button class="secondary-btn full ai-task-open" id="openAiTaskBtn" type="button">✦ Создать с ИИ</button>
+        <small class="field-help">ИИ доступен на PRO/Premium и создаёт обычный редактируемый черновик в конструкторе.</small>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="aiTaskModal">
+    <div class="modal ai-task-modal">
+      <button class="modal-close" data-close-modal="aiTaskModal">×</button>
+      <span class="section-kicker">ИИ UROVIA</span>
+      <h2>Создать задание по теме</h2>
+      <p>ИИ подготовит вопросы и правильные ответы как обычный черновик. Перед назначением обязательно проверьте их в конструкторе.</p>
+      <form id="aiTaskForm">
+        <label>Предмет
+          <select name="subject_id" id="aiTaskSubject" required><option value="">Загрузка...</option></select>
+        </label>
+        <label>Тема
+          <input name="topic" maxlength="300" required placeholder="Например: Сложение и вычитание дробей">
+        </label>
+        <div class="form-row">
+          <label>Класс / уровень
+            <input name="grade_level" maxlength="80" placeholder="Например: 6 класс">
+          </label>
+          <label>Количество вопросов
+            <input name="question_count" type="number" min="3" max="20" value="10" required>
+          </label>
+        </div>
+        <label>Сложность
+          <select name="difficulty">
+            <option value="easy">Лёгкая</option>
+            <option value="medium" selected>Средняя</option>
+            <option value="hard">Повышенная</option>
+          </select>
+        </label>
+        <label>Название задания <small>необязательно</small>
+          <input name="title" maxlength="180" placeholder="Если не указать, ИИ предложит название">
+        </label>
+        <div class="ai-task-status" id="aiTaskStatus">Проверяем доступ к ИИ...</div>
+        <div class="form-error hidden" id="aiTaskError"></div>
+        <div class="import-result hidden" id="aiTaskResult"></div>
+        <button class="primary-btn full" id="aiTaskSubmit" type="submit">Создать черновик с ИИ</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="libraryPublishModal">
+    <div class="modal library-publish-modal">
+      <button class="modal-close" data-close-modal="libraryPublishModal">×</button>
+      <span class="section-kicker">Библиотека UROVIA</span>
+      <h2>Опубликовать материал</h2>
+      <p id="libraryPublishAssignmentTitle">Задание</p>
+      <form id="libraryPublishForm">
+        <label>Режим публикации
+          <select id="libraryPublishMode" name="sale_mode">
+            <option value="free">Бесплатно для коллег</option>
+            <option value="paid">Платный материал</option>
+          </select>
+        </label>
+        <label class="hidden" id="libraryPublishPriceWrap">Цена, ₽
+          <input id="libraryPublishPrice" name="price" type="number" min="1" max="100000" step="1" placeholder="Например: 99">
+        </label>
+        <small class="field-help" id="libraryPublishSellNote">Продажа материалов доступна на PRO/Premium.</small>
+        <div class="form-error hidden" id="libraryPublishError"></div>
+        <button class="primary-btn full" type="submit">Опубликовать</button>
       </form>
     </div>
   </div>
@@ -1845,7 +1934,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=99"></script>
+  <script src="app.js?v=100"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=54"></script>
 </body>

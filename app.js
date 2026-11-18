@@ -1962,7 +1962,10 @@ let libraryItemsCache = [];
 let libraryOwnCache = [];
 let libraryCanManage = false;
 let libraryCanImport = false;
+let libraryCanSell = false;
+let libraryPermissionsLoaded = false;
 let libraryActiveSchoolId = 0;
+let pendingLibraryAssignmentId = 0;
 
 function profileRoleText(data) {
   if (Number(data?.profile?.is_platform_admin) === 1) return 'Главный администратор UROVIA';
@@ -2283,23 +2286,111 @@ function libraryAssignmentAction(item) {
 async function submitAssignmentToLibrary(assignmentId) {
   const item = assignmentsCache.find(row => Number(row.id) === Number(assignmentId));
   if (!item) return;
-  if (!(await appConfirm(`Отправить «${item.title}» в библиотеку UROVIA? Учителя отправляют материал на согласование администратору школы.`))) return;
 
+  if (!libraryPermissionsLoaded) {
+    try {
+      await loadLibrary();
+    } catch (error) {
+      await appAlert(error?.message || 'Не удалось проверить доступ к публикации.', {
+        title:'Библиотека UROVIA',
+        tone:'danger'
+      });
+      return;
+    }
+  }
+
+  pendingLibraryAssignmentId = Number(assignmentId);
+  const modal = document.getElementById('libraryPublishModal');
+  const form = document.getElementById('libraryPublishForm');
+  const title = document.getElementById('libraryPublishAssignmentTitle');
+  const mode = document.getElementById('libraryPublishMode');
+  const priceWrap = document.getElementById('libraryPublishPriceWrap');
+  const price = document.getElementById('libraryPublishPrice');
+  const paidOption = mode?.querySelector('option[value="paid"]');
+  const note = document.getElementById('libraryPublishSellNote');
+  const error = document.getElementById('libraryPublishError');
+
+  if (!modal || !form || !mode || !price) {
+    await appAlert('Не удалось открыть публикацию материала.', { title:'Библиотека UROVIA', tone:'danger' });
+    return;
+  }
+
+  form.reset();
+  mode.value = 'free';
+  price.value = '';
+  priceWrap?.classList.add('hidden');
+  error?.classList.add('hidden');
+  if (title) title.textContent = item.title || 'Задание';
+  if (paidOption) paidOption.disabled = !libraryCanSell;
+  if (note) {
+    note.textContent = libraryCanSell
+      ? 'PRO/Premium: можно указать цену. Платный материал не выдаётся бесплатно; безопасная покупка будет подключена отдельным этапом.'
+      : 'Продажа материалов доступна на PRO/Premium. Бесплатная публикация остаётся доступной.';
+  }
+  openModal(modal);
+}
+
+document.getElementById('libraryPublishMode')?.addEventListener('change', event => {
+  const paid = String(event.currentTarget.value || 'free') === 'paid';
+  document.getElementById('libraryPublishPriceWrap')?.classList.toggle('hidden', !paid);
+});
+
+document.getElementById('libraryPublishForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById('libraryPublishError');
+  const submit = form.querySelector('button[type="submit"]');
+  const saleMode = String(document.getElementById('libraryPublishMode')?.value || 'free');
+  const priceRub = Number(document.getElementById('libraryPublishPrice')?.value || 0);
+  const priceMinor = saleMode === 'paid' ? Math.round(priceRub * 100) : 0;
+
+  error?.classList.add('hidden');
+  if (!pendingLibraryAssignmentId) return;
+  if (saleMode === 'paid' && !libraryCanSell) {
+    if (error) {
+      error.textContent = 'Продажа материалов доступна на PRO/Premium.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+  if (saleMode === 'paid' && (!Number.isFinite(priceRub) || priceRub < 1)) {
+    if (error) {
+      error.textContent = 'Укажите цену платного материала.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  submit.disabled = true;
+  submit.textContent = 'Публикуем...';
   try {
     const response = await fetch('./api/library/request.php', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignment_id: assignmentId })
+      body: JSON.stringify({
+        assignment_id: pendingLibraryAssignmentId,
+        sale_mode: saleMode,
+        price_minor: priceMinor
+      })
     });
-    const data = await response.json();
+    const data = await readJsonResponse(response, 'Не удалось отправить материал.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось отправить материал.');
-    alert(data.message || 'Материал отправлен.');
+
+    closeModal(document.getElementById('libraryPublishModal'));
+    pendingLibraryAssignmentId = 0;
+    await appAlert(data.message || 'Материал отправлен.', { title:'Библиотека UROVIA' });
     await Promise.all([loadAssignments(), loadLibrary().catch(() => {})]);
-  } catch (error) {
-    alert(error.message);
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Опубликовать';
   }
-}
+});
 
 function libraryClassNames(item) {
   return String(item?.class_names || '')
@@ -2346,6 +2437,9 @@ function renderLibrary() {
     const duration = Number(item.time_limit_minutes || 0);
     const imported = Number(item.imported) === 1;
     const targetAssignmentId = Number(item.target_assignment_id || 0);
+    const paid = String(item.sale_mode || 'free') === 'paid';
+    const priceRub = Math.max(0, Number(item.price_minor || 0)) / 100;
+    const priceText = paid ? priceRub.toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно';
 
     return `
       <article class="panel library-card">
@@ -2353,6 +2447,7 @@ function renderLibrary() {
           <span class="status blue">${escapeHtml(item.subject_name || 'Без предмета')}</span>
           ${classes.length ? `<span class="status">${escapeHtml(classes.join(', '))}</span>` : ''}
           ${ownSchool ? '<span class="status green">Наша школа</span>' : ''}
+          <span class="status ${paid ? 'amber' : 'green'}">${escapeHtml(priceText)}</span>
         </div>
         <h3>${escapeHtml(item.title_snapshot)}</h3>
         <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
@@ -2378,7 +2473,9 @@ function renderLibrary() {
             ? (imported && targetAssignmentId
               ? `<button class="secondary-btn compact-btn" type="button" data-library-open-copy="${item.id}">Изменить копию</button>
                  <button class="primary-btn compact-btn" type="button" data-library-assign-copy="${item.id}">Назначить</button>`
-              : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ Добавить себе</button>`)
+              : (paid
+                ? `<button class="secondary-btn compact-btn marketplace-purchase-soon" type="button" disabled>Платно · ${escapeHtml(priceText)}</button>`
+                : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ Добавить себе</button>`))
             : ''}
         </div>
       </article>`;
@@ -2388,7 +2485,7 @@ function renderLibrary() {
     const [cls, label] = libraryStatusLabel(item.status);
     return `
       <div class="library-own-item">
-        <div><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов</span></div>
+        <div><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов · ${String(item.sale_mode || 'free') === 'paid' ? (Number(item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно'}</span></div>
         <div class="library-own-actions">
           <span class="status ${cls}">${label}</span>
           ${libraryCanManage && item.status === 'pending' ? `
@@ -2441,6 +2538,8 @@ async function loadLibrary() {
   libraryOwnCache = data.own_items || [];
   libraryCanManage = Boolean(data.can_manage);
   libraryCanImport = Boolean(data.can_import);
+  libraryCanSell = Boolean(data.can_sell);
+  libraryPermissionsLoaded = true;
   libraryActiveSchoolId = Number(data.active_school_id || 0);
 
   const subjectSelect = document.getElementById('librarySubjectFilter');
@@ -2596,7 +2695,10 @@ async function openLibraryPreview(itemId) {
     classes.join(', '),
     data.item.school_name,
     data.item.questions_count + ' вопросов',
-    duration > 0 ? duration + ' мин' : ''
+    duration > 0 ? duration + ' мин' : '',
+    String(data.item.sale_mode || 'free') === 'paid'
+      ? (Number(data.item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽'
+      : 'Бесплатно'
   ].filter(Boolean).join(' · ');
 
   const list = document.getElementById('libraryPreviewQuestions');
@@ -2612,11 +2714,16 @@ async function openLibraryPreview(itemId) {
   const actions = document.getElementById('libraryPreviewActions');
   const ownSchool = Number(item?.source_school_id) === Number(libraryActiveSchoolId);
   const imported = Number(item?.imported) === 1;
+  const paid = String(data.item.sale_mode || item?.sale_mode || 'free') === 'paid';
+  const priceText = ((Number(data.item.price_minor || item?.price_minor || 0)) / 100)
+    .toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽';
   actions.innerHTML = !ownSchool && libraryCanImport
     ? (imported
       ? `<button class="secondary-btn" type="button" id="libraryPreviewEditCopyBtn">Изменить копию</button>
          <button class="primary-btn" type="button" id="libraryPreviewAssignCopyBtn">Назначить</button>`
-      : `<button class="primary-btn" type="button" id="libraryPreviewImportBtn">＋ Добавить себе</button>`)
+      : (paid
+        ? `<button class="secondary-btn marketplace-purchase-soon" type="button" disabled>Платный материал · ${escapeHtml(priceText)} · покупка скоро</button>`
+        : `<button class="primary-btn" type="button" id="libraryPreviewImportBtn">＋ Добавить себе</button>`))
     : '';
 
   document.getElementById('libraryPreviewImportBtn')?.addEventListener('click', () => importLibraryItem(itemId));
@@ -3917,11 +4024,18 @@ async function openAttemptReview(attemptId) {
     const browserClosed = resultClosedByBrowser(attempt)
       ? resultBrowserCloseBadge()
       : '';
+    const remediationCount = Number(summary.incorrect || 0) + Number(summary.unanswered || 0);
+    const remediationAction = currentUser?.role !== 'student' && remediationCount > 0
+      ? `<button class="attempt-review-grade-action remediation-action" type="button" data-review-remediation="${id}">
+          <span class="attempt-review-grade-action-icon">↺</span>
+          <span class="attempt-review-grade-action-copy"><b>Работа над ошибками</b><small>PRO/Premium · создать отдельный черновик из ${remediationCount} проблемных вопросов</small></span>
+        </button>`
+      : '';
     const staffActions = currentUser?.role !== 'student'
       ? `<button class="attempt-review-grade-action" type="button" data-review-edit="${id}">
           <span class="attempt-review-grade-action-icon">${resultActionIcon('edit')}</span>
           <span class="attempt-review-grade-action-copy"><b>Изменить оценку</b><small>Баллы, итоговая оценка и комментарий ученику</small></span>
-        </button>`
+        </button>${remediationAction}`
       : '';
 
     content.innerHTML = `
@@ -3987,6 +4101,41 @@ async function openAttemptReview(attemptId) {
         });
       }
     });
+    content.querySelector('[data-review-remediation]')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      const attemptId = Number(button.dataset.reviewRemediation || 0);
+      if (!attemptId) return;
+
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.classList.add('is-loading');
+      button.innerHTML = '<span class="attempt-review-grade-action-copy"><b>Создаём...</b><small>Собираем ошибки ученика в отдельный черновик</small></span>';
+
+      try {
+        const response = await fetch('./api/results/create-remediation.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attempt_id: attemptId })
+        });
+        const data = await readJsonResponse(response, 'Не удалось создать работу над ошибками.');
+        if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать работу над ошибками.');
+
+        closeModal(attemptReviewModal);
+        await loadAssignments();
+        showView('assignments');
+        await openAssignmentEditor(Number(data.assignment_id || 0));
+      } catch (error) {
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.innerHTML = originalHtml;
+        await appAlert(error?.message || 'Не удалось создать работу над ошибками.', {
+          title:'Работа над ошибками',
+          tone:'danger'
+        });
+      }
+    });
+
     content.querySelectorAll('[data-answer-save]').forEach(button => {
       button.addEventListener('click', () => {
         const questionId = Number(button.dataset.answerSave || 0);
@@ -5218,6 +5367,75 @@ document.getElementById('yookassaConfigForm')?.addEventListener('submit', async 
   }
 });
 
+async function loadAIAdminConfig() {
+  if (Number(currentUser?.is_platform_admin) !== 1) return null;
+  const response = await fetch('./api/admin/ai/get.php', {
+    credentials: 'same-origin',
+    cache: 'no-store'
+  });
+  const data = await readJsonResponse(response, 'Не удалось загрузить настройки ИИ.');
+  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки ИИ.');
+
+  const config = data.config || {};
+  const key = document.getElementById('aiApiKey');
+  const model = document.getElementById('aiModel');
+  const state = document.getElementById('aiConnectionState');
+  if (key) {
+    key.value = '';
+    key.placeholder = config.api_key_configured
+      ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
+      : 'Вставьте API-ключ OpenAI';
+  }
+  if (model) model.value = config.model || 'gpt-6-luna';
+  if (state) {
+    state.textContent = config.api_key_configured ? 'ИИ подключён' : 'API-ключ не настроен';
+    state.classList.toggle('green', Boolean(config.api_key_configured));
+    state.classList.toggle('amber', !config.api_key_configured);
+  }
+  return config;
+}
+
+document.getElementById('aiConfigForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (Number(currentUser?.is_platform_admin) !== 1) return;
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const error = document.getElementById('aiConfigError');
+  const result = document.getElementById('aiConfigResult');
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+
+  try {
+    const response = await fetch('./api/admin/ai/set.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: document.getElementById('aiApiKey')?.value || '',
+        model: document.getElementById('aiModel')?.value || 'gpt-6-luna'
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось сохранить настройки ИИ.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить настройки ИИ.');
+    if (result) {
+      result.textContent = data.message || 'ИИ UROVIA настроен.';
+      result.classList.remove('hidden');
+    }
+    await loadAIAdminConfig();
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить ИИ';
+  }
+});
+
 async function loadLegalProfile() {
   if (Number(currentUser?.is_platform_admin) !== 1) return null;
   const response = await fetch('./api/admin/legal/get.php', {
@@ -5321,6 +5539,7 @@ async function loadSubscriptionPage() {
     await Promise.all([
       loadLegalProfile().catch(() => null),
       loadYooKassaAdminConfig().catch(() => null),
+      loadAIAdminConfig().catch(() => null),
       loadYooKassaPayments().catch(() => [])
     ]);
   }
@@ -6916,6 +7135,97 @@ async function loadAssignments() {
 
 document.getElementById('assignmentSearch')?.addEventListener('input', renderAssignments);
 document.getElementById('assignmentStatusFilter')?.addEventListener('change', renderAssignments);
+
+async function openAiTaskCreator() {
+  const modal = document.getElementById('aiTaskModal');
+  const subject = document.getElementById('aiTaskSubject');
+  const sourceSubject = document.getElementById('taskSubject');
+  const status = document.getElementById('aiTaskStatus');
+  const error = document.getElementById('aiTaskError');
+  const submit = document.getElementById('aiTaskSubmit');
+  if (!modal || !subject || !sourceSubject || !submit) return;
+
+  subject.innerHTML = sourceSubject.innerHTML;
+  const preferredSubject = String(sourceSubject.value || selectedSubjectId || '');
+  if ([...subject.options].some(option => option.value === preferredSubject)) {
+    subject.value = preferredSubject;
+  }
+  error?.classList.add('hidden');
+  if (status) status.textContent = 'Проверяем доступ к ИИ...';
+  submit.disabled = true;
+  openModal(modal);
+
+  try {
+    const response = await fetch('./api/ai/status.php', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось проверить доступ к ИИ.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось проверить доступ к ИИ.');
+
+    const limitText = data.limit === null
+      ? 'без лимита для главного администратора'
+      : ('использовано ' + Number(data.used || 0) + ' из ' + Number(data.limit || 0) + ' в этом месяце');
+    if (status) {
+      status.textContent = data.available
+        ? ('ИИ-доступ: ' + limitText + (data.configured ? '' : ' · API-ключ ещё не настроен'))
+        : 'ИИ-создание доступно на PRO/Premium.';
+    }
+    submit.disabled = !data.available || !data.configured;
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  }
+}
+
+document.getElementById('openAiTaskBtn')?.addEventListener('click', () => {
+  openAiTaskCreator().catch(() => {});
+});
+
+document.getElementById('aiTaskForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = document.getElementById('aiTaskSubmit');
+  const error = document.getElementById('aiTaskError');
+  const result = document.getElementById('aiTaskResult');
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  submit.disabled = true;
+  submit.textContent = 'ИИ создаёт задание...';
+
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch('./api/ai/generate-assignment.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(response, 'Не удалось создать задание с ИИ.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать задание с ИИ.');
+
+    if (result) {
+      result.textContent = data.message || 'Черновик создан.';
+      result.classList.remove('hidden');
+    }
+    form.reset();
+    closeModal(document.getElementById('aiTaskModal'));
+    closeModal(taskModal);
+    await loadAssignments();
+    showView('assignments');
+    await openAssignmentEditor(Number(data.assignment_id || 0));
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Создать черновик с ИИ';
+  }
+});
 
 document.getElementById('taskForm')?.addEventListener('submit', async event => {
   event.preventDefault();
