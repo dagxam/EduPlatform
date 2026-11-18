@@ -5338,6 +5338,7 @@ async function loadAIAdminConfig() {
   const key = document.getElementById('aiApiKey');
   const model = document.getElementById('aiModel');
   const state = document.getElementById('aiConnectionState');
+  const keyBadge = document.getElementById('aiKeyConnectionBadge');
   if (key) {
     key.value = '';
     key.placeholder = config.api_key_configured
@@ -5349,6 +5350,11 @@ async function loadAIAdminConfig() {
     state.textContent = config.api_key_configured ? 'ИИ подключён' : 'API-ключ не настроен';
     state.classList.toggle('green', Boolean(config.api_key_configured));
     state.classList.toggle('amber', !config.api_key_configured);
+  }
+  if (keyBadge) {
+    keyBadge.textContent = config.api_key_configured ? 'Подключён ✓' : 'Не подключён';
+    keyBadge.classList.toggle('is-online', Boolean(config.api_key_configured));
+    keyBadge.classList.toggle('is-offline', !config.api_key_configured);
   }
   return config;
 }

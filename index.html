@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=102">
+  <link rel="stylesheet" href="styles.css?v=103">
   <link rel="stylesheet" href="pwa.css?v=51">
 </head>
 <body>
@@ -1091,7 +1091,11 @@
           </div>
           <form id="aiConfigForm" class="profile-form">
             <div class="form-row">
-              <label>API-ключ Groq
+              <label>
+                <span class="ai-key-label-row">
+                  <span>API-ключ Groq</span>
+                  <span class="ai-key-connection-badge is-offline" id="aiKeyConnectionBadge">Не подключён</span>
+                </span>
                 <input id="aiApiKey" name="api_key" type="password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять">
               </label>
               <label>Модель
@@ -1945,7 +1949,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=102"></script>
+  <script src="app.js?v=103"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=54"></script>
 </body>

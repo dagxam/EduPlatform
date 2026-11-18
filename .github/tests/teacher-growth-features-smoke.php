@@ -53,6 +53,8 @@ growth_expect($aiStatus, "'paid_feature' => true", 'AI paid feature flag is miss
 growth_expect($aiAdminGet, "'provider' => 'groq'", 'AI admin endpoint is not configured for Groq');
 growth_expect($aiAdminSet, "'provider' => 'groq'", 'AI configuration does not persist Groq provider');
 growth_expect($index, 'API-ключ Groq', 'Groq admin UI label is missing');
+growth_expect($index, 'id="aiKeyConnectionBadge"', 'inline Groq connection badge is missing');
+growth_expect($app, "keyBadge.textContent = config.api_key_configured ? 'Подключён ✓' : 'Не подключён'", 'inline Groq connection badge is not updated');
 growth_expect($index, 'https://console.groq.com/keys', 'Groq API key setup link is missing');
 growth_expect($index, 'Как подключить API Groq', 'Groq setup instructions are missing');
 growth_expect($index, 'тарифах <b>PRO и Premium</b>', 'paid AI tariff copy is missing');
@@ -74,7 +76,7 @@ growth_expect($libraryList, "'can_sell' => \$canSell", 'library API does not exp
 growth_expect($libraryImport, "'MARKETPLACE_PURCHASE_REQUIRED'", 'paid materials can still be copied for free');
 growth_expect($libraryPreview, "'price_minor'", 'library preview does not expose price');
 growth_expect($app, 'marketplace-purchase-soon', 'paid marketplace state is not rendered');
-growth_expect($index, 'app.js?v=102', 'growth feature app asset is not cache-busted');
-growth_expect($index, 'styles.css?v=102', 'growth feature styles are not cache-busted');
+growth_expect($index, 'app.js?v=103', 'growth feature app asset is not cache-busted');
+growth_expect($index, 'styles.css?v=103', 'growth feature styles are not cache-busted');
 
 echo "Teacher growth features smoke OK\n";

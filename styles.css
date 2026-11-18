@@ -11116,3 +11116,42 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
   line-height:1.45;
   color:#708090;
 }
+
+
+/* AI API key inline connection state v72 */
+.ai-key-label-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+.ai-key-connection-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:3px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  white-space:nowrap;
+}
+.ai-key-connection-badge.is-online{
+  color:#167548;
+  background:#e8f7ef;
+  border:1px solid #bfe8d1;
+}
+.ai-key-connection-badge.is-offline{
+  color:#8a5b00;
+  background:#fff7df;
+  border:1px solid #f1d58a;
+}
+@media(max-width:520px){
+  .ai-key-label-row{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:6px;
+  }
+}
