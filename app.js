@@ -5342,7 +5342,7 @@ async function loadAIAdminConfig() {
     key.value = '';
     key.placeholder = config.api_key_configured
       ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
-      : 'Вставьте API-ключ OpenAI';
+      : 'Вставьте API-ключ Groq';
   }
   if (model) model.value = config.model || 'openai/gpt-oss-20b';
   if (state) {
@@ -7121,12 +7121,21 @@ async function openAiTaskCreator() {
     const data = await readJsonResponse(response, 'Не удалось проверить доступ к ИИ.');
     if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось проверить доступ к ИИ.');
 
-    const usageText = 'создано в этом месяце: ' + Number(data.used || 0);
+    const used = Number(data.used || 0);
+    const limit = data.limit === null ? null : Number(data.limit || 0);
+    const usageText = limit === null
+      ? ('создано в этом месяце: ' + used)
+      : ('использовано ' + used + ' из ' + limit + ' в этом месяце');
+
     if (status) {
-      status.textContent = 'Бесплатный ИИ через Groq · ' + usageText +
-        (data.configured ? '' : ' · API-ключ Groq ещё не настроен');
+      if (!data.available) {
+        status.textContent = 'ИИ-создание заданий доступно только на PRO/Premium.';
+      } else {
+        status.textContent = 'ИИ UROVIA · ' + usageText +
+          (data.configured ? '' : ' · API-ключ Groq ещё не настроен');
+      }
     }
-    submit.disabled = !data.configured;
+    submit.disabled = !data.available || !data.configured;
   } catch (err) {
     if (error) {
       error.textContent = err.message;

@@ -61,6 +61,8 @@ if ($subjectName === '') {
     json_response(['ok' => false, 'error' => 'Этот предмет недоступен вашему аккаунту.'], 403);
 }
 
+$state = subscription_assert_ai_capacity($pdo, $user, $schoolId);
+
 if (!ai_is_configured()) {
     json_response([
         'ok' => false,
@@ -240,6 +242,7 @@ audit_event('ai_assignment_generated', 'assignment', $assignmentId, [
 ], $schoolId, (int)$user['id']);
 
 $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+$limit = is_platform_admin($user) ? null : (int)($state['plan']['ai_monthly_limit'] ?? 0);
 
 json_response([
     'ok' => true,
@@ -247,6 +250,7 @@ json_response([
     'questions_count' => count($normalizedQuestions),
     'usage' => [
         'used' => (int)($usage['ai_generations'] ?? 0),
+        'limit' => $limit,
     ],
     'message' => 'Черновик создан. Проверьте вопросы и правильные ответы в конструкторе.',
 ], 201);

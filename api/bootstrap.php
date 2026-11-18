@@ -1532,6 +1532,39 @@ function ai_response_text(array $response): string
     return '';
 }
 
+function subscription_assert_ai_capacity(PDO $pdo, array $user, ?int $schoolId): array
+{
+    $state = subscription_require_staff_access($pdo, $user);
+    if (is_platform_admin($user)) {
+        return $state;
+    }
+
+    $planCode = (string)($state['plan_code'] ?? '');
+    if (!in_array($planCode, ['pro', 'premium'], true)) {
+        json_response([
+            'ok' => false,
+            'error' => 'ИИ-создание заданий доступно только на тарифах PRO и Premium.',
+            'code' => 'SUBSCRIPTION_UPGRADE_REQUIRED',
+        ], 403);
+    }
+
+    $limit = (int)($state['plan']['ai_monthly_limit'] ?? 0);
+    $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
+    $used = (int)($usage['ai_generations'] ?? 0);
+
+    if ($limit > 0 && $used >= $limit) {
+        json_response([
+            'ok' => false,
+            'error' => 'Лимит ИИ-созданий на этот месяц исчерпан: ' . $used . ' из ' . $limit . '.',
+            'code' => 'AI_MONTHLY_LIMIT_REACHED',
+            'limit' => $limit,
+            'used' => $used,
+        ], 429);
+    }
+
+    return $state;
+}
+
 function subscription_record_ai_generation(PDO $pdo, int $userId): void
 {
     $periodKey = gmdate('Y-m');
@@ -1721,7 +1754,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 1,
             'max_students' => 10,
             'max_active_assignments' => 1,
-            'ai_monthly_limit' => null,
+            'ai_monthly_limit' => 0,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1743,7 +1776,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 2,
             'max_students' => 50,
             'max_active_assignments' => 10,
-            'ai_monthly_limit' => null,
+            'ai_monthly_limit' => 0,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1765,7 +1798,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 7,
             'max_students' => 280,
             'max_active_assignments' => 60,
-            'ai_monthly_limit' => null,
+            'ai_monthly_limit' => 50,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,
@@ -1787,7 +1820,7 @@ function subscription_plan_catalog(): array
             'max_classes' => null,
             'max_students' => null,
             'max_active_assignments' => null,
-            'ai_monthly_limit' => null,
+            'ai_monthly_limit' => 300,
             'features' => [
                 'manual_assignments' => true,
                 'auto_grading' => true,

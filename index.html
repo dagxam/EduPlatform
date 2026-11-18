@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=101">
+  <link rel="stylesheet" href="styles.css?v=102">
   <link rel="stylesheet" href="pwa.css?v=51">
 </head>
 <body>
@@ -1077,7 +1077,18 @@
             </div>
             <span class="status amber" id="aiConnectionState">API-ключ не настроен</span>
           </div>
-          <p class="panel-note">ИИ создаёт только черновик задания. Учитель всегда проверяет вопросы и правильные ответы в обычном конструкторе перед назначением. Данные учеников в генерацию не отправляются.</p>
+          <p class="panel-note">ИИ создаёт только черновик задания. Учитель всегда проверяет вопросы и правильные ответы в обычном конструкторе перед назначением. Данные учеников в генерацию не отправляются. Функция доступна учителям на тарифах <b>PRO и Premium</b>.</p>
+          <div class="ai-connect-guide">
+            <b>Как подключить API Groq</b>
+            <ol>
+              <li>Откройте <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console → API Keys</a> и войдите в аккаунт.</li>
+              <li>Создайте новый API-ключ и скопируйте его. Сам ключ повторно в Groq обычно не показывается, поэтому сохраните его сразу.</li>
+              <li>Вставьте ключ ниже в поле <b>API-ключ Groq</b>.</li>
+              <li>Оставьте модель <code>openai/gpt-oss-20b</code> и нажмите <b>Сохранить ИИ</b>.</li>
+              <li>После статуса <b>«ИИ подключён»</b> учителя PRO/Premium смогут создавать задания через кнопку «Создать с ИИ».</li>
+            </ol>
+            <small>UROVIA использует Groq Responses API через <code>https://api.groq.com/openai/v1</code>. Ключ хранится только в закрытом storage сервера и не попадает в GitHub.</small>
+          </div>
           <form id="aiConfigForm" class="profile-form">
             <div class="form-row">
               <label>API-ключ Groq
@@ -1087,7 +1098,7 @@
                 <input id="aiModel" name="model" value="openai/gpt-oss-20b" autocomplete="off">
               </label>
             </div>
-            <small class="field-help">Groq имеет бесплатный тариф API. Ключ хранится в закрытом storage на сервере и не записывается в GitHub. ИИ-создание заданий доступно на всех тарифах UROVIA.</small>
+            <small class="field-help">Groq используется как API-провайдер. Доступ к ИИ-созданию заданий в UROVIA предоставляется только на PRO/Premium. PRO — до 50 генераций в месяц, Premium — до 300.</small>
             <div class="form-error hidden" id="aiConfigError"></div>
             <div class="import-result hidden" id="aiConfigResult"></div>
             <button class="primary-btn" type="submit">Сохранить ИИ</button>
@@ -1382,7 +1393,7 @@
         <div class="form-error hidden" id="taskFormError"></div>
         <button class="primary-btn full" type="submit">Создать черновик</button>
         <button class="secondary-btn full ai-task-open" id="openAiTaskBtn" type="button">✦ Создать с ИИ</button>
-        <small class="field-help">Бесплатный ИИ через Groq доступен на всех тарифах и создаёт обычный редактируемый черновик в конструкторе.</small>
+        <small class="field-help">ИИ-создание заданий доступно на PRO/Premium и создаёт обычный редактируемый черновик в конструкторе.</small>
       </form>
     </div>
   </div>
@@ -1934,7 +1945,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=101"></script>
+  <script src="app.js?v=102"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=54"></script>
 </body>

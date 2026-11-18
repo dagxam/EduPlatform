@@ -11076,3 +11076,43 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
     width:min(100%,calc(100vw - 20px));
   }
 }
+
+
+/* AI API connection guide v71 */
+.ai-connect-guide{
+  margin:14px 0 16px;
+  padding:14px 16px;
+  border:1px solid #dfe7ef;
+  border-radius:14px;
+  background:#f8fafc;
+  color:#35475a;
+}
+.ai-connect-guide>b{
+  display:block;
+  margin-bottom:8px;
+  font-size:13px;
+}
+.ai-connect-guide ol{
+  margin:0 0 10px 18px;
+  padding:0;
+}
+.ai-connect-guide li{
+  margin:6px 0;
+  line-height:1.45;
+  font-size:12px;
+}
+.ai-connect-guide a{
+  color:var(--brand);
+  font-weight:800;
+}
+.ai-connect-guide code{
+  padding:2px 5px;
+  border-radius:6px;
+  background:#edf2f7;
+  font-size:11px;
+}
+.ai-connect-guide small{
+  display:block;
+  line-height:1.45;
+  color:#708090;
+}
