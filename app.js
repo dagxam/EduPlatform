@@ -2433,9 +2433,19 @@ function renderLibrary() {
 
   grid.innerHTML = items.length ? items.map(item => {
     const ownSchool = Number(item.source_school_id) === Number(libraryActiveSchoolId);
-    const author = [item.author_last_name, item.author_first_name, item.author_middle_name].filter(Boolean).join(' ');
+    const authorParts = [item.author_last_name, item.author_first_name, item.author_middle_name].filter(Boolean);
+    const author = authorParts.join(' ');
+    const authorInitials = authorParts.length
+      ? authorParts.slice(0, 2).map(part => String(part).charAt(0)).join('').toUpperCase()
+      : 'U';
     const classes = libraryClassNames(item);
     const usage = Number(item.usage_count || 0);
+    const likes = Number(item.likes_count || 0);
+    const liked = Number(item.user_liked || 0) === 1;
+    const ratingsCount = Number(item.ratings_count || 0);
+    const ratingValue = item.rating_average === null || item.rating_average === undefined
+      ? null
+      : Number(item.rating_average);
     const duration = Number(item.time_limit_minutes || 0);
     const imported = Number(item.imported) === 1;
     const targetAssignmentId = Number(item.target_assignment_id || 0);
@@ -2458,21 +2468,38 @@ function renderLibrary() {
           <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
         </div>
         <div class="library-card-meta library-card-meta-rich">
-          <span><b>${Number(item.questions_count_snapshot || 0)}</b> вопросов</span>
-          <span>${duration > 0 ? '<b>' + duration + '</b> мин' : 'Без лимита'}</span>
-          <span><b>${usage}</b> использ.</span>
+          <span class="library-meta-item">
+            <svg class="library-meta-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.8h8.2L19 7.6V20H7z"/><path d="M15 3.8v4h4M10 12h6M10 15.5h6"/></svg>
+            <b>${Number(item.questions_count_snapshot || 0)}</b><small>вопросов</small>
+          </span>
+          <span class="library-meta-item">
+            <svg class="library-meta-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4.4l3 1.7M9.5 3h5"/></svg>
+            ${duration > 0 ? '<b>' + duration + '</b><small>мин</small>' : '<small>без лимита</small>'}
+          </span>
+          <span class="library-meta-item">
+            <svg class="library-meta-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h10v10H8z"/><path d="M5 10H3v10h10v-2"/></svg>
+            <b>${usage}</b><small>использ.</small>
+          </span>
         </div>
         <div class="library-author-line">
           <div class="library-author-main">
+            <span class="library-author-avatar-mini" aria-hidden="true">${escapeHtml(authorInitials)}</span>
             <button class="library-author-button" type="button" data-library-author="${Number(item.author_id || 0)}" ${Number(item.author_id || 0) ? '' : 'disabled'}>
               ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
               <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' мат.' : ''}</span>
             </button>
             ${libraryCanChangeAuthor ? `<button class="library-author-edit-btn" type="button" data-library-change-author="${item.id}" title="Изменить автора материала">✎ Автор</button>` : ''}
           </div>
-          <div class="library-social-stats">
-            <button type="button" class="library-like-btn ${Number(item.user_liked || 0) === 1 ? 'active' : ''}" data-library-like="${item.id}" aria-label="Нравится">♥ <b>${Number(item.likes_count || 0)}</b></button>
-            <button type="button" class="library-rating-btn" data-library-rate="${item.id}" title="Поставить оценку">★ <b>${item.rating_average === null || item.rating_average === undefined ? '—' : Number(item.rating_average).toFixed(1)}</b></button>
+          <div class="library-social-stats" aria-label="Оценка материала">
+            <button type="button" class="library-like-btn ${liked ? 'active' : ''}" data-library-like="${item.id}" aria-label="${liked ? 'Убрать отметку «Нравится»' : 'Отметить «Нравится»'}">
+              <svg class="library-social-icon library-heart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.1 5.1 0 0 0-7.2 0L12 7.4l-1.6-1.6a5.1 5.1 0 0 0-7.2 7.2L12 21l8.8-8a5.1 5.1 0 0 0 0-7.2Z"/></svg>
+              <b>${likes}</b>
+            </button>
+            <button type="button" class="library-rating-btn" data-library-rate="${item.id}" title="Поставить оценку" aria-label="Рейтинг ${ratingValue === null ? 'не указан' : ratingValue.toFixed(1)}; оценок: ${ratingsCount}">
+              <svg class="library-social-icon library-star-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></svg>
+              <b>${ratingValue === null ? '—' : ratingValue.toFixed(1)}</b>
+              ${ratingsCount ? `<small>${ratingsCount}</small>` : ''}
+            </button>
           </div>
         </div>
         <div class="library-card-actions">
