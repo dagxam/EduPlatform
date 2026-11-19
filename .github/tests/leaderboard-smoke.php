@@ -54,7 +54,7 @@ if (!str_contains($resultsList, "'subject_id' => \$row['subject_id'] !== null ? 
     exit(1);
 }
 
-if (!str_contains($index, 'app.js?v=104') || !str_contains($index, 'styles.css?v=104')) {
+if (!str_contains($index, 'app.js?v=105') || !str_contains($index, 'styles.css?v=105')) {
     fwrite(STDERR, "Leaderboard smoke failed: leaderboard assets are not cache-busted.\n");
     exit(1);
 }
