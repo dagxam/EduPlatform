@@ -35,6 +35,7 @@ $stmt = $pdo->prepare(
             s.name AS subject_name,
             u.id AS author_id,
             u.first_name AS author_first_name, u.last_name AS author_last_name,
+            u.middle_name AS author_middle_name,
             a.time_limit_minutes,
             COALESCE((
                 SELECT GROUP_CONCAT(DISTINCT COALESCE(c.display_name, c.name))
@@ -101,7 +102,9 @@ $ownStmt = $pdo->prepare(
             li.title_snapshot, li.questions_count_snapshot, li.sale_mode, li.price_minor,
             li.created_at, li.published_at,
             s.name AS subject_name,
-            u.first_name AS submitted_first_name, u.last_name AS submitted_last_name
+            u.id AS submitted_by,
+            u.first_name AS submitted_first_name, u.last_name AS submitted_last_name,
+            u.middle_name AS submitted_middle_name
      FROM library_items li
      LEFT JOIN subjects s ON s.id = li.subject_id
      LEFT JOIN users u ON u.id = li.submitted_by
@@ -117,5 +120,6 @@ json_response([
     'can_manage' => can_manage_school($user, $schoolId),
     'can_import' => can_manage_school($user, $schoolId) || can_teach_school($user, $schoolId),
     'can_sell' => $canSell,
+    'can_change_author' => is_platform_admin($user),
     'active_school_id' => $schoolId,
 ]);

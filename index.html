@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=103">
+  <link rel="stylesheet" href="styles.css?v=104">
   <link rel="stylesheet" href="pwa.css?v=51">
 </head>
 <body>
@@ -377,7 +377,7 @@
           <button class="secondary-btn" id="refreshLibraryBtn" type="button">↻ Обновить</button>
         </div>
 
-        <div class="panel library-filter-panel">
+        <div class="panel library-filter-panel library-filter-panel-compact">
           <div class="filters library-filters">
             <input class="search" id="librarySearch" type="search" placeholder="Название, тема, автор или школа">
             <select id="librarySubjectFilter"><option value="">Все предметы</option></select>
@@ -392,7 +392,7 @@
 
         <div class="library-layout">
           <section>
-            <div class="panel-head standalone"><div><span class="section-kicker">Все школы</span><h3>Опубликованные материалы</h3></div></div>
+            <div class="panel-head standalone library-section-head"><div><span class="section-kicker">Все школы</span><h3>Материалы учителей</h3></div></div>
             <div class="library-grid" id="libraryGrid"><div class="history-empty">Загрузка библиотеки...</div></div>
           </section>
 
@@ -1270,6 +1270,29 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="libraryAuthorEditModal">
+    <div class="modal library-author-edit-modal">
+      <button class="modal-close" data-close-modal="libraryAuthorEditModal">×</button>
+      <span class="section-kicker">Главный администратор</span>
+      <h2>Изменить автора материала</h2>
+      <p id="libraryAuthorEditMeta">Материал библиотеки</p>
+      <div class="library-author-edit-note">
+        Меняется только автор, который показывается в Библиотеке UROVIA. Исходное задание, его владелец, назначения и результаты не изменяются.
+      </div>
+      <form id="libraryAuthorEditForm">
+        <label>Новый автор
+          <select id="libraryAuthorSelect" required>
+            <option value="">Загрузка учителей...</option>
+          </select>
+          <small class="field-help">Доступны действующие учителя школы, из которой опубликован материал.</small>
+        </label>
+        <div class="form-error hidden" id="libraryAuthorEditError"></div>
+        <div class="import-result hidden" id="libraryAuthorEditResult"></div>
+        <button class="primary-btn full" type="submit">Сохранить автора</button>
+      </form>
+    </div>
+  </div>
+
 
   <div class="modal-backdrop hidden" id="paymentReceiptModal">
     <div class="modal">
@@ -1949,7 +1972,7 @@
   </div>
 
   <script src="attempt-security.js?v=51"></script>
-  <script src="app.js?v=103"></script>
+  <script src="app.js?v=104"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=54"></script>
 </body>

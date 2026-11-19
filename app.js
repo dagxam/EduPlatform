@@ -1963,9 +1963,11 @@ let libraryOwnCache = [];
 let libraryCanManage = false;
 let libraryCanImport = false;
 let libraryCanSell = false;
+let libraryCanChangeAuthor = false;
 let libraryPermissionsLoaded = false;
 let libraryActiveSchoolId = 0;
 let pendingLibraryAssignmentId = 0;
+let pendingLibraryAuthorItemId = 0;
 
 function profileRoleText(data) {
   if (Number(data?.profile?.is_platform_admin) === 1) return 'Главный администратор UROVIA';
@@ -2411,7 +2413,7 @@ function renderLibrary() {
 
   const items = libraryItemsCache.filter(item => {
     const classes = libraryClassNames(item);
-    const author = [item.author_last_name, item.author_first_name].filter(Boolean).join(' ');
+    const author = [item.author_last_name, item.author_first_name, item.author_middle_name].filter(Boolean).join(' ');
     const haystack = [
       item.title_snapshot,
       item.description_snapshot,
@@ -2431,7 +2433,7 @@ function renderLibrary() {
 
   grid.innerHTML = items.length ? items.map(item => {
     const ownSchool = Number(item.source_school_id) === Number(libraryActiveSchoolId);
-    const author = [item.author_last_name, item.author_first_name].filter(Boolean).join(' ');
+    const author = [item.author_last_name, item.author_first_name, item.author_middle_name].filter(Boolean).join(' ');
     const classes = libraryClassNames(item);
     const usage = Number(item.usage_count || 0);
     const duration = Number(item.time_limit_minutes || 0);
@@ -2442,40 +2444,46 @@ function renderLibrary() {
     const priceText = paid ? priceRub.toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно';
 
     return `
-      <article class="panel library-card">
-        <div class="library-card-head">
-          <span class="status blue">${escapeHtml(item.subject_name || 'Без предмета')}</span>
-          ${classes.length ? `<span class="status">${escapeHtml(classes.join(', '))}</span>` : ''}
-          ${ownSchool ? '<span class="status green">Наша школа</span>' : ''}
-          <span class="status ${paid ? 'amber' : 'green'}">${escapeHtml(priceText)}</span>
+      <article class="panel library-card library-card-compact">
+        <div class="library-card-topline">
+          <div class="library-card-head">
+            <span class="library-chip subject">${escapeHtml(item.subject_name || 'Без предмета')}</span>
+            ${classes.length ? `<span class="library-chip">${escapeHtml(classes.join(', '))}</span>` : ''}
+            ${ownSchool ? '<span class="library-chip own">Наша школа</span>' : ''}
+          </div>
+          <span class="library-price ${paid ? 'paid' : 'free'}">${escapeHtml(priceText)}</span>
         </div>
-        <h3>${escapeHtml(item.title_snapshot)}</h3>
-        <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
+        <div class="library-card-copy">
+          <h3>${escapeHtml(item.title_snapshot)}</h3>
+          <p>${escapeHtml(item.description_snapshot || 'Описание не указано.')}</p>
+        </div>
         <div class="library-card-meta library-card-meta-rich">
           <span><b>${Number(item.questions_count_snapshot || 0)}</b> вопросов</span>
-          ${duration > 0 ? `<span><b>${duration}</b> мин</span>` : '<span>Без лимита времени</span>'}
-          <span>Использовали <b>${usage}</b> раз</span>
+          <span>${duration > 0 ? '<b>' + duration + '</b> мин' : 'Без лимита'}</span>
+          <span><b>${usage}</b> использ.</span>
         </div>
         <div class="library-author-line">
-          <button class="library-author-button" type="button" data-library-author="${Number(item.author_id || 0)}" ${Number(item.author_id || 0) ? '' : 'disabled'}>
-            ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
-            <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' материалов' : ''}</span>
-          </button>
+          <div class="library-author-main">
+            <button class="library-author-button" type="button" data-library-author="${Number(item.author_id || 0)}" ${Number(item.author_id || 0) ? '' : 'disabled'}>
+              ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
+              <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' мат.' : ''}</span>
+            </button>
+            ${libraryCanChangeAuthor ? `<button class="library-author-edit-btn" type="button" data-library-change-author="${item.id}" title="Изменить автора материала">✎ Автор</button>` : ''}
+          </div>
           <div class="library-social-stats">
             <button type="button" class="library-like-btn ${Number(item.user_liked || 0) === 1 ? 'active' : ''}" data-library-like="${item.id}" aria-label="Нравится">♥ <b>${Number(item.likes_count || 0)}</b></button>
-            <button type="button" class="library-rating-btn" data-library-rate="${item.id}" title="Поставить оценку">★ <b>${item.rating_average === null || item.rating_average === undefined ? '—' : Number(item.rating_average).toFixed(1)}</b><small>${Number(item.ratings_count || 0)}</small></button>
-            <span class="library-usage-stat">↓ <b>${usage}</b></span>
+            <button type="button" class="library-rating-btn" data-library-rate="${item.id}" title="Поставить оценку">★ <b>${item.rating_average === null || item.rating_average === undefined ? '—' : Number(item.rating_average).toFixed(1)}</b></button>
           </div>
         </div>
         <div class="library-card-actions">
           <button class="secondary-btn compact-btn" type="button" data-library-preview="${item.id}">Просмотреть</button>
           ${!ownSchool && libraryCanImport
             ? (imported && targetAssignmentId
-              ? `<button class="secondary-btn compact-btn" type="button" data-library-open-copy="${item.id}">Изменить копию</button>
+              ? `<button class="secondary-btn compact-btn" type="button" data-library-open-copy="${item.id}">Изменить</button>
                  <button class="primary-btn compact-btn" type="button" data-library-assign-copy="${item.id}">Назначить</button>`
               : (paid
-                ? `<button class="secondary-btn compact-btn marketplace-purchase-soon" type="button" disabled>Платно · ${escapeHtml(priceText)}</button>`
-                : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ Добавить себе</button>`))
+                ? `<button class="secondary-btn compact-btn marketplace-purchase-soon" type="button" disabled>${escapeHtml(priceText)}</button>`
+                : `<button class="primary-btn compact-btn" type="button" data-library-import="${item.id}">＋ Добавить</button>`))
             : ''}
         </div>
       </article>`;
@@ -2485,8 +2493,9 @@ function renderLibrary() {
     const [cls, label] = libraryStatusLabel(item.status);
     return `
       <div class="library-own-item">
-        <div><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов · ${String(item.sale_mode || 'free') === 'paid' ? (Number(item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно'}</span></div>
+        <div class="library-own-copy"><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов · ${String(item.sale_mode || 'free') === 'paid' ? (Number(item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно'}</span><small>Автор: ${escapeHtml([item.submitted_last_name, item.submitted_first_name, item.submitted_middle_name].filter(Boolean).join(' ') || 'UROVIA')}</small></div>
         <div class="library-own-actions">
+          ${libraryCanChangeAuthor ? `<button class="mini-action" type="button" data-library-change-author="${item.id}">Автор</button>` : ''}
           <span class="status ${cls}">${label}</span>
           ${libraryCanManage && item.status === 'pending' ? `
             <button class="mini-action" type="button" data-library-moderate="${item.id}" data-action="approve">Одобрить</button>
@@ -2505,6 +2514,12 @@ function renderLibrary() {
   });
   grid.querySelectorAll('[data-library-author]').forEach(button => {
     button.addEventListener('click', () => openLibraryAuthor(Number(button.dataset.libraryAuthor)));
+  });
+  grid.querySelectorAll('[data-library-change-author]').forEach(button => {
+    button.addEventListener('click', () => openLibraryAuthorEditor(Number(button.dataset.libraryChangeAuthor)));
+  });
+  own.querySelectorAll('[data-library-change-author]').forEach(button => {
+    button.addEventListener('click', () => openLibraryAuthorEditor(Number(button.dataset.libraryChangeAuthor)));
   });
   grid.querySelectorAll('[data-library-like]').forEach(button => {
     button.addEventListener('click', () => toggleLibraryLike(Number(button.dataset.libraryLike)));
@@ -2539,6 +2554,7 @@ async function loadLibrary() {
   libraryCanManage = Boolean(data.can_manage);
   libraryCanImport = Boolean(data.can_import);
   libraryCanSell = Boolean(data.can_sell);
+  libraryCanChangeAuthor = Boolean(data.can_change_author);
   libraryPermissionsLoaded = true;
   libraryActiveSchoolId = Number(data.active_school_id || 0);
 
@@ -2617,6 +2633,108 @@ async function rateLibraryItem(itemId) {
     await appAlert(error.message, { title: 'Библиотека UROVIA', tone: 'danger' });
   }
 }
+
+async function openLibraryAuthorEditor(itemId) {
+  if (!libraryCanChangeAuthor || !itemId) return;
+  const modal = document.getElementById('libraryAuthorEditModal');
+  const select = document.getElementById('libraryAuthorSelect');
+  const meta = document.getElementById('libraryAuthorEditMeta');
+  const error = document.getElementById('libraryAuthorEditError');
+  if (!modal || !select) return;
+
+  pendingLibraryAuthorItemId = Number(itemId);
+  select.innerHTML = '<option value="">Загрузка учителей...</option>';
+  select.disabled = true;
+  if (meta) meta.textContent = 'Загрузка материала...';
+  error?.classList.add('hidden');
+  openModal(modal);
+
+  try {
+    const response = await fetch('./api/library/authors.php?item_id=' + encodeURIComponent(itemId), {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const data = await readJsonResponse(response, 'Не удалось загрузить список авторов.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить список авторов.');
+
+    const item = data.item || {};
+    const authors = Array.isArray(data.authors) ? data.authors : [];
+    if (meta) meta.textContent = (item.title || 'Материал') + ' · ' + (item.school_name || '');
+
+    select.innerHTML = authors.length
+      ? authors.map(author => {
+          const name = [author.last_name, author.first_name, author.middle_name].filter(Boolean).join(' ');
+          const role = author.school_role === 'admin' ? ' · администратор/учитель' : '';
+          return '<option value="' + Number(author.id) + '">' + escapeHtml(name || 'Учитель') + escapeHtml(role) + '</option>';
+        }).join('')
+      : '<option value="">В этой школе нет доступных учителей</option>';
+
+    const currentAuthorId = Number(item.author_id || 0);
+    if (currentAuthorId && authors.some(author => Number(author.id) === currentAuthorId)) {
+      select.value = String(currentAuthorId);
+    }
+    select.disabled = authors.length === 0;
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+    select.innerHTML = '<option value="">Не удалось загрузить учителей</option>';
+  }
+}
+
+document.getElementById('libraryAuthorEditForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!libraryCanChangeAuthor || !pendingLibraryAuthorItemId) return;
+
+  const select = document.getElementById('libraryAuthorSelect');
+  const error = document.getElementById('libraryAuthorEditError');
+  const result = document.getElementById('libraryAuthorEditResult');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  const authorId = Number(select?.value || 0);
+
+  error?.classList.add('hidden');
+  result?.classList.add('hidden');
+  if (!authorId) {
+    if (error) {
+      error.textContent = 'Выберите учителя.';
+      error.classList.remove('hidden');
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Сохраняем...';
+  try {
+    const response = await fetch('./api/library/set-author.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        item_id: pendingLibraryAuthorItemId,
+        author_id: authorId
+      })
+    });
+    const data = await readJsonResponse(response, 'Не удалось изменить автора.');
+    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось изменить автора.');
+
+    if (result) {
+      result.textContent = data.message || 'Автор изменён.';
+      result.classList.remove('hidden');
+    }
+    await loadLibrary();
+    closeModal(document.getElementById('libraryAuthorEditModal'));
+    pendingLibraryAuthorItemId = 0;
+  } catch (err) {
+    if (error) {
+      error.textContent = err.message;
+      error.classList.remove('hidden');
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Сохранить автора';
+  }
+});
 
 async function openLibraryAuthor(authorId) {
   if (!authorId || !libraryAuthorModal) return;

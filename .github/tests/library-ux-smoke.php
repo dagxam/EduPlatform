@@ -21,6 +21,8 @@ must_contain('api/library/list.php', [
     'author_materials_count',
     'time_limit_minutes',
     'class_names',
+    "'can_change_author' => is_platform_admin(\$user)",
+    'author_middle_name',
 ]);
 
 must_contain('api/library/import.php', [
@@ -32,6 +34,9 @@ must_contain('api/library/import.php', [
 must_contain('index.html', [
     'id="libraryClassFilter"',
     'id="librarySort"',
+    'id="libraryAuthorEditModal"',
+    'id="libraryAuthorSelect"',
+    'library-filter-panel-compact',
 ]);
 
 must_contain('app.js', [
@@ -40,6 +45,26 @@ must_contain('app.js', [
     'data-library-assign-copy',
     'function libraryClassNames',
     'async function openLibraryCopiedAssignment',
+    'let libraryCanChangeAuthor = false;',
+    'async function openLibraryAuthorEditor',
+    'data-library-change-author',
+    './api/library/authors.php?item_id=',
+    './api/library/set-author.php',
+    'library-card-compact',
+]);
+
+must_contain('api/library/authors.php', [
+    'is_platform_admin($user)',
+    'su.can_teach = 1',
+    'li.source_school_id',
+]);
+
+must_contain('api/library/set-author.php', [
+    'is_platform_admin($user)',
+    'UPDATE library_items',
+    'SET submitted_by = :author_id',
+    "audit_event('library_author_changed'",
+    'su.can_teach = 1',
 ]);
 
 echo "Library UX stage 1 wiring OK\n";
