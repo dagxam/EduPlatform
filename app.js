@@ -2433,11 +2433,14 @@ function renderLibrary() {
 
   grid.innerHTML = items.length ? items.map(item => {
     const ownSchool = Number(item.source_school_id) === Number(libraryActiveSchoolId);
-    const authorParts = [item.author_last_name, item.author_first_name, item.author_middle_name].filter(Boolean);
-    const author = authorParts.join(' ');
-    const authorInitials = authorParts.length
-      ? authorParts.slice(0, 2).map(part => String(part).charAt(0)).join('').toUpperCase()
-      : 'U';
+    const authorSurname = String(item.author_last_name || '').trim();
+    const authorGivenName = [item.author_first_name, item.author_middle_name].filter(Boolean).join(' ').trim();
+    const author = [authorSurname, authorGivenName].filter(Boolean).join(' ');
+    const authorInitials = [authorSurname, item.author_first_name]
+      .filter(Boolean)
+      .map(part => String(part).charAt(0))
+      .join('')
+      .toUpperCase() || 'U';
     const classes = libraryClassNames(item);
     const usage = Number(item.usage_count || 0);
     const likes = Number(item.likes_count || 0);
@@ -2485,8 +2488,11 @@ function renderLibrary() {
           <div class="library-author-main">
             <span class="library-author-avatar-mini" aria-hidden="true">${escapeHtml(authorInitials)}</span>
             <button class="library-author-button" type="button" data-library-author="${Number(item.author_id || 0)}" ${Number(item.author_id || 0) ? '' : 'disabled'}>
-              ${author ? `<b>${escapeHtml(author)}</b>` : '<b>Автор UROVIA</b>'}
-              <span>${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' мат.' : ''}</span>
+              ${author
+                ? `<b class="library-author-surname">${escapeHtml(authorSurname || 'Без фамилии')}</b>
+                   <span class="library-author-given">${escapeHtml(authorGivenName || 'Имя не указано')}</span>`
+                : '<b class="library-author-surname">Автор UROVIA</b>'}
+              <small class="library-author-school">${escapeHtml(item.school_name || '')}${Number(item.author_materials_count || 0) ? ' · ' + Number(item.author_materials_count) + ' мат.' : ''}</small>
             </button>
             ${libraryCanChangeAuthor ? `<button class="library-author-edit-btn" type="button" data-library-change-author="${item.id}" title="Изменить автора материала">✎ Автор</button>` : ''}
           </div>
@@ -2520,7 +2526,14 @@ function renderLibrary() {
     const [cls, label] = libraryStatusLabel(item.status);
     return `
       <div class="library-own-item">
-        <div class="library-own-copy"><b>${escapeHtml(item.title_snapshot)}</b><span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов · ${String(item.sale_mode || 'free') === 'paid' ? (Number(item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно'}</span><small>Автор: ${escapeHtml([item.submitted_last_name, item.submitted_first_name, item.submitted_middle_name].filter(Boolean).join(' ') || 'UROVIA')}</small></div>
+        <div class="library-own-copy">
+          <b>${escapeHtml(item.title_snapshot)}</b>
+          <span>${escapeHtml(item.subject_name || 'Без предмета')} · ${Number(item.questions_count_snapshot || 0)} вопросов · ${String(item.sale_mode || 'free') === 'paid' ? (Number(item.price_minor || 0) / 100).toLocaleString('ru-RU', { maximumFractionDigits:2 }) + ' ₽' : 'Бесплатно'}</span>
+          <small class="library-own-author">
+            <strong>${escapeHtml(String(item.submitted_last_name || '').trim() || 'UROVIA')}</strong>
+            <em>${escapeHtml([item.submitted_first_name, item.submitted_middle_name].filter(Boolean).join(' ') || '')}</em>
+          </small>
+        </div>
         <div class="library-own-actions">
           ${libraryCanChangeAuthor ? `<button class="mini-action" type="button" data-library-change-author="${item.id}">Автор</button>` : ''}
           <span class="status ${cls}">${label}</span>
@@ -2690,9 +2703,13 @@ async function openLibraryAuthorEditor(itemId) {
 
     select.innerHTML = authors.length
       ? authors.map(author => {
-          const name = [author.last_name, author.first_name, author.middle_name].filter(Boolean).join(' ');
+          const surname = String(author.last_name || '').trim();
+          const givenName = [author.first_name, author.middle_name].filter(Boolean).join(' ').trim();
+          const name = surname && givenName
+            ? surname + ' — ' + givenName
+            : (surname || givenName || 'Учитель');
           const role = author.school_role === 'admin' ? ' · администратор/учитель' : '';
-          return '<option value="' + Number(author.id) + '">' + escapeHtml(name || 'Учитель') + escapeHtml(role) + '</option>';
+          return '<option value="' + Number(author.id) + '">' + escapeHtml(name) + escapeHtml(role) + '</option>';
         }).join('')
       : '<option value="">В этой школе нет доступных учителей</option>';
 

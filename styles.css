@@ -11665,3 +11665,70 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
     margin-left:37px;
   }
 }
+
+
+/* UROVIA library author name split v106 */
+.library-card-compact .library-author-button{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:1px;
+  line-height:1.18;
+}
+.library-card-compact .library-author-button .library-author-surname{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#263544;
+  font-size:11.7px;
+  font-weight:950;
+  letter-spacing:.005em;
+}
+.library-card-compact .library-author-button .library-author-given{
+  display:block;
+  overflow:hidden;
+  max-width:185px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#5f7080;
+  font-size:10.4px;
+  font-weight:760;
+}
+.library-card-compact .library-author-button .library-author-school{
+  display:block;
+  overflow:hidden;
+  max-width:185px;
+  margin-top:1px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#929da8;
+  font-size:8.9px;
+  font-weight:650;
+}
+.library-own-author{
+  display:flex !important;
+  align-items:baseline;
+  gap:5px;
+  min-width:0;
+}
+.library-own-author strong{
+  color:#455565;
+  font-size:9.8px;
+  font-style:normal;
+  font-weight:900;
+}
+.library-own-author em{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#7d8995;
+  font-size:9.5px;
+  font-style:normal;
+  font-weight:650;
+}
+@media(max-width:620px){
+  .library-card-compact .library-author-button .library-author-given,
+  .library-card-compact .library-author-button .library-author-school{
+    max-width:230px;
+  }
+}
