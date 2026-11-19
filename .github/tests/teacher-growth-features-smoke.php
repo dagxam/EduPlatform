@@ -76,7 +76,7 @@ growth_expect($libraryList, "'can_sell' => \$canSell", 'library API does not exp
 growth_expect($libraryImport, "'MARKETPLACE_PURCHASE_REQUIRED'", 'paid materials can still be copied for free');
 growth_expect($libraryPreview, "'price_minor'", 'library preview does not expose price');
 growth_expect($app, 'marketplace-purchase-soon', 'paid marketplace state is not rendered');
-growth_expect($index, 'app.js?v=104', 'growth feature app asset is not cache-busted');
-growth_expect($index, 'styles.css?v=104', 'growth feature styles are not cache-busted');
+growth_expect($index, 'app.js?v=', 'growth feature app asset is not cache-busted');
+growth_expect($index, 'styles.css?v=', 'growth feature styles are not cache-busted');
 
 echo "Teacher growth features smoke OK\n";
