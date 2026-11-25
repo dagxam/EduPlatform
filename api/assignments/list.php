@@ -5,13 +5,18 @@ require dirname(__DIR__) . '/bootstrap.php';
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
 $params = ['school_id' => $schoolId];
-$conditions = ['a.school_id = :school_id'];
+$paperMode = ($_GET['mode'] ?? '') === 'paper';
+$conditions = ['a.school_id = :school_id', $paperMode ? "a.type = 'paper'" : "a.type <> 'paper'"];
 
 if (!can_manage_school($user, $schoolId)) {
     if (!can_teach_school($user, $schoolId)) {
         json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
     }
 
+    if ($paperMode) {
+        $conditions[] = 'a.teacher_id = :teacher_id';
+        $params['teacher_id'] = (int)$user['id'];
+    } else {
     $conditions[] = '(
         a.teacher_id = :teacher_id
         OR EXISTS (
@@ -24,6 +29,7 @@ if (!can_manage_school($user, $schoolId)) {
     )';
     $params['teacher_id'] = (int)$user['id'];
     $params['teacher_id_subject'] = (int)$user['id'];
+    }
 }
 
 $where = 'WHERE ' . implode(' AND ', $conditions);

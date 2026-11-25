@@ -61,6 +61,7 @@ if (!$manager && (int)$assignment['teacher_id'] !== (int)$user['id']) {
     }
 }
 
+if ($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked') json_response(['ok'=>false,'error'=>'Бланки уже выпущены. Для изменения создайте новую бумажную копию.'],409);
 $current = (string)($assignment['workflow_status'] ?: 'draft');
 $reviewRequired = (int)$assignment['assignment_review_required'] === 1;
 $next = null;

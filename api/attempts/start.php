@@ -38,6 +38,7 @@ $stmt = $pdo->prepare(
       AND ast.student_id = :student_id_personal
      WHERE ass.id = :assignment_id
        AND ass.status = "published"
+       AND ass.type <> "paper"
        AND (ac.assignment_id IS NOT NULL OR ast.assignment_id IS NOT NULL)
      LIMIT 1'
 );

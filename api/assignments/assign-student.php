@@ -27,7 +27,7 @@ $pdo = app_db();
 $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
-    'SELECT id, subject_id, workflow_status
+    'SELECT id, subject_id, workflow_status, type
      FROM assignments
      WHERE id = :assignment_id AND school_id = :school_id
      LIMIT 1'
@@ -37,6 +37,7 @@ $assignment = $stmt->fetch();
 if (!$assignment) {
     json_response(['ok'=>false,'error'=>'Задание не найдено.'],404);
 }
+if ($assignment['type'] === 'paper') json_response(['ok'=>false,'error'=>'Бумажную работу нельзя назначить онлайн.'],409);
 if (!in_array((string)$assignment['workflow_status'], ['ready','assigned'], true)) {
     json_response(['ok'=>false,'error'=>'Сначала переведите задание в статус «Готово».'],409);
 }

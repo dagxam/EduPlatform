@@ -6043,7 +6043,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-footer">
           <div class="subject-assignment-actions">
             <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
-            <button class="secondary-btn compact-btn" type="button" data-paper-assignment="${Number(item.id)}">Распечатать тест</button>
+            <button class="secondary-btn compact-btn" type="button" data-paper-assignment="${Number(item.id)}">Копировать в PAPER</button>
             ${assignmentEditAction(item, 'subject')}
             <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
             ${libraryAssignmentAction(item)}
@@ -6516,7 +6516,7 @@ function wireAssignmentWorkflowButtons(root) {
   root.querySelectorAll('[data-paper-assignment]').forEach(button => {
     button.addEventListener('click', () => {
       const id = Number(button.dataset.paperAssignment);
-      if (Number.isSafeInteger(id) && id > 0) window.open('./paper.html?assignment_id=' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
+      if (Number.isSafeInteger(id) && id > 0) window.open('./paper-workspace.html?copy_from=' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
     });
   });
   root.querySelectorAll('[data-test-assignment]').forEach(button => {
@@ -6715,7 +6715,7 @@ function renderAssignments() {
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
-            ${assignmentTableIconButton('paper', 'Распечатать бумажный тест', 'data-paper-assignment="' + Number(item.id) + '"')}
+            ${assignmentTableIconButton('paper', 'Копировать в бумажные тесты', 'data-paper-assignment="' + Number(item.id) + '"')}
             ${assignmentEditAction(item)}
             ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
             ${assignmentTableLibraryAction(item)}

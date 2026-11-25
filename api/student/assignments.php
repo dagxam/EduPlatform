@@ -31,7 +31,7 @@ $stmt = $pdo->prepare(
       AND ast.student_id = :student_id_personal
      LEFT JOIN questions q ON q.assignment_id = a.id
      LEFT JOIN attempts at ON at.assignment_id = a.id AND at.student_id = :student_id_attempt
-     WHERE a.status = "published"
+     WHERE a.status = "published" AND a.type <> "paper"
        AND (a.starts_at IS NULL OR a.starts_at <= CURRENT_TIMESTAMP)
        AND (ac.assignment_id IS NOT NULL OR ast.assignment_id IS NOT NULL)
      GROUP BY a.id
