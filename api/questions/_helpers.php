@@ -130,6 +130,17 @@ function question_editor_question(PDO $pdo, array $user, int $questionId, bool $
     return $question;
 }
 
+function question_editor_lock_paper(PDO $pdo,array $assignment,?int $questionId=null): void
+{
+    if(($assignment['type']??'')!=='paper')return;
+    if(!$pdo->inTransaction())throw new LogicException('Paper edit requires transaction');
+    $id=(int)$assignment['id'];
+    if(db_is_mysql($pdo)){$q=$pdo->prepare('SELECT status,workflow_status FROM assignments WHERE id=? FOR UPDATE');$q->execute([$id]);}
+    else{$q=$pdo->prepare('UPDATE assignments SET id=id WHERE id=?');$q->execute([$id]);$q=$pdo->prepare('SELECT status,workflow_status FROM assignments WHERE id=?');$q->execute([$id]);}
+    $row=$q->fetch();if(!$row||$row['status']==='paper_locked'||$row['status']==='closed'||in_array($row['workflow_status'],['assigned','completed'],true))throw new DomainException('Бумажная работа выпущена. Откройте редактирование заново.',409);
+    if($questionId!==null){$q=$pdo->prepare('SELECT is_active FROM questions WHERE id=? AND assignment_id=?'.(db_is_mysql($pdo)?' FOR UPDATE':''));$q->execute([$questionId,$id]);if((int)$q->fetchColumn()!==1)throw new DomainException('Вопрос уже изменён. Обновите конструктор.',409);}
+}
+
 function question_editor_assignment_has_history(PDO $pdo, int $assignmentId): bool
 {
     $stmt = $pdo->prepare(
