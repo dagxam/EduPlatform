@@ -45,8 +45,12 @@ if (!$isManager && !$isOwner) {
     ], 403);
 }
 
-if ($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked') {
+if ($assignment['type'] === 'paper') {
+    $issued=$assignment['status']==='paper_locked';
+    if(!$issued){try{$q=$pdo->prepare('SELECT 1 FROM paper_sheets WHERE assignment_id=? LIMIT 1');$q->execute([$assignmentId]);$issued=(bool)$q->fetchColumn();}catch(PDOException $e){if(!in_array((string)$e->getCode(),['42S02','HY000'],true))throw $e;}}
+    if($issued) {
     json_response(['ok'=>false,'error'=>'Выпущенную бумажную работу нельзя удалить: её бланки могут ещё использоваться.','code'=>'PAPER_HAS_ISSUED_SHEETS'],409);
+    }
 }
 
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
