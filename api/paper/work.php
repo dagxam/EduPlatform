@@ -123,7 +123,7 @@ if(db_is_mysql($pdo)) {
     }
     $q=$pdo->prepare('SELECT 1 FROM attempts WHERE assignment_id=? AND student_id=? LIMIT 1');
     $q->execute([$assignmentId,$studentId]);
-    if($q->fetchColumn()) paper_fail('У ученика уже есть попытка по этой работе. Она не будет изменена.');
+    if($q->fetchColumn()) paper_fail('По этой работе ученик уже получил результат. Повторная оценка не создаётся.');
     if((string)$assignment['status']==='published') {
         $q=$pdo->prepare('SELECT 1 FROM assignment_students WHERE assignment_id=? AND student_id=? UNION ALL SELECT 1 FROM assignment_classes ac JOIN class_students cs ON cs.class_id=ac.class_id WHERE ac.assignment_id=? AND cs.student_id=? LIMIT 1');
         $q->execute([$assignmentId,$studentId,$assignmentId,$studentId]);
