@@ -15,8 +15,15 @@ $pdo = app_db();
 $schoolId = require_active_school($user, false);
 $attempt = result_attempt_for_staff($pdo, $user, $schoolId, $attemptId);
 
-// Refresh automatic correctness using the current authoritative answer keys.
-regrade_attempt_answers($pdo, $attemptId);
+// Paper is already scored against the immutable printed snapshot.
+$isPaper = (string)($attempt['termination_reason'] ?? '') === 'paper';
+$paperQuestions = [];
+if ($isPaper) {
+    $paperStmt = $pdo->prepare('SELECT snapshot FROM paper_sheets WHERE attempt_id = ? LIMIT 1');
+    $paperStmt->execute([$attemptId]);
+    $snapshot = json_decode((string)$paperStmt->fetchColumn(), true);
+    foreach ($snapshot['questions'] ?? [] as $paperQuestion) $paperQuestions[(int)$paperQuestion['id']] = $paperQuestion;
+} else regrade_attempt_answers($pdo, $attemptId);
 
 $questionOrder = array_map('intval', decoded_json_array($attempt['question_order_json'] ?? null));
 $optionOrder = decoded_json_array($attempt['option_order_json'] ?? null);
@@ -85,6 +92,17 @@ foreach ($questionOrder as $questionId) {
     if (!isset($questionsById[$questionId])) continue;
 
     $row = $questionsById[$questionId];
+    $paperQuestion = $paperQuestions[$questionId] ?? null;
+    if ($paperQuestion) {
+        $row['text'] = $paperQuestion['text']; $row['points'] = $paperQuestion['points'];
+        $row['correct_text'] = $paperQuestion['correct_text']; $row['interaction_type'] = $paperQuestion['type'];
+        $settingsSnapshot = [];
+        foreach (['items','left','right'] as $side) if (isset($paperQuestion['structured'][$side])) {
+            $settingsSnapshot[$side] = array_column($paperQuestion['structured'][$side], 'text', 'key');
+        }
+        if (isset($paperQuestion['structured']['original_text'])) $settingsSnapshot['original_text'] = $paperQuestion['structured']['original_text'];
+        $row['settings_json'] = json_encode($settingsSnapshot, JSON_UNESCAPED_UNICODE);
+    }
     $interaction = (string)($row['interaction_type'] ?: $row['type']);
     if ($interaction === 'ordering') $interaction = 'order';
     if ($interaction === 'short_answer' || $interaction === 'image_answer') $interaction = 'text';
@@ -132,7 +150,7 @@ foreach ($questionOrder as $questionId) {
 
     if (in_array($interaction, ['single', 'multiple', 'true_false'], true)) {
         $optionStmt->execute(['question_id' => $questionId]);
-        $dbOptions = $optionStmt->fetchAll();
+        $dbOptions = $paperQuestion ? $paperQuestion['options'] : $optionStmt->fetchAll();
         $byId = [];
         foreach ($dbOptions as $option) {
             $byId[(int)$option['id']] = $option;
@@ -147,7 +165,7 @@ foreach ($questionOrder as $questionId) {
             'kind' => 'choice',
             'option_ids' => array_values($selectedIds),
         ];
-        $correctIds = expected_choice_option_ids($pdo, $questionId, $interaction);
+        $correctIds = $paperQuestion ? $paperQuestion['correct'] : expected_choice_option_ids($pdo, $questionId, $interaction);
         $selectedMap = array_fill_keys($selectedIds, true);
         $correctMap = array_fill_keys($correctIds, true);
 
@@ -280,7 +298,7 @@ foreach ($questionOrder as $questionId) {
         'correct_answer' => $correctAnswer,
         'options' => $options,
         'matching' => $matchingRows,
-        'editor' => $editor,
+        'editor' => $isPaper ? null : $editor,
         'original_text' => $interaction === 'correction'
             ? (string)($settings['original_text'] ?? '')
             : '',
@@ -302,7 +320,7 @@ $displayScore = (float)($published ? $attempt['published_score'] : $automaticSco
 $displayPercent = (float)($published ? $attempt['published_percent'] : $automaticPercent);
 $displayGrade = $published && in_array((string)($attempt['published_grade'] ?? ''), ['2', '3', '4', '5'], true)
     ? (string)$attempt['published_grade']
-    : grade_from_percent($displayPercent);
+    : ($isPaper && in_array((string)($attempt['grade'] ?? ''), ['2','3','4','5'], true) ? (string)$attempt['grade'] : grade_from_percent($displayPercent));
 $displayComment = (string)($published ? ($attempt['published_comment'] ?? '') : '');
 
 json_response([
