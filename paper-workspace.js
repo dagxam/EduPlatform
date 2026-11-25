@@ -39,11 +39,11 @@ if(!isChoice(q)){
 const inputs=q.options.map((_,j)=>{const label=make('label'),input=make('input');input.type='checkbox';input.setAttribute('aria-label','Вопрос '+(i+1)+', ответ '+String.fromCharCode(65+j));input.addEventListener('change',()=>{if(q.type!=='multiple'&&input.checked)for(const other of inputs)if(other!==input)other.checked=false;changed();});label.append(input,make('span',String.fromCharCode(65+j)));row.append(label);return input;});answers.append(row);return {row,inputs};});}
 async function prepareSelected(){
  reset();const version=generation; $('prepare').disabled=true;report('message','Подготовка бланка…');
- try{const d=await request('./api/paper/work.php',payload('prepare'));if(version!==generation)return null;if(d.saved){report('message','Уже проверено: оценка '+d.result.grade+' ('+d.result.percent+'%).');return null;}current=d;$('print').disabled=true;await render(d,version);if(version!==generation)return null;$('review').hidden=false;$('navReview').hidden=false;report('message','Бланк закреплён за учеником.');return d;}
+ try{const d=await request('./api/paper/work.php',payload('prepare'));if(version!==generation)return null;if(d.saved){report('message','Уже проверено: оценка '+d.result.grade+' ('+d.result.percent+'%).');return null;}document.dispatchEvent(new Event('paper:changed'));current=d;$('print').disabled=true;await render(d,version);if(version!==generation)return null;$('review').hidden=false;$('navReview').hidden=false;report('message','Бланк закреплён за учеником.');return d;}
  catch(e){if(version===generation){reset();report('message',e.message,true);}return null;}
  finally{buttons();}
 }
-$('prepare').addEventListener('click',prepareSelected);
+$('prepare').addEventListener('click',async()=>{if(await prepareSelected()){$('review').scrollIntoView({behavior:'smooth',block:'start'});document.dispatchEvent(new CustomEvent('paper:navigate',{detail:'review'}));}});
 $('print').addEventListener('click',()=>{if(current&&!$('print').disabled)window.print();});
 $('batchPrint').addEventListener('click',()=>{if(!$('batchPrint').disabled&&!$('printArea').hidden)window.print();});
 $('batch').addEventListener('click',async()=>{
@@ -72,11 +72,11 @@ $('batch').addEventListener('click',async()=>{
     const area=$('printArea');area.replaceChildren(...packets);area.hidden=packets.length===0;
     $('batchPrint').hidden=packets.length===0;$('batchPrint').disabled=packets.length===0;
     report('message','Готово к печати: '+packets.length+' из '+targets.length+(skipped.length?'\nПропущено:\n'+skipped.join('\n'):''),packets.length===0);
-  }finally{batchBusy=false;buttons();}
+  }finally{batchBusy=false;buttons();document.dispatchEvent(new Event('paper:changed'));}
 });
 function updateSave(){const valid=rows.every(r=>!r.score||(r.score.value===''?!r.manual:r.score.validity.valid));$('save').disabled=!(current&&valid&&$('confirmed').checked&&$('verify').value.trim().toLowerCase()===current.code.slice(-8).toLowerCase());}
 $('confirmed').addEventListener('change',updateSave);$('verify').addEventListener('input',updateSave);
-$('save').addEventListener('click',async()=>{if($('save').disabled)return;const version=generation;$('save').disabled=true;try{const d=await request('./api/paper/work.php',{...payload('submit'),code:current.code,confirmed:true,answers:rows.map(r=>r.input?{text:r.input.value,score:r.score.value===''?null:Number(r.score.value)}:r.inputs.flatMap((x,j)=>x.checked?[j]:[]))});if(version!==generation)return;report('result','Сохранено в журнале: оценка '+d.result.grade+' · '+d.result.percent+'% · '+d.result.score+' / '+d.result.max_score+' балл.');current=null;$('confirmed').checked=false;updateSave();}catch(e){if(version===generation){report('result',e.message,true);updateSave();}}});
+$('save').addEventListener('click',async()=>{if($('save').disabled)return;const version=generation;$('save').disabled=true;try{const d=await request('./api/paper/work.php',{...payload('submit'),code:current.code,confirmed:true,answers:rows.map(r=>r.input?{text:r.input.value,score:r.score.value===''?null:Number(r.score.value)}:r.inputs.flatMap((x,j)=>x.checked?[j]:[]))});if(version!==generation)return;report('result','Сохранено в журнале: оценка '+d.result.grade+' · '+d.result.percent+'% · '+d.result.score+' / '+d.result.max_score+' балл.');current=null;$('confirmed').checked=false;updateSave();document.dispatchEvent(new Event('paper:changed'));}catch(e){if(version===generation){report('result',e.message,true);updateSave();}}});
 const canvas=$('photoCanvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
 async function decodeFile(file,max=1800){
  const url=URL.createObjectURL(file);
@@ -104,6 +104,7 @@ async function openByCode(code){
 }
 function showFrame(frame,points,qrVerified){
  canvas.width=frame.width;canvas.height=frame.height;ctx.putImageData(frame,0,0);image=frame;corners=points||[];canvas.hidden=false;$('confirmed').checked=false;if(qrVerified)$('verify').value=current.code.slice(-8);else $('verify').value='';updateSave();
+ $('review').scrollIntoView({behavior:'smooth',block:'start'});document.dispatchEvent(new CustomEvent('paper:navigate',{detail:'review'}));
  if(corners.length===4){try{scan();return;}catch(e){corners=[];report('scanState',e.message+' Укажите углы вручную.',true);return;}}
  report('scanState','Укажите четыре чёрных квадрата: сначала верхний левый, затем верхний правый, нижний правый, нижний левый.');
 }
@@ -131,6 +132,6 @@ function darkness(x,y,map){let sum=0,count=0;for(let dx=-4;dx<=4;dx+=2)for(let d
 function autoCorners(frame,qr){return typeof PaperScan==='object'?PaperScan.findCorners(frame,qr,homography):null;}
 function scan(){const area=corners.reduce((s,p,i)=>s+p[0]*corners[(i+1)%4][1]-p[1]*corners[(i+1)%4][0],0);if(area<image.width*image.height*.12)throw Error('Выберите четыре угла в указанном порядке; бланк должен занимать большую часть фото.');const map=homography(corners);let uncertain=0;rows.forEach((r,i)=>{if(!r.inputs.length)return;let marked=0,ambiguous=false;const values=r.inputs.map((input,j)=>{const [x,y]=center(i,j);const ink=darkness(x,y,map),bg=darkness(x+22,y,map);return ink-bg;});values.forEach((v,j)=>{r.inputs[j].checked=v>=.36;marked+=Number(r.inputs[j].checked);if(v>=.15&&v<.36)ambiguous=true;});if(current.questions[i].type!=='multiple'&&marked>1)ambiguous=true;r.row.classList.toggle('uncertain',ambiguous);if(ambiguous)uncertain++;});$('confirmed').checked=false;updateSave();report('scanState','Предварительно распознано '+rows.filter(r=>r.inputs.length).length+' тестовых вопросов. Сомнительных строк: '+uncertain+'. Сверьте все отметки с бумагой.');}
 canvas.addEventListener('click',e=>{if(!image||!current)return;if(corners.length===4){corners=[];ctx.putImageData(image,0,0);}const rect=canvas.getBoundingClientRect();corners.push([(e.clientX-rect.left)*canvas.width/rect.width,(e.clientY-rect.top)*canvas.height/rect.height]);const [x,y]=corners[corners.length-1];ctx.fillStyle='#00c86a';ctx.beginPath();ctx.arc(x,y,8,0,2*Math.PI);ctx.fill();if(corners.length<4){report('scanState',['','Нажмите на верхний правый квадрат.','Нажмите на нижний правый квадрат.','Нажмите на нижний левый квадрат.'][corners.length]);return;}try{scan();}catch(error){report('scanState',error.message+' Нажмите на фото, чтобы начать заново.',true);}});
-window.PaperWorkspace={async refresh(id){const a=await request('./api/assignments/list.php?mode=paper');reset();fill(assignment,a.assignments||[],'Выберите бумажное задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));if(id)assignment.value=String(id);buttons();},select(id){reset();assignment.value=String(id);buttons();$('paperPrepare').scrollIntoView({behavior:'smooth'});}};
+window.PaperWorkspace={async refresh(id){const a=await request('./api/assignments/list.php?mode=paper');reset();fill(assignment,a.assignments||[],'Выберите бумажное задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));if(id)assignment.value=String(id);buttons();},select(id){reset();assignment.value=String(id);buttons();$('paperPrepare').scrollIntoView({behavior:'smooth'});document.dispatchEvent(new CustomEvent('paper:navigate',{detail:'paperPrepare'}));}};
 init();
 })();

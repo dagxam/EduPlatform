@@ -5,17 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>UROVIA PAPER — печать задания</title>
-<link rel="stylesheet" href="./paper.css?v=1">
+<meta name="theme-color" content="#1d68f0"><link id="siteFavicon" rel="icon" type="image/png" href="./favicon.png?v=3">
+<script defer src="./paper-branding.js?v=1"></script>
+<link rel="stylesheet" href="./paper.css?v=3">
 <script defer src="./paper.js?v=1"></script>
 </head>
-<body>
+<body class="paper-preview">
 <header class="toolbar">
-<div><a href="./index.html" class="brand">UROVIA <span>PAPER</span></a><p>Печатная версия существующего задания</p></div>
+<div><a href="./paper-workspace.html" class="brand">UROVIA <span>PAPER</span></a><p>Предпросмотр задания без QR-кода</p></div>
 <div class="controls"><label><input type="checkbox" id="points" checked> Показывать баллы</label><button id="print" type="button" disabled>Печать / сохранить PDF</button></div>
 </header>
 <main>
 <p class="notice" id="status" role="status" aria-live="polite">Загрузка задания…</p>
-<p class="notice" id="limit">Печатный режим: ответы пока проверяются вручную. Печать не назначает работу, не создаёт попытку и не меняет журнал.</p>
+<p class="notice" id="limit">Обычная печать без QR-кода: проверка выполняется вручную. Для распознавания ответов подготовьте персональные бланки в UROVIA PAPER.</p>
 <article id="sheet" class="sheet" hidden></article>
 </main>
 </body>
