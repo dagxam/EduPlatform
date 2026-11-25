@@ -69,14 +69,14 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
 function paper_public(array $snapshot): array {
     return array_map(static function(array $q):array {unset($q['correct']);return $q;},$snapshot['questions']);
 }
+try {
+    [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
 // Isolated storage: no migration of existing tables and no change to online endpoints.
 if(db_is_mysql($pdo)) {
     $pdo->exec('CREATE TABLE IF NOT EXISTS paper_sheets (code CHAR(32) NOT NULL PRIMARY KEY, assignment_id BIGINT UNSIGNED NOT NULL, student_id BIGINT UNSIGNED NOT NULL, class_id BIGINT UNSIGNED NOT NULL, school_id BIGINT UNSIGNED NOT NULL, snapshot LONGTEXT NOT NULL, attempt_id BIGINT UNSIGNED NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_paper_assignment_student (assignment_id,student_id), FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE, FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE, FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE, FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 } else {
     $pdo->exec('CREATE TABLE IF NOT EXISTS paper_sheets (code TEXT PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE, student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE, snapshot TEXT NOT NULL, attempt_id INTEGER REFERENCES attempts(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(assignment_id,student_id))');
 }
-try {
-    [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
     $pdo->beginTransaction();
     if(db_is_mysql($pdo)) {
         $lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');$lock->execute([$studentId]);$lock->fetchColumn();
