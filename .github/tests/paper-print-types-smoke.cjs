@@ -4,7 +4,7 @@ const s=fs.readFileSync('paper-workspace.js','utf8'),start=s.indexOf('function b
 assert(start>=0&&end>start,'buildPackage present');
 class Node{constructor(tag){this.tag=tag;this.children=[];this.textContent='';this.className='';this.classList={add:(name)=>{this.className=(this.className+' '+name).trim();}};}append(...items){this.children.push(...items);} }
 const make=(tag,text,klass)=>{const n=new Node(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(klass)n.className=klass;return n;};
-const isChoice=q=>['single','multiple','true_false'].includes(q.type),createForm=()=>new Node('form'),location={href:'https://urovia.test/paper-workspace.html'};
+const isChoice=q=>['single','multiple','true_false'].includes(q.type),createForm=()=>new Node('form'),location={href:'https://urovia.test/paper-workspace.html',origin:'https://urovia.test'};
 const build=new Function('make','isChoice','createForm','location','URL',s.slice(start,end)+'\nreturn buildPackage;')(make,isChoice,createForm,location,URL);
 const qs=[
  {type:'single',text:'Один ответ',points:1,assets:[{url:'./api/questions/asset.php?id=42',original_name:'Рисунок'}],options:[{text:'A'},{text:'B'}]},
