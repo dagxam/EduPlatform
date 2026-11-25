@@ -38,6 +38,7 @@ function paper_validate_question(array $q, int $number): void
             if ($key === '' || trim((string)($item['text'] ?? '')) === '' || in_array($key,$keys,true)) $fail('элементы последовательности некорректны.');
             $keys[] = $key;
         }
+        if ($correctText === '') return; // manual scoring is allowed when no key is supplied
         $expected = json_decode($correctText,true);
         if (!is_array($expected) || !array_is_list($expected) || count($expected)!==count($keys)) $fail('ключ последовательности отсутствует или некорректен.');
         $expected = array_map('strval',$expected);
@@ -51,6 +52,7 @@ function paper_validate_question(array $q, int $number): void
         $leftKeys=[];$rightKeys=[];
         foreach($left as $item){$key=trim((string)($item['key']??''));if($key===''||trim((string)($item['text']??''))===''||in_array($key,$leftKeys,true))$fail('левая часть соответствий некорректна.');$leftKeys[]=$key;}
         foreach($right as $item){$key=trim((string)($item['key']??''));if($key===''||trim((string)($item['text']??''))===''||in_array($key,$rightKeys,true))$fail('правая часть соответствий некорректна.');$rightKeys[]=$key;}
+        if($correctText === '') return; // manual scoring is allowed when no key is supplied
         $expected=json_decode($correctText,true);
         if(!is_array($expected)||count($expected)!==count($leftKeys))$fail('ключ соответствий отсутствует или некорректен.');
         $keys=array_map('strval',array_keys($expected));$values=array_map('strval',array_values($expected));
