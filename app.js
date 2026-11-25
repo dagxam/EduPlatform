@@ -3947,6 +3947,7 @@ function attemptReviewAnswerList(values, emptyText = 'Нет ответа') {
 }
 
 function renderAttemptAnswerEditor(question) {
+  if (question?.editor === null) return '';
   const editor = question?.editor || {};
   const kind = String(editor.kind || 'text');
   const questionId = Number(question?.id || 0);
