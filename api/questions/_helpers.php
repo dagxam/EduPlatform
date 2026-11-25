@@ -84,7 +84,7 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
         $targetsCount === 0
         && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
         && (string)$assignment['status'] !== 'closed'
-        && !($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked');
+        && !(($assignment['type'] ?? '') === 'paper' && $assignment['status'] === 'paper_locked');
 
     if ($requireEditable && !$assignment['editable']) {
         $assigned = $targetsCount > 0;

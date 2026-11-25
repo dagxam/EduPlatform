@@ -53,11 +53,13 @@ jobs:
           node --check paper.js
           node --check paper-workspace.js
           node --check paper-scan.js
+          node --check paper-cabinet.js
 
       - name: Validate UROVIA PAPER grading and QR
         run: |
           php .github/tests/paper-grading-smoke.php
           node .github/tests/paper-qr-smoke.cjs
+          php .github/tests/paper-cabinet-smoke.php
 
       - name: Validate tablet layout and PWA installation
         run: node .github/tests/pwa-tablet-smoke.mjs

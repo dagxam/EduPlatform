@@ -13,6 +13,10 @@ if (!can_manage_school($user, $schoolId)) {
         json_response(['ok' => false, 'error' => 'Недостаточно прав.'], 403);
     }
 
+    if ($paperMode) {
+        $conditions[] = 'a.teacher_id = :teacher_id';
+        $params['teacher_id'] = (int)$user['id'];
+    } else {
     $conditions[] = '(
         a.teacher_id = :teacher_id
         OR EXISTS (
@@ -25,6 +29,7 @@ if (!can_manage_school($user, $schoolId)) {
     )';
     $params['teacher_id'] = (int)$user['id'];
     $params['teacher_id_subject'] = (int)$user['id'];
+    }
 }
 
 $where = 'WHERE ' . implode(' AND ', $conditions);

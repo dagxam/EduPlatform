@@ -85,7 +85,7 @@ $editable =
     $targetsCount === 0
     && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
     && (string)$assignment['status'] !== 'closed'
-    && !($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked');
+    && !(($assignment['type'] ?? '') === 'paper' && $assignment['status'] === 'paper_locked');
 
 $stmt = $pdo->prepare(
     'SELECT q.id, q.type, q.interaction_type, q.text, q.points, q.position,

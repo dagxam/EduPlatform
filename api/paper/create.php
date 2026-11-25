@@ -26,7 +26,7 @@ $shuffleStructured = 0;
 if ($title === '' || $subjectId < 1) {
     json_response(['ok' => false, 'error' => 'Укажите название и предмет.'], 422);
 }
-if (mb_strlen($title) > 180) json_response(['ok'=>false,'error'=>'Название слишком длинное.'],422);
+if ((function_exists('mb_strlen') ? mb_strlen($title) : strlen($title)) > 180) json_response(['ok'=>false,'error'=>'Название слишком длинное.'],422);
 
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
