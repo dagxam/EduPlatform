@@ -128,7 +128,9 @@ $pdo->beginTransaction();
 try {
     $revision = $isRevision ? paper_version_next($pdo,$sourceId,$schoolId) : null;
     if ($revision) {
-        $title = preg_replace('/ — версия \d+$/u','',(string)$source['title']) . ' — версия '.$revision['revision_no'];
+        $baseTitle = preg_replace('/ — версия \d+$/u','',(string)$source['title']);
+        $suffix = ' — версия '.$revision['revision_no'];
+        $title = (function_exists('mb_substr') ? mb_substr($baseTitle,0,470) : preg_replace('/^(.{0,470}).*$/us','$1',$baseTitle)) . $suffix;
         $timeLimit = $source['time_limit_minutes'];
     }
     $stmt = $pdo->prepare(
