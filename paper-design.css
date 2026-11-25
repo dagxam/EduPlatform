@@ -73,3 +73,5 @@ html{--paper-brand:#1d68f0;--paper-blue:#1d68f0;--paper-hover:#1559d5;--paper-ti
 @media(max-width:420px){.paper-review-metrics>div{padding:9px}.paper-review-metrics strong{font-size:21px}.paper-review-source,.paper-review-answers{padding:10px}.paper-review-head .controls{width:100%}}
 }
 @media print{#paperPreview{display:block!important}#printArea[hidden]{display:none!important}}
+
+@media screen{.paper-app .paper-review-card .paper-review-options label{padding:9px 10px}.paper-app .paper-review-card.written-row>label{display:grid;gap:4px}.paper-app .paper-review-card .paper-review-option-text{font-weight:500}.paper-app .paper-review-footer .confirm input{flex:none;align-self:flex-start;margin-top:3px}.paper-app .paper-review-source .paper-review-subhead button{font-size:12px}.paper-unified[data-paper-view="review"] .paper-layout{padding-bottom:25px}}
