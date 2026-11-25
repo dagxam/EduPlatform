@@ -16,7 +16,7 @@ $action = (string)($data['action'] ?? '');
 $assignmentId = (int)($data['assignment_id'] ?? 0);
 $classId = (int)($data['class_id'] ?? 0);
 $studentId = (int)($data['student_id'] ?? 0);
-if (!in_array($action,['prepare','submit'],true) || min($assignmentId,$classId,$studentId)<1) {
+if (!in_array($action,['prepare','preview','submit'],true) || min($assignmentId,$classId,$studentId)<1) {
     json_response(['ok'=>false,'error'=>'Выберите задание, класс и ученика.'],422);
 }
 function paper_fail(string $message, int $status=409): never {
@@ -170,16 +170,18 @@ if(db_is_mysql($pdo)) {
     }
     if(!$sheet || !hash_equals((string)$sheet['code'],(string)($data['code']??''))) paper_fail('Код бланка не совпадает.');
     $answers=$data['answers']??null;
-    if(!is_array($answers) || count($answers)!==count($snapshot['questions']) || ($data['confirmed']??false)!==true) paper_fail('Подтвердите все распознанные ответы.',422);
-    $score=0.0;$max=0.0;$graded=[];
+    if(!is_array($answers) || count($answers)!==count($snapshot['questions']) || ($action==='submit' && ($data['confirmed']??false)!==true)) paper_fail('Подтвердите все распознанные ответы.',422);
+    $score=0.0;$max=0.0;$graded=[];$details=[];$pending=0;
     foreach($snapshot['questions'] as $i=>$question) {
         if(!array_key_exists($i,$answers) || !is_array($answers[$i])) paper_fail('Некорректный формат ответа.',422);
-        $g=paper_grade_answer($question,$answers[$i]);
+        try{$g=paper_grade_answer($question,$answers[$i]);}catch(DomainException $e){if($action!=='preview')throw $e;$pending++;$max+=(float)$question['points'];$details[]=['status'=>'pending','message'=>$e->getMessage(),'score'=>null,'max'=>(float)$question['points']];continue;}
+        if($action==='preview'){$choice=in_array($question['type'],['single','multiple','true_false'],true);$expected=[];if($choice)foreach($question['options'] as $j=>$o)if(in_array((int)$o['id'],array_map('intval',$question['correct']),true))$expected[]=$j;$details[]=['status'=>$g['is_correct']?'correct':($g['score']>0?'partial':(($choice?$answers[$i]===[]:trim((string)($answers[$i]['text']??''))==='')?'blank':'incorrect')),'score'=>$g['score'],'max'=>(float)$question['points'],'expected'=>$expected];}
         $score+=$g['score'];$max+=$question['points'];
         $graded[]=[$question['id'],$g['answer_text'],$g['score'],$g['is_correct']];
     }
     if($max<=0) paper_fail('Максимальный балл работы должен быть больше нуля.',422);
     $percent=round($score/$max*100,2);$grade=grade_from_percent_for_assignment($pdo,$assignmentId,$percent);
+    if($action==='preview'){$pdo->rollBack();json_response(['ok'=>true,'preview'=>true,'details'=>$details,'pending'=>$pending,'score'=>$score,'max_score'=>$max,'percent'=>$pending?null:$percent,'grade'=>$pending?null:$grade]);}
     $v=$snapshot['variant'];
     $q=$pdo->prepare('INSERT INTO attempts (assignment_id,student_id,started_at,submitted_at,last_seen_at,score,max_score,percent,grade,status,termination_reason,variant_index,variant_label,question_order_json,option_order_json,structured_order_json) VALUES (?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?,?,?,?,?,?,?,?,?,?,?)');
     $q->execute([$assignmentId,$studentId,$score,$max,$percent,$grade,'submitted','paper',(int)$v['variant_index'],(string)$v['variant_label'],$v['question_order_json'],$v['option_order_json'],$v['structured_order_json']]);
