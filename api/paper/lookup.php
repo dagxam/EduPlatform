@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
+require __DIR__ . '/sheets.php';
 $user=require_user(['admin','teacher']);
 $schoolId=require_active_school($user,false);
 if($_SERVER['REQUEST_METHOD']!=='POST') json_response(['ok'=>false,'error'=>'Метод не поддерживается.'],405);
@@ -8,7 +9,8 @@ $data=read_json_body(4096);$code=strtolower(trim((string)($data['code']??'')));
 if(!preg_match('/^[a-f0-9]{32}$/D',$code)) json_response(['ok'=>false,'error'=>'Некорректный код UROVIA PAPER.'],422);
 $pdo=app_db();
 try {
-    $q=$pdo->prepare('SELECT p.assignment_id,p.class_id,p.student_id,a.teacher_id,a.subject_id,a.title FROM paper_sheets p JOIN assignments a ON a.id=p.assignment_id AND a.school_id=p.school_id JOIN classes c ON c.id=p.class_id AND c.school_id=p.school_id JOIN class_students cs ON cs.class_id=c.id AND cs.student_id=p.student_id JOIN users u ON u.id=p.student_id AND u.is_active=1 WHERE p.code=? AND p.school_id=?');
+    paper_archive_schema($pdo);
+    $q=$pdo->prepare('SELECT p.assignment_id,p.class_id,p.student_id,a.teacher_id,a.subject_id,a.title FROM '.paper_all_sheets_sql().' p JOIN assignments a ON a.id=p.assignment_id AND a.school_id=p.school_id JOIN classes c ON c.id=p.class_id AND c.school_id=p.school_id JOIN class_students cs ON cs.class_id=c.id AND cs.student_id=p.student_id JOIN users u ON u.id=p.student_id AND u.is_active=1 WHERE p.code=? AND p.school_id=?');
     $q->execute([$code,$schoolId]);$row=$q->fetch();
     if(!$row) json_response(['ok'=>false,'error'=>'Бланк не найден в выбранной школе.'],404);
     if(!can_manage_school($user,$schoolId)) {

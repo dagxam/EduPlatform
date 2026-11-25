@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
+require __DIR__ . '/sheets.php';
 $user=require_user(['admin','teacher']);
 $schoolId=require_active_school($user,false);
 $enabled=getenv('UROVIA_PAPER_OCR_ENABLED')==='1' && ai_is_configured() && extension_loaded('curl');
@@ -12,7 +13,8 @@ $code=strtolower(trim((string)($data['code']??'')));$questionId=(int)($data['que
 if(($data['consent']??false)!==true||!preg_match('/^[a-f0-9]{32}$/D',$code)||$questionId<1) json_response(['ok'=>false,'error'=>'Подтвердите разрешение на передачу обезличенного фрагмента.'],422);
 $pdo=app_db();
 try{
-    $q=$pdo->prepare('SELECT p.snapshot,p.assignment_id,p.class_id,a.teacher_id,a.subject_id FROM paper_sheets p JOIN assignments a ON a.id=p.assignment_id AND a.school_id=p.school_id JOIN classes c ON c.id=p.class_id AND c.school_id=p.school_id JOIN class_students cs ON cs.class_id=c.id AND cs.student_id=p.student_id JOIN users u ON u.id=p.student_id AND u.is_active=1 WHERE p.code=? AND p.school_id=? AND p.attempt_id IS NULL');
+    paper_archive_schema($pdo);
+    $q=$pdo->prepare('SELECT p.snapshot,p.assignment_id,p.class_id,a.teacher_id,a.subject_id FROM '.paper_all_sheets_sql().' p JOIN assignments a ON a.id=p.assignment_id AND a.school_id=p.school_id JOIN classes c ON c.id=p.class_id AND c.school_id=p.school_id JOIN class_students cs ON cs.class_id=c.id AND cs.student_id=p.student_id JOIN users u ON u.id=p.student_id AND u.is_active=1 WHERE p.code=? AND p.school_id=? AND p.attempt_id IS NULL');
     $q->execute([$code,$schoolId]);$row=$q->fetch();
     if(!$row) json_response(['ok'=>false,'error'=>'Бланк недоступен или уже проверен.'],404);
     if(!can_manage_school($user,$schoolId)){

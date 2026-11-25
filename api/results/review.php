@@ -4,6 +4,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/_helpers.php';
+require dirname(__DIR__).'/paper/sheets.php';
 
 $user = require_user(['admin', 'teacher']);
 $attemptId = (int)($_GET['attempt_id'] ?? 0);
@@ -19,7 +20,8 @@ $attempt = result_attempt_for_staff($pdo, $user, $schoolId, $attemptId);
 $isPaper = (string)($attempt['termination_reason'] ?? '') === 'paper';
 $paperQuestions = [];
 if ($isPaper) {
-    $paperStmt = $pdo->prepare('SELECT snapshot FROM paper_sheets WHERE attempt_id = ? LIMIT 1');
+    paper_archive_schema($pdo);
+    $paperStmt = $pdo->prepare('SELECT snapshot FROM '.paper_all_sheets_sql().' p WHERE attempt_id = ? LIMIT 1');
     $paperStmt->execute([$attemptId]);
     $snapshot = json_decode((string)$paperStmt->fetchColumn(), true);
     foreach ($snapshot['questions'] ?? [] as $paperQuestion) $paperQuestions[(int)$paperQuestion['id']] = $paperQuestion;
