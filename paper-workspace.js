@@ -1,13 +1,13 @@
 'use strict';
 (() => {
 const $=id=>document.getElementById(id), assignment=$('assignment'), cls=$('class'), student=$('student');
-let current=null, rows=[], generation=0, image=null, corners=[];
+let current=null, rows=[], generation=0, image=null, corners=[], batchBusy=false;
 const make=(tag,text,klass)=>{const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(klass)e.className=klass;return e;};
 function report(id,text,error=false){const e=$(id);e.textContent=text;e.classList.toggle('error',error);}
 async function request(path,body){const options={credentials:'same-origin',cache:'no-store'};if(body){options.method='POST';options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body);}const r=await fetch(path,options),d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Ошибка запроса.');return d;}
 function fill(select,items,placeholder,label){select.replaceChildren(new Option(placeholder,''));for(const item of items)select.add(new Option(label(item),String(item.id)));}
-function reset(){generation++;current=null;rows=[];image=null;corners=[];$('review').hidden=true;$('photoCanvas').hidden=true;$('photo').value='';$('verify').value='';$('confirmed').checked=false;$('printArea').replaceChildren();$('printArea').hidden=true;$('save').disabled=true;report('result','');report('scanState','');}
-function buttons(){ $('plain').disabled=!assignment.value;$('prepare').disabled=!(assignment.value&&cls.value&&student.value); }
+function reset(){generation++;current=null;rows=[];image=null;corners=[];$('review').hidden=true;$('photoCanvas').hidden=true;$('photo').value='';$('verify').value='';$('confirmed').checked=false;$('printArea').replaceChildren();$('printArea').hidden=true;$('save').disabled=true;$('batchPrint').disabled=true;$('batchPrint').hidden=true;report('result','');report('scanState','');}
+function buttons(){ $('plain').disabled=!assignment.value;$('prepare').disabled=batchBusy||!(assignment.value&&cls.value&&student.value);$('batch').disabled=batchBusy||!(assignment.value&&cls.value&&Array.from(student.options).some(o=>o.value)); }
 function payload(action){return {action,assignment_id:Number(assignment.value),class_id:Number(cls.value),student_id:Number(student.value)};}
 async function init(){try{const [a,c]=await Promise.all([request('./api/assignments/list.php'),request('./api/classes/list.php')]);fill(assignment,a.assignments||a.items||[],'Выберите задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));fill(cls,c.classes||c.items||[],'Выберите класс',x=>x.name);const id=new URLSearchParams(location.search).get('assignment_id');if(id)assignment.value=id;buttons();}catch(e){report('message',e.message,true);}}
 assignment.addEventListener('change',()=>{reset();buttons();});
@@ -23,11 +23,41 @@ text(70,45,'UROVIA PAPER · БЛАНК ОТВЕТОВ',22);text(70,76,'Учен�
 for(let j=0;j<4;j++)text(center(0,j)[0]-6,165,String.fromCharCode(65+j),17);
 d.questions.forEach((q,i)=>{text(90,center(i,0)[1]+5,String(i+1).padStart(2,'0'),15);text(135,center(i,0)[1]+5,q.type==='multiple'?'Неск.':'Один',12);q.options.forEach((_,j)=>{const [x,y]=center(i,j);add('circle',{cx:x,cy:y,r:7.5,fill:'#fff',stroke:'#000','stroke-width':1.4});});});
 text(70,954,'urovia.ru · Сохраните бланк до подтверждения оценки.',14);page.append(svg);return page;}
-async function render(d,version){const name=[d.student.last_name,d.student.first_name,d.student.middle_name].filter(Boolean).join(' ');$('identity').textContent=name+' · '+d.student.class_name+' · Вариант '+d.variant_label+' · код '+d.code.slice(-8).toUpperCase();const area=$('printArea'),sheet=make('article',null,'sheet');sheet.append(make('div','UROVIA PAPER · Вариант '+d.variant_label,'stamp'),make('h1',d.assignment.title),make('p',name+' · '+d.student.class_name),make('p','Код бланка: '+d.code,'paper-code'),make('p','Отметьте ответы только на отдельном бланке.'));
-d.questions.forEach((q,i)=>{const section=make('section',null,'question');section.append(make('h2',(i+1)+'. '+q.text+' ('+q.points+' балл.)'));for(const a of q.assets||[]){const url=new URL(a.url,location.href);if(url.origin!==location.origin||!url.pathname.endsWith('/api/questions/asset.php'))throw Error('Неверный адрес изображения.');const img=make('img',null,'asset');img.src=url.href;img.alt=a.original_name||'Изображение';section.append(img);}const ul=make('ul',null,'options');q.options.forEach((o,j)=>ul.append(make('li',String.fromCharCode(65+j)+'. '+o.text)));section.append(ul);sheet.append(section);});area.replaceChildren(sheet,createForm(d));area.hidden=false;await Promise.all(Array.from(sheet.querySelectorAll('img'),img=>img.decode()));if(version!==generation)return;$('print').disabled=false;
+function buildPackage(d){const name=[d.student.last_name,d.student.first_name,d.student.middle_name].filter(Boolean).join(' ');const packet=make('div',null,'paper-packet'),sheet=make('article',null,'sheet');sheet.append(make('div','UROVIA PAPER · Вариант '+d.variant_label,'stamp'),make('h1',d.assignment.title),make('p',name+' · '+d.student.class_name),make('p','Код бланка: '+d.code,'paper-code'),make('p','Отметьте ответы только на отдельном бланке.'));
+d.questions.forEach((q,i)=>{const section=make('section',null,'question');section.append(make('h2',(i+1)+'. '+q.text+' ('+q.points+' балл.)'));for(const a of q.assets||[]){const url=new URL(a.url,location.href);if(url.origin!==location.origin||!url.pathname.endsWith('/api/questions/asset.php'))throw Error('Неверный адрес изображения.');const img=make('img',null,'asset');img.src=url.href;img.alt=a.original_name||'Изображение';section.append(img);}const ul=make('ul',null,'options');q.options.forEach((o,j)=>ul.append(make('li',String.fromCharCode(65+j)+'. '+o.text)));section.append(ul);sheet.append(section);});packet.append(sheet,createForm(d));return packet;}
+async function render(d,version){const name=[d.student.last_name,d.student.first_name,d.student.middle_name].filter(Boolean).join(' ');$('identity').textContent=name+' · '+d.student.class_name+' · Вариант '+d.variant_label+' · код '+d.code.slice(-8).toUpperCase();const area=$('printArea'),packet=buildPackage(d);area.replaceChildren(packet);area.hidden=false;await Promise.all(Array.from(packet.querySelectorAll('img'),img=>img.decode()));if(version!==generation)return;$('print').disabled=false;
 const answers=$('answers');answers.replaceChildren();rows=d.questions.map((q,i)=>{const row=make('div',null,'answer-row');row.append(make('strong',(i+1)+'.'));const inputs=q.options.map((_,j)=>{const label=make('label'),input=make('input');input.type='checkbox';input.setAttribute('aria-label','Вопрос '+(i+1)+', ответ '+String.fromCharCode(65+j));input.addEventListener('change',()=>{if(q.type!=='multiple'&&input.checked)for(const other of inputs)if(other!==input)other.checked=false;row.classList.remove('uncertain');$('confirmed').checked=false;updateSave();});label.append(input,make('span',String.fromCharCode(65+j)));row.append(label);return input;});answers.append(row);return {row,inputs};});}
 $('prepare').addEventListener('click',async()=>{reset();const version=generation; $('prepare').disabled=true;report('message','Подготовка бланка…');try{const d=await request('./api/paper/work.php',payload('prepare'));if(version!==generation)return;if(d.saved){report('message','Уже проверено: оценка '+d.result.grade+' ('+d.result.percent+'%).');return;}current=d;$('print').disabled=true;await render(d,version);if(version!==generation)return;$('review').hidden=false;report('message','Бланк закреплён за учеником.');}catch(e){if(version===generation){reset();report('message',e.message,true);}}finally{buttons();}});
 $('print').addEventListener('click',()=>{if(current&&!$('print').disabled)window.print();});
+$('batchPrint').addEventListener('click',()=>{if(!$('batchPrint').disabled&&!$('printArea').hidden)window.print();});
+$('batch').addEventListener('click',async()=>{
+  if(batchBusy)return;
+  const targets=Array.from(student.options).filter(o=>o.value).map(o=>({id:Number(o.value),name:o.textContent}));
+  if(!targets.length)return;
+  if(targets.length>100){report('message','Для комплекта более 100 учеников используйте индивидуальную печать.',true);return;}
+  reset();const version=generation;batchBusy=true;buttons();
+  const body={action:'prepare',assignment_id:Number(assignment.value),class_id:Number(cls.value)};
+  const packets=[],skipped=[];
+  try{
+    for(const target of targets){
+      if(version!==generation)return;
+      report('message','Подготовка класса: '+(packets.length+skipped.length)+' / '+targets.length+'…');
+      try{
+        const d=await request('./api/paper/work.php',{...body,student_id:target.id});
+        if(version!==generation)return;
+        if(d.saved){skipped.push(target.name+': уже проверено');continue;}
+        const packet=buildPackage(d);
+        await Promise.all(Array.from(packet.querySelectorAll('img'),img=>img.decode()));
+        if(version!==generation)return;
+        packets.push(packet);
+      }catch(e){if(version!==generation)return;skipped.push(target.name+': '+e.message);}
+    }
+    if(version!==generation)return;
+    const area=$('printArea');area.replaceChildren(...packets);area.hidden=packets.length===0;
+    $('batchPrint').hidden=packets.length===0;$('batchPrint').disabled=packets.length===0;
+    report('message','Готово к печати: '+packets.length+' из '+targets.length+(skipped.length?'\nПропущено:\n'+skipped.join('\n'):''),packets.length===0);
+  }finally{batchBusy=false;buttons();}
+});
 function updateSave(){ $('save').disabled=!(current&&$('confirmed').checked&&$('verify').value.trim().toLowerCase()===current.code.slice(-8).toLowerCase()); }
 $('confirmed').addEventListener('change',updateSave);$('verify').addEventListener('input',updateSave);
 $('save').addEventListener('click',async()=>{if($('save').disabled)return;const version=generation;$('save').disabled=true;try{const d=await request('./api/paper/work.php',{...payload('submit'),code:current.code,confirmed:true,answers:rows.map(r=>r.inputs.flatMap((x,j)=>x.checked?[j]:[]))});if(version!==generation)return;report('result','Сохранено в журнале: оценка '+d.result.grade+' · '+d.result.percent+'% · '+d.result.score+' / '+d.result.max_score+' балл.');current=null;$('confirmed').checked=false;updateSave();}catch(e){if(version===generation){report('result',e.message,true);updateSave();}}});
