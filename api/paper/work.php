@@ -4,6 +4,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/grading.php';
 require __DIR__ . '/validation.php';
+require __DIR__ . '/choice-policy.php';
 require __DIR__ . '/sheets.php';
 require __DIR__ . '/catalog-archive.php';
 
@@ -45,7 +46,8 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
     $variant=build_attempt_variant($pdo,$assignmentId,$studentId);
     $q=$pdo->prepare('SELECT id,type,interaction_type,text,points,correct_text,settings_json FROM questions WHERE assignment_id=? AND is_active=1 ORDER BY position,id');
     $q->execute([$assignmentId]); $byId=[];
-    foreach($q->fetchAll() as $row) $byId[(int)$row['id']]=$row;
+    $activeRows=$q->fetchAll();paper_require_choice_questions($activeRows);
+    foreach($activeRows as $row) $byId[(int)$row['id']]=$row;
     if (!$byId || count($byId)>36) paper_fail('Персональный бланк поддерживает от 1 до 36 вопросов. Для длинных заданий используйте обычную печать.',422);
     $options=$pdo->prepare('SELECT id,text,is_correct FROM question_options WHERE question_id=? ORDER BY position,id');
     $assets=$pdo->prepare('SELECT id,original_name,mime_type FROM question_assets WHERE question_id=? ORDER BY position,id');

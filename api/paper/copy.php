@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require __DIR__ . '/versions.php';
+require __DIR__ . '/choice-policy.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -212,7 +213,9 @@ try {
          ORDER BY position, id'
     );
     $stmt->execute(['assignment_id' => $sourceId]);
-    $questions = $stmt->fetchAll();
+    $partition=paper_choice_partition($stmt->fetchAll());
+    $questions=$partition['questions'];$skipped=$partition['skipped'];
+    if(!$questions)throw new DomainException('В исходной работе нет вопросов с выбором ответа. Создайте бумажный тест вручную.',422);
 
     $insertQuestion = $pdo->prepare(
         'INSERT INTO questions
@@ -283,6 +286,7 @@ try {
         }
     }
 
+    $pdo->prepare('UPDATE assignment_imports SET parsed_question_count=? WHERE assignment_id=?')->execute([count($questions),$newAssignmentId]);
     if ($revision) paper_version_record($pdo,$newAssignmentId,$revision);
     $pdo->commit();
 } catch (Throwable $e) {
@@ -290,6 +294,7 @@ try {
     foreach ($copiedFiles as $path) {
         @unlink($path);
     }
+    if($e instanceof DomainException)json_response(['ok'=>false,'error'=>$e->getMessage()],422);
     throw $e;
 }
 
@@ -301,6 +306,7 @@ audit_event($isRevision ? 'paper_revision_created' : 'paper_assignment_copied', 
 
 json_response([
     'ok' => true,
+    'skipped_questions' => $skipped,
     'assignment' => [
         'id' => $newAssignmentId,
         'title' => $title,
