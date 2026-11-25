@@ -14,7 +14,7 @@ if ($questionId < 1 || empty($_FILES['file'])) {
 $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
 $assignment = question_editor_assignment($pdo, $user, (int)$question['assignment_id'], true);
-$hasHistory = (int)($assignment['attempts_count'] ?? 0) > 0;
+$hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;
 $effectiveQuestionId = $questionId;
 $file = $_FILES['file'];
 if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -40,10 +40,11 @@ if (!isset($extensions[$mime])) {
 if ($hasHistory) {
     $pdo->beginTransaction();
     try {
+        question_editor_lock_paper($pdo,$assignment,$questionId);
         $effectiveQuestionId = question_editor_fork_revision($pdo, $questionId);
         $pdo->prepare('UPDATE assignments SET updated_at = CURRENT_TIMESTAMP WHERE id = :id')
             ->execute(['id' => (int)$question['assignment_id']]);
-        $pdo->commit();
+        if(($assignment['type']??'')!=='paper')$pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
@@ -78,7 +79,9 @@ try {
         'position' => $position,
     ]);
     $assetId = (int)$pdo->lastInsertId();
+    if($pdo->inTransaction())$pdo->commit();
 } catch (Throwable $e) {
+    if($pdo->inTransaction())$pdo->rollBack();
     @unlink($destination);
     throw $e;
 }
