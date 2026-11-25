@@ -63,3 +63,13 @@ function paper_grade_answer(array $question,array $answer): array
     } else $score=$correct?$max:0.0;
     return ['answer_text'=>$stored,'score'=>$score,'is_correct'=>(int)$correct];
 }
+
+// Staff-only preview uses the same graded result as final submission.
+function paper_preview_detail(array $question,array $answer,array $graded): array {
+    $choice=in_array($question['type'],['single','multiple','true_false'],true);
+    $expected=[];
+    if($choice)foreach($question['options'] as $j=>$o)if(in_array((int)$o['id'],array_map('intval',$question['correct']),true))$expected[]=$j;
+    $blank=$choice ? $answer===[] : trim((string)($answer['text']??''))==='';
+    $status=$graded['is_correct']?'correct':($graded['score']>0?'partial':($blank?'blank':'incorrect'));
+    return ['status'=>$status,'score'=>$graded['score'],'max'=>(float)$question['points'],'expected'=>$expected];
+}

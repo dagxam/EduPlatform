@@ -175,7 +175,7 @@ if(db_is_mysql($pdo)) {
     foreach($snapshot['questions'] as $i=>$question) {
         if(!array_key_exists($i,$answers) || !is_array($answers[$i])) paper_fail('Некорректный формат ответа.',422);
         try{$g=paper_grade_answer($question,$answers[$i]);}catch(DomainException $e){if($action!=='preview')throw $e;$pending++;$max+=(float)$question['points'];$details[]=['status'=>'pending','message'=>$e->getMessage(),'score'=>null,'max'=>(float)$question['points']];continue;}
-        if($action==='preview'){$choice=in_array($question['type'],['single','multiple','true_false'],true);$expected=[];if($choice)foreach($question['options'] as $j=>$o)if(in_array((int)$o['id'],array_map('intval',$question['correct']),true))$expected[]=$j;$details[]=['status'=>$g['is_correct']?'correct':($g['score']>0?'partial':(($choice?$answers[$i]===[]:trim((string)($answers[$i]['text']??''))==='')?'blank':'incorrect')),'score'=>$g['score'],'max'=>(float)$question['points'],'expected'=>$expected];}
+        if($action==='preview')$details[]=paper_preview_detail($question,$answers[$i],$g);
         $score+=$g['score'];$max+=$question['points'];
         $graded[]=[$question['id'],$g['answer_text'],$g['score'],$g['is_correct']];
     }
