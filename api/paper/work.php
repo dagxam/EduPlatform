@@ -80,7 +80,7 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
     return ['variant'=>$variant,'questions'=>$questions];
 }
 function paper_public(array $snapshot): array {
-    return array_map(static function(array $q):array {unset($q['correct'],$q['correct_text']);return $q;},$snapshot['questions']);
+    return array_map(static function(array $q):array {$q['manual_required']=!in_array($q['type'],['single','multiple','true_false','order','matching','number','text','correction'],true)||(!in_array($q['type'],['single','multiple','true_false'],true)&&trim((string)$q['correct_text'])==='');unset($q['correct'],$q['correct_text']);return $q;},$snapshot['questions']);
 }
 try {
     [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
