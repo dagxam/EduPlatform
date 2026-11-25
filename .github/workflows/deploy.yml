@@ -58,6 +58,9 @@ jobs:
       - name: Validate UROVIA PAPER grading and QR
         run: |
           php .github/tests/paper-grading-smoke.php
+          php .github/tests/paper-validation-smoke.php
+          node .github/tests/paper-print-types-smoke.cjs
+          node .github/tests/paper-mixed-scan-smoke.cjs
           node .github/tests/paper-qr-smoke.cjs
           php .github/tests/paper-cabinet-smoke.php
           node .github/tests/paper-design-smoke.cjs
