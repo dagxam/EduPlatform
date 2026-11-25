@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
+require __DIR__ . '/grading.php';
 
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
@@ -42,32 +43,44 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
     $q=$pdo->prepare('SELECT id,type,interaction_type,text,points,correct_text,settings_json FROM questions WHERE assignment_id=? AND is_active=1 ORDER BY position,id');
     $q->execute([$assignmentId]); $byId=[];
     foreach($q->fetchAll() as $row) $byId[(int)$row['id']]=$row;
-    if (!$byId || count($byId)>36) paper_fail('Автопроверка пока поддерживает от 1 до 36 вопросов. Остальные работы доступны для обычной печати.',422);
+    if (!$byId || count($byId)>36) paper_fail('Персональный бланк поддерживает от 1 до 36 вопросов. Для длинных заданий используйте обычную печать.',422);
     $options=$pdo->prepare('SELECT id,text,is_correct FROM question_options WHERE question_id=? ORDER BY position,id');
     $assets=$pdo->prepare('SELECT id,original_name,mime_type FROM question_assets WHERE question_id=? ORDER BY position,id');
     $optionOrder=decoded_json_array($variant['option_order_json']);
+    $structuredOrder=decoded_json_array($variant['structured_order_json']);
     $questions=[];
     foreach(decoded_json_array($variant['question_order_json']) as $id) {
         $row=$byId[(int)$id];
         $type=(string)($row['interaction_type'] ?: $row['type']);
-        if (!in_array($type,['single','multiple','true_false'],true)) paper_fail('Автопроверка пока поддерживает только вопросы с выбором ответа. Для смешанной работы используйте обычную печать.',422);
+        if($type==='ordering') $type='order';
+        if(in_array($type,['short_answer','image_answer'],true)) $type='text';
+        $choice=in_array($type,['single','multiple','true_false'],true);
+        $settings=decoded_json_array($row['settings_json']);$structured=[];
+        $order=$structuredOrder[(string)$id]??[];
+        if($type==='order') {
+            foreach($order['items']??[] as $key) if(isset($settings['items'][$key])) $structured['items'][]=['key'=>(string)$key,'text'=>(string)$settings['items'][$key]];
+            if(empty($structured['items'])) paper_fail('Некорректное задание на порядок.',422);
+        } elseif($type==='matching') {
+            foreach(['left','right'] as $side) foreach($order[$side]??[] as $key) if(isset($settings[$side][$key])) $structured[$side][]=['key'=>(string)$key,'text'=>(string)$settings[$side][$key]];
+            if(empty($structured['left'])||empty($structured['right'])) paper_fail('Некорректное задание на соответствие.',422);
+        } elseif($type==='correction') $structured['original_text']=(string)($settings['original_text']??'');
         $options->execute([(int)$id]); $map=[]; $correct=[];
         foreach($options->fetchAll() as $opt) {
             $map[(int)$opt['id']]=['id'=>(int)$opt['id'],'text'=>(string)$opt['text']];
             if ((int)$opt['is_correct']===1) $correct[]=(int)$opt['id'];
         }
-        if(count($map)<2 || count($map)>4 || !valid_choice_answer_key($type,$correct)) paper_fail('Вопрос № '.(count($questions)+1).' имеет неподдерживаемые варианты или неверно заданный ключ. Проверьте конструктор.',422);
+        if($choice && (count($map)<2 || count($map)>6 || !valid_choice_answer_key($type,$correct))) paper_fail('Вопрос № '.(count($questions)+1).' имеет неподдерживаемые варианты или неверно заданный ключ. Проверьте конструктор.',422);
         sort($correct,SORT_NUMERIC); $ordered=[];
         foreach($optionOrder[(string)$id] ?? [] as $optId) if(isset($map[(int)$optId])) $ordered[]=$map[(int)$optId];
-        if(count($ordered)!==count($map)) paper_fail('Не удалось закрепить порядок вариантов.',422);
+        if($choice && count($ordered)!==count($map)) paper_fail('Не удалось закрепить порядок вариантов.',422);
         $assets->execute([(int)$id]); $images=[];
         foreach($assets->fetchAll() as $asset) $images[]=['id'=>(int)$asset['id'],'original_name'=>(string)$asset['original_name'],'url'=>'./api/questions/asset.php?id='.(int)$asset['id']];
-        $questions[]=['id'=>(int)$id,'type'=>$type,'text'=>(string)$row['text'],'points'=>(float)$row['points'],'options'=>$ordered,'assets'=>$images,'correct'=>$correct];
+        $questions[]=['id'=>(int)$id,'type'=>$type,'text'=>(string)$row['text'],'points'=>(float)$row['points'],'options'=>$choice?$ordered:[],'assets'=>$images,'structured'=>$structured,'correct'=>$correct,'correct_text'=>(string)($row['correct_text']??'')];
     }
     return ['variant'=>$variant,'questions'=>$questions];
 }
 function paper_public(array $snapshot): array {
-    return array_map(static function(array $q):array {unset($q['correct']);return $q;},$snapshot['questions']);
+    return array_map(static function(array $q):array {unset($q['correct'],$q['correct_text']);return $q;},$snapshot['questions']);
 }
 try {
     [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
@@ -125,16 +138,9 @@ if(db_is_mysql($pdo)) {
     $score=0.0;$max=0.0;$graded=[];
     foreach($snapshot['questions'] as $i=>$question) {
         if(!array_key_exists($i,$answers) || !is_array($answers[$i])) paper_fail('Некорректный формат ответа.',422);
-        $selected=[];
-        foreach($answers[$i] as $index) {
-            if(!is_int($index) || !isset($question['options'][$index])) paper_fail('Некорректный вариант ответа.',422);
-            $selected[]=$question['options'][$index]['id'];
-        }
-        $selected=array_values(array_unique($selected));sort($selected,SORT_NUMERIC);
-        if($question['type']!=='multiple' && count($selected)>1) paper_fail('Вопрос № '.($i+1).': оставьте один ответ или пропуск.',422);
-        $correct=$selected!==[] && $selected===$question['correct'];
-        $points=$correct?$question['points']:0.0;
-        $score+=$points;$max+=$question['points'];$graded[]=[$question['id'],paper_json($selected),$points,(int)$correct];
+        $g=paper_grade_answer($question,$answers[$i]);
+        $score+=$g['score'];$max+=$question['points'];
+        $graded[]=[$question['id'],$g['answer_text'],$g['score'],$g['is_correct']];
     }
     if($max<=0) paper_fail('Максимальный балл работы должен быть больше нуля.',422);
     $percent=round($score/$max*100,2);$grade=grade_from_percent_for_assignment($pdo,$assignmentId,$percent);
