@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require __DIR__ . '/_helpers.php';
+require_once dirname(__DIR__).'/paper/choice-policy.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
@@ -12,6 +13,7 @@ $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
 $assignment = question_editor_assignment($pdo, $user, (int)$question['assignment_id'], true);
 $normalized = question_editor_normalize_payload($data);
+paper_check_new_question($assignment,$normalized);
 $hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;
 $effectiveQuestionId = $questionId;
 

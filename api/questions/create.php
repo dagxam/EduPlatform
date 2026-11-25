@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require __DIR__ . '/_helpers.php';
+require_once dirname(__DIR__).'/paper/choice-policy.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
@@ -11,6 +12,7 @@ $assignmentId = (int)($data['assignment_id'] ?? 0);
 $pdo = app_db();
 $assignment = question_editor_assignment($pdo, $user, $assignmentId, true);
 $normalized = question_editor_normalize_payload($data);
+paper_check_new_question($assignment,$normalized);
 
 $stmt = $pdo->prepare('SELECT COALESCE(MAX(position), 0) + 1 FROM questions WHERE assignment_id = :assignment_id AND is_active = 1');
 $stmt->execute(['assignment_id' => $assignmentId]);

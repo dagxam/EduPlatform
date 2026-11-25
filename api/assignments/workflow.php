@@ -77,6 +77,13 @@ $next = null;
 $event = null;
 $updates = [];
 
+if($assignment['type']==='paper'&&in_array($action,['prepare','approve'],true)){
+    require_once dirname(__DIR__).'/paper/choice-policy.php';
+    $q=$pdo->prepare('SELECT type,interaction_type FROM questions WHERE assignment_id=? AND is_active=1 ORDER BY position,id');$q->execute([$assignmentId]);$questions=$q->fetchAll();
+    if(!$questions)json_response(['ok'=>false,'error'=>'Добавьте хотя бы один тестовый вопрос.'],422);
+    try{paper_require_choice_questions($questions);}catch(DomainException $e){json_response(['ok'=>false,'error'=>$e->getMessage()],422);}
+}
+
 if ($action === 'prepare') {
     if ($current !== 'draft') {
         json_response(['ok' => false, 'error' => 'Подготовить можно только черновик.'], 409);

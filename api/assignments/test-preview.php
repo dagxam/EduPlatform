@@ -15,7 +15,7 @@ $pdo = app_db();
 $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
-    'SELECT a.id, a.school_id, a.teacher_id, a.subject_id, a.title, a.description,
+    'SELECT a.id, a.school_id, a.teacher_id, a.subject_id, a.title, a.description, a.type,
             a.focus_policy, a.time_limit_minutes,
             s.name AS subject_name
      FROM assignments a
@@ -57,6 +57,7 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute(['assignment_id' => $assignmentId]);
 $rows = $stmt->fetchAll();
+if($assignment['type']==='paper'){require_once dirname(__DIR__).'/paper/choice-policy.php';try{paper_require_choice_questions($rows);}catch(DomainException $e){json_response(['ok'=>false,'error'=>$e->getMessage()],422);}}
 
 $questionOrder = array_map('intval', array_column($rows, 'id'));
 $previewSeed = 'preview:assignment:' . $assignmentId . '|user:' . (int)$user['id'];
