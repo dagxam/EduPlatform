@@ -60,6 +60,7 @@ jobs:
           php .github/tests/paper-grading-smoke.php
           node .github/tests/paper-qr-smoke.cjs
           php .github/tests/paper-cabinet-smoke.php
+          node .github/tests/paper-design-smoke.cjs
 
       - name: Validate tablet layout and PWA installation
         run: node .github/tests/pwa-tablet-smoke.mjs
