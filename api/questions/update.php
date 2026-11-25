@@ -12,6 +12,7 @@ $questionId = (int)($data['question_id'] ?? 0);
 $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
 $assignment = question_editor_assignment($pdo, $user, (int)$question['assignment_id'], true);
+if(($assignment['type']??'')==='paper')$data['points']=1;
 $normalized = question_editor_normalize_payload($data);
 paper_check_new_question($assignment,$normalized);
 $hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;

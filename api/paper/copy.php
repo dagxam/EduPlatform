@@ -248,7 +248,7 @@ try {
             'assignment_id' => $newAssignmentId,
             'type' => (string)$question['type'],
             'text' => (string)$question['text'],
-            'points' => (float)$question['points'],
+            'points' => 1.0,
             'position' => (int)$question['position'],
             'correct_text' => $question['correct_text'],
             'interaction_type' => $question['interaction_type'],

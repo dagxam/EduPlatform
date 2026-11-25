@@ -149,6 +149,7 @@ if(db_is_mysql($pdo)) {
         if(paper_catalog_is_archived($pdo,$assignmentId))paper_fail('Работа в архиве. Восстановите её для выпуска новых бланков.');
         if(!in_array((string)$assignment['workflow_status'],['ready','assigned','completed'],true))paper_fail('Сначала подготовьте работу к печати. Старые бланки можно проверить по QR.');
         $snapshot=paper_snapshot($pdo,$assignmentId,$studentId);
+        if($assignment['type']==='paper')foreach($snapshot['questions'] as &$question){$question['points']=1.0;}unset($question);
         $layout=2;$snapshot['layout_version']=2;
         if($sheet){
             $stored=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);$oldLayout=(int)($stored['layout_version']??1);

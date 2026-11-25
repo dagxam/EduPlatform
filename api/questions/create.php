@@ -11,6 +11,7 @@ $data = read_json_body();
 $assignmentId = (int)($data['assignment_id'] ?? 0);
 $pdo = app_db();
 $assignment = question_editor_assignment($pdo, $user, $assignmentId, true);
+if(($assignment['type']??'')==='paper')$data['points']=1;
 $normalized = question_editor_normalize_payload($data);
 paper_check_new_question($assignment,$normalized);
 
