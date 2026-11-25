@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>UROVIA PAPER — печать задания</title>
+<link rel="stylesheet" href="./paper.css?v=1">
+<script defer src="./paper.js?v=1"></script>
+</head>
+<body>
+<header class="toolbar">
+<div><a href="./index.html" class="brand">UROVIA <span>PAPER</span></a><p>Печатная версия существующего задания</p></div>
+<div class="controls"><label><input type="checkbox" id="points" checked> Показывать баллы</label><button id="print" type="button" disabled>Печать / сохранить PDF</button></div>
+</header>
+<main>
+<p class="notice" id="status" role="status" aria-live="polite">Загрузка задания…</p>
+<p class="notice" id="limit">Печатный режим: ответы пока проверяются вручную. Печать не назначает работу, не создаёт попытку и не меняет журнал.</p>
+<article id="sheet" class="sheet" hidden></article>
+</main>
+</body>
+</html>

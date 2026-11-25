@@ -6036,6 +6036,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-footer">
           <div class="subject-assignment-actions">
             <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
+            <button class="secondary-btn compact-btn" type="button" data-paper-assignment="${Number(item.id)}">Распечатать тест</button>
             ${assignmentEditAction(item, 'subject')}
             <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
             ${libraryAssignmentAction(item)}
@@ -6505,6 +6506,12 @@ function wireAssignmentWorkflowButtons(root) {
       button
     ));
   });
+  root.querySelectorAll('[data-paper-assignment]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.paperAssignment);
+      if (Number.isSafeInteger(id) && id > 0) window.open('./paper.html?assignment_id=' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
+    });
+  });
   root.querySelectorAll('[data-test-assignment]').forEach(button => {
     button.addEventListener('click', () => openAssignmentTestPreview(Number(button.dataset.testAssignment)));
   });
@@ -6527,6 +6534,7 @@ function wireAssignmentWorkflowButtons(root) {
 
 function assignmentTableActionIcon(type) {
   const icons = {
+    paper: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7zM17 11h.01"/></svg>',
     test: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.7l5.3 3.3-5.3 3.3z"/></svg>',
     builder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v4h4M9 12h3M9 15h2"/><path d="M14.5 12.5l2 2-3.8 3.8-2.4.5.5-2.4z"/></svg>',
     duplicate: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>',
@@ -6700,6 +6708,7 @@ function renderAssignments() {
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
+            ${assignmentTableIconButton('paper', 'Распечатать бумажный тест', 'data-paper-assignment="' + Number(item.id) + '"')}
             ${assignmentEditAction(item)}
             ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
             ${assignmentTableLibraryAction(item)}
