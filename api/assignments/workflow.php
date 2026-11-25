@@ -62,6 +62,8 @@ if (!$manager && (int)$assignment['teacher_id'] !== (int)$user['id']) {
 }
 
 if ($assignment['type'] === 'paper' && $action === 'paper_edit') {
+    require dirname(__DIR__).'/paper/catalog-archive.php';paper_catalog_archive_schema($pdo);
+    if(paper_catalog_is_archived($pdo,$assignmentId))json_response(['ok'=>false,'error'=>'Сначала восстановите работу из архива.'],409);
     if(!$manager&&(int)$assignment['teacher_id']!==(int)$user['id'])json_response(['ok'=>false,'error'=>'Редактирование доступно автору или администратору.'],403);
     $q=$pdo->prepare("UPDATE assignments SET status='draft',workflow_status='draft',review_submitted_at=NULL,reviewed_at=NULL,reviewed_by=NULL,review_comment=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=? AND school_id=? AND type='paper' AND status='paper_locked'");$q->execute([$assignmentId,$schoolId]);
     if(!$q->rowCount())json_response(['ok'=>false,'error'=>'Работа уже открыта для редактирования. Обновите список.'],409);

@@ -4,6 +4,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/grading.php';
 require __DIR__ . '/sheets.php';
+require __DIR__ . '/catalog-archive.php';
 
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
@@ -92,6 +93,7 @@ if(db_is_mysql($pdo)) {
     $pdo->exec('CREATE TABLE IF NOT EXISTS paper_sheets (code TEXT PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE, student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE, snapshot TEXT NOT NULL, attempt_id INTEGER REFERENCES attempts(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(assignment_id,student_id))');
 }
     paper_archive_schema($pdo);
+    paper_catalog_archive_schema($pdo);
     $pdo->beginTransaction();
     if(db_is_mysql($pdo)) {
         $lock=$pdo->prepare('SELECT id FROM assignments WHERE id=? AND school_id=? FOR UPDATE');$lock->execute([$assignmentId,$schoolId]);$lock->fetchColumn();
@@ -138,6 +140,7 @@ if(db_is_mysql($pdo)) {
         }
     } else {
         if($action!=='prepare')paper_fail('Укажите код бланка.',422);
+        if(paper_catalog_is_archived($pdo,$assignmentId))paper_fail('Работа в архиве. Восстановите её для выпуска новых бланков.');
         if(!in_array((string)$assignment['workflow_status'],['ready','assigned','completed'],true))paper_fail('Сначала подготовьте работу к печати. Старые бланки можно проверить по QR.');
         $snapshot=paper_snapshot($pdo,$assignmentId,$studentId);
         $layout=2;$snapshot['layout_version']=2;

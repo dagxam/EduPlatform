@@ -67,7 +67,7 @@ $stmt = app_db()->prepare(
 );
 $stmt->execute($params);
 $assignments = $stmt->fetchAll();
-if ($paperMode) { require dirname(__DIR__).'/paper/versions.php'; paper_versions_schema(app_db()); $assignments=paper_version_enrich(app_db(),$assignments); }
+if ($paperMode) { require dirname(__DIR__).'/paper/versions.php'; paper_versions_schema(app_db()); $assignments=paper_version_enrich(app_db(),$assignments); require dirname(__DIR__).'/paper/catalog-archive.php'; paper_catalog_archive_schema(app_db()); $assignments=paper_catalog_enrich(app_db(),$assignments); }
 
 $classDetailsStmt = app_db()->prepare(
     'SELECT ac.assignment_id, ac.class_id, ac.time_limit_minutes,
