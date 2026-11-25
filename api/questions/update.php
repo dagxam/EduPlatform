@@ -12,11 +12,12 @@ $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
 $assignment = question_editor_assignment($pdo, $user, (int)$question['assignment_id'], true);
 $normalized = question_editor_normalize_payload($data);
-$hasHistory = (int)($assignment['attempts_count'] ?? 0) > 0;
+$hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;
 $effectiveQuestionId = $questionId;
 
 $pdo->beginTransaction();
 try {
+    question_editor_lock_paper($pdo,$assignment,$questionId);
     if ($hasHistory) {
         $effectiveQuestionId = question_editor_fork_revision($pdo, $questionId, [
             'type' => $normalized['type'],
