@@ -152,16 +152,38 @@ function palette(value) {
 }
 if(typeof module==='object'&&module.exports){module.exports={palette,luminance};return;}
 let loading=false,lastColor=null,lastSchool=null,initialized=false;
+const sidebar=document.getElementById('paperMainSidebar'),toggle=document.getElementById('paperMenuToggle'),scrim=document.getElementById('paperMenuScrim');
+function setMenu(open){if(!sidebar)return;sidebar.classList.toggle('is-open',open);toggle?.setAttribute('aria-expanded',String(open));if(scrim)scrim.hidden=!open;}
+toggle?.addEventListener('click',()=>setMenu(!sidebar.classList.contains('is-open')));
+scrim?.addEventListener('click',()=>setMenu(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setMenu(false);});
+function applyUser(user){
+ if(!sidebar)return;
+ const admin=user.role==='admin',platform=admin&&Number(user.is_platform_admin)===1;
+ const role=platform?'Администратор UROVIA':admin?(user.can_teach?'Администратор школы · Учитель':'Администратор школы'):'Учитель';
+ document.getElementById('paperAccountRole').textContent=role;
+ for(const a of sidebar.querySelectorAll('[data-paper-role]'))a.hidden=a.dataset.paperRole==='platform'?!platform:a.dataset.paperRole==='admin'?!admin:false;
+}
+async function schoolDetails(id){
+ if(!sidebar||!id)return;
+ try{const r=await fetch('./api/schools/list.php',{credentials:'same-origin',cache:'no-store'}),d=await r.json();
+ if(!r.ok||!d.ok||String(d.active_school_id)!==id||lastSchool!==id)return;
+ const school=(d.schools||[]).find(s=>String(s.id)===id);if(school)document.getElementById('paperSchoolName').textContent=school.name;
+ }catch{}
+}
 async function refresh(){
  if(loading)return;loading=true;
  try{
   const response=await fetch('./api/auth/me.php',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json();
-  if(!response.ok||!data.ok||!data.authenticated||!['admin','teacher'].includes(data.user?.role))return;
+  if(!response.ok||!data.ok)return;if(!data.authenticated){if(sidebar)location.replace('./login.html');return;}if(!['admin','teacher'].includes(data.user?.role)){if(sidebar)location.replace('./index.html');return;}
   const school=data.active_school_id==null?null:String(data.active_school_id);
   if(initialized&&school!==lastSchool){location.reload();return;}
-  initialized=true;lastSchool=school;
-  const color=normalizeHexColor(data.branding?.theme_color);
+  initialized=true;lastSchool=school;applyUser(data.user);
+  let branding=data.branding;
+  try{const r=await fetch('./api/school/branding/get.php',{credentials:'same-origin',cache:'no-store'}),d=await r.json();if(r.ok&&d.ok&&String(d.school_id??'')===String(school??''))branding=d.branding;}catch{}
+  const color=normalizeHexColor(branding?.theme_color);
+  schoolDetails(school);
   for(const [key,value] of Object.entries(palette(color)))document.documentElement.style.setProperty(key,value);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
   if(color!==lastColor){lastColor=color;applySchoolFavicon(color);}

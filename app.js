@@ -9358,7 +9358,8 @@ function requestedInitialView(user) {
   if (!requested) return null;
 
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
-  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'results', 'live-execution', 'staff-profile', 'subscription']);
+  const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'journal', 'results', 'live-execution', 'staff-profile', 'subscription']);
+  if (user?.role === 'admin') { staffViews.add('school-management'); staffViews.add('incoming-materials'); if (Number(user.is_platform_admin) === 1) staffViews.add('system-backups'); }
   if (user?.role === 'student' && studentViews.has(requested)) return requested;
   if (user?.role !== 'student' && staffViews.has(requested)) return requested;
   return null;
@@ -9406,6 +9407,10 @@ loadSession().then(async user => {
       if (requested === 'classes') await loadClasses();
       if (requested === 'subjects') await loadSubjectsWorkspace();
       if (requested === 'assignments') await loadAssignments();
+      if (requested === 'journal') await loadJournal().catch(() => {});
+      if (requested === 'school-management') await loadSchoolManagement();
+      if (requested === 'incoming-materials') await loadIncomingMaterials().catch(() => {});
+      if (requested === 'system-backups') await Promise.all([loadBackups().catch(() => {}),loadDatabaseStatus().catch(() => {})]);
       if (requested === 'results') await loadResults().catch(() => {});
       if (requested === 'live-execution') startLiveExecutionAutoRefresh();
       if (requested === 'uvoria-library') await loadLibrary().catch(() => {});

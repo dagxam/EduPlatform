@@ -62,6 +62,7 @@ jobs:
           php .github/tests/paper-cabinet-smoke.php
           node .github/tests/paper-design-smoke.cjs
           node .github/tests/paper-branding-smoke.cjs
+          node .github/tests/paper-navigation-smoke.cjs
 
       - name: Validate tablet layout and PWA installation
         run: node .github/tests/pwa-tablet-smoke.mjs
@@ -151,6 +152,8 @@ jobs:
           done
 
       - name: Upload site over FTP
+        id: ftp_upload
+        continue-on-error: true
         if: github.ref == 'refs/heads/main'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -159,6 +162,47 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           port: 21
+          timeout: 120000
+          local-dir: ./
+          # FTP account is already rooted at the live UROVIA directory.
+          # Do not prepend /www/... here or nested duplicate folders will be created.
+          server-dir: /
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            docs/**
+            README.md
+            storage/*.sqlite
+            storage/*.sqlite-*
+            storage/assignment-imports/**
+            storage/question-assets/**
+            storage/avatars/**
+            storage/backups/**
+            storage/db-config.php
+            storage/db-config.php.tmp
+            storage/yookassa-config.php
+            storage/yookassa-config.php.tmp
+            storage/ai-config.php
+            storage/ai-config.php.tmp
+            storage/maintenance.flag
+            storage/.mysql-migration.lock
+            storage/mysql-migration.json
+            storage/mysql-migration-private.pem
+            storage/mysql-machine-migration.done
+
+      - name: Retry FTP upload after connection failure
+        if: github.ref == 'refs/heads/main' && steps.ftp_upload.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: 188.127.241.85
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          timeout: 120000
           local-dir: ./
           # FTP account is already rooted at the live UROVIA directory.
           # Do not prepend /www/... here or nested duplicate folders will be created.
