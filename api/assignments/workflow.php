@@ -61,7 +61,14 @@ if (!$manager && (int)$assignment['teacher_id'] !== (int)$user['id']) {
     }
 }
 
-if ($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked') json_response(['ok'=>false,'error'=>'Бланки уже выпущены. Для изменения создайте новую бумажную копию.'],409);
+if ($assignment['type'] === 'paper' && $action === 'paper_edit') {
+    if(!$manager&&(int)$assignment['teacher_id']!==(int)$user['id'])json_response(['ok'=>false,'error'=>'Редактирование доступно автору или администратору.'],403);
+    $q=$pdo->prepare("UPDATE assignments SET status='draft',workflow_status='draft',review_submitted_at=NULL,reviewed_at=NULL,reviewed_by=NULL,review_comment=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=? AND school_id=? AND type='paper' AND status='paper_locked'");$q->execute([$assignmentId,$schoolId]);
+    if(!$q->rowCount())json_response(['ok'=>false,'error'=>'Работа уже открыта для редактирования. Обновите список.'],409);
+    audit_event('paper_edit_opened','assignment',$assignmentId,[],$schoolId,(int)$user['id']);
+    json_response(['ok'=>true,'assignment_id'=>$assignmentId,'workflow_status'=>'draft']);
+}
+if ($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked') json_response(['ok'=>false,'error'=>'Откройте редактирование бумажной работы.'],409);
 $current = (string)($assignment['workflow_status'] ?: 'draft');
 $reviewRequired = (int)$assignment['assignment_review_required'] === 1;
 $next = null;
