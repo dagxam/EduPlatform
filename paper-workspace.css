@@ -44,7 +44,7 @@
 
 /* Compact A4: same dimensions in preview and print; overflow uses standard packet. */
 .paper-compact-probe{position:fixed;left:-20000px;top:0;visibility:hidden;width:182mm;pointer-events:none}
-.paper-app .paper-compact-sheet{box-sizing:border-box;width:182mm;height:266mm;padding:0;margin:0 auto;background:#fff;color:#151e2b;display:flex;flex-direction:column;gap:2mm;font:9pt/1.22 Arial,sans-serif;overflow:visible}
+.paper-app .paper-compact-sheet{box-sizing:border-box;width:181.8mm;height:266mm;padding:0;margin:0 auto;background:#fff;color:#151e2b;display:flex;flex-direction:column;gap:2mm;font:9pt/1.22 Arial,sans-serif;overflow:visible}
 .paper-compact-sheet>*{flex-shrink:0;min-width:0}
 .paper-compact-head,.paper-compact-title,.paper-compact-identity,.paper-compact-footer{display:flex;align-items:center;justify-content:space-between;gap:3mm}
 .paper-compact-head{border-bottom:.35mm solid #15202d;padding-bottom:2mm}
@@ -62,5 +62,7 @@
 .paper-compact-image{display:block;max-width:calc(100% - 8mm);max-height:25mm;width:auto;height:auto;object-fit:contain;margin:1mm auto}
 .paper-compact-form{width:100%;margin:0}.paper-compact-form svg{display:block;width:100%;height:auto}
 .paper-compact-footer{font-size:7pt;color:#4b5768;padding-top:.6mm}
-@media screen{.paper-app #printArea{overflow-x:auto}.paper-app #printArea .paper-compact-sheet{padding:0;min-width:182mm;outline:1px solid #dce2e7;margin:12px auto}}
+@media screen{.paper-app #printArea{overflow-x:auto}.paper-app #printArea .paper-compact-sheet{padding:0;min-width:181.8mm;outline:1px solid #dce2e7;margin:12px auto}}
 @media print{.paper-app .paper-compact-sheet{margin:0!important;break-inside:avoid;page-break-inside:avoid}.paper-app #printArea{overflow:visible!important}.paper-app .paper-compact-logo{color:#111}}
+
+@media print{.paper-app .paper-layout,.paper-app .paper-main-area,.paper-app .paper-content{width:auto!important;max-width:none!important;margin:0!important;padding:0!important;display:block!important}.paper-app .paper-compact-sheet{width:181.8mm;height:266mm}.paper-app #printArea .paper-compact-sheet+.paper-compact-sheet{break-before:page;page-break-before:always}}

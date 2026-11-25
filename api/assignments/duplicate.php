@@ -199,6 +199,7 @@ try {
     );
     $stmt->execute(['assignment_id' => $sourceId]);
     $questions = $stmt->fetchAll();
+    if(($source['type']??'')==='paper'&&count($questions)>20)throw new DomainException('В бумажном тесте максимум 20 вопросов.',422);
 
     $insertQuestion = $pdo->prepare(
         'INSERT INTO questions
@@ -275,6 +276,7 @@ try {
     foreach ($copiedFiles as $path) {
         @unlink($path);
     }
+    if($e instanceof DomainException&&$e->getCode()===422)json_response(['ok'=>false,'error'=>$e->getMessage()],422);
     throw $e;
 }
 

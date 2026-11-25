@@ -7,4 +7,7 @@ if(count($p['questions'])!==4||$p['skipped']!==3||!isset($p['questions'][3]['ass
 paper_require_choice_questions($p['questions']);
 try{paper_require_choice_questions($rows);throw new RuntimeException('Legacy types passed issuance');}catch(DomainException $e){if($e->getCode()!==422)throw $e;}
 paper_check_new_question(['type'=>'quiz'],['interaction_type'=>'essay']);
+paper_require_choice_questions(array_fill(0,20,['type'=>'single']));
+try{paper_require_choice_questions(array_fill(0,21,['type'=>'single']));throw new RuntimeException('21 questions passed');}catch(DomainException $e){if($e->getCode()!==422)throw $e;}
+paper_require_choice_questions(array_fill(0,36,['type'=>'single']),36);
 echo "PAPER choice policy: copy filter, images, legacy protection and online isolation OK\n";

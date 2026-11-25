@@ -42,13 +42,13 @@ function paper_access(PDO $pdo,array $user,int $schoolId,int $assignmentId,int $
     // Existing issued sheets remain checkable during editing.
     return [$a,$student];
 }
-function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
+function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId,int $max=20): array {
     $variant=build_attempt_variant($pdo,$assignmentId,$studentId);
     $q=$pdo->prepare('SELECT id,type,interaction_type,text,points,correct_text,settings_json FROM questions WHERE assignment_id=? AND is_active=1 ORDER BY position,id');
     $q->execute([$assignmentId]); $byId=[];
-    $activeRows=$q->fetchAll();paper_require_choice_questions($activeRows);
+    $activeRows=$q->fetchAll();paper_require_choice_questions($activeRows,$max);
     foreach($activeRows as $row) $byId[(int)$row['id']]=$row;
-    if (!$byId || count($byId)>20) paper_fail('Для нового бумажного бланка нужно от 1 до 20 вопросов.',422);
+    if (!$byId || count($byId)>$max) paper_fail('Для нового бумажного бланка нужно от 1 до 20 вопросов.',422);
     $options=$pdo->prepare('SELECT id,text,is_correct FROM question_options WHERE question_id=? ORDER BY position,id');
     $assets=$pdo->prepare('SELECT id,original_name,mime_type FROM question_assets WHERE question_id=? ORDER BY position,id');
     $optionOrder=decoded_json_array($variant['option_order_json']);
@@ -141,7 +141,7 @@ if(db_is_mysql($pdo)) {
         $snapshot=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);
         $layout=(int)($snapshot['layout_version']??1);$code=(string)$sheet['code'];
         if($assignment['type']!=='paper'){
-            $live=paper_snapshot($pdo,$assignmentId,$studentId);if($layout===2)$live['layout_version']=2;
+            $live=paper_snapshot($pdo,$assignmentId,$studentId,36);if($layout===2)$live['layout_version']=2;
             if(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',paper_json($live))))paper_fail('Исходное онлайн-задание изменилось. Проверка остановлена.');
         }
     } else {

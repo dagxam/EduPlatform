@@ -12,8 +12,8 @@ function paper_choice_partition(array $questions): array {
     foreach($questions as $q){if(paper_is_choice($q))$kept[]=$q;else $skipped++;}
     return ['questions'=>$kept,'skipped'=>$skipped];
 }
-function paper_require_choice_questions(array $questions): void {
-    if(count($questions)>20)throw new DomainException('В бумажном тесте максимум 20 вопросов. Ранее выданные бланки остаются действительными.',422);
+function paper_require_choice_questions(array $questions,int $max=20): void {
+    if(count($questions)>$max)throw new DomainException('В бумажном тесте максимум 20 вопросов. Ранее выданные бланки остаются действительными.',422);
     foreach($questions as $i=>$q)if(!paper_is_choice($q))throw new DomainException('Вопрос № '.($i+1).': PAPER теперь поддерживает только выбор ответа. Измените тип или удалите этот вопрос в конструкторе. Старые бланки проверяются без изменений.',422);
 }
 function paper_check_new_question(array $assignment,array $normalized): void {

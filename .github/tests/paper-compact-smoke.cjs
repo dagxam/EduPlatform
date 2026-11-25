@@ -13,7 +13,9 @@ function rect(x,y,w,h){for(let py=Math.round(y);py<Math.round(y+h);py++)for(let 
 for(const node of svg.children){const v=node.attrs;if(node.tag==='rect'&&v.fill==='#000')rect(v.x,v.y,v.width,v.height);if(node.tag==='path')for(const m of v.d.matchAll(/M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+Z/g))rect(+m[1],+m[2],+m[3],+m[4]);}
 const qr=jsQR(pixels,W,H,{inversionAttempts:'dontInvert'});assert.equal(qr?.data,'UP3:'+d.code);const points=PaperScan.findCorners({width:W,height:H,data:pixels},qr,homography);assert(points,'compact markers on a full page');const map=homography(points),circles=svg.children.filter(n=>n.tag==='circle');
 assert.equal(circles.length,count*6);
-for(let i=0;i<count;i++)for(let j=0;j<6;j++){const v=circles[i*6+j].attrs,[x,y]=map(...create.formCenter(i,j,count,3));assert(Math.hypot(x-v.cx-ox,y-v.cy-oy)<3);}
+for(let i=0;i<count;i++)for(let j=0;j<6;j++){const v=circles[i*6+j].attrs,[x,y]=map(...create.formCenter(i,j,count,3));assert(Math.hypot(x-v.cx-ox,y-v.cy-oy)<3);for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){const r=dx*dx+dy*dy;if(j===i%6?r<=36:r>=30&&r<=49)put(v.cx+dx,v.cy+dy);}}
+const darkness=new Function('image',s.slice(s.indexOf('function darkness('),s.indexOf('function autoCorners('))+'\nreturn darkness;')({width:W,height:H,data:pixels});
+for(let i=0;i<count;i++)for(let j=0;j<6;j++){const [x,y]=create.formCenter(i,j,count,3),ink=darkness(x,y,map),bg=Math.min(darkness(x+13,y,map),darkness(x-13,y,map),darkness(x,y+34,map));assert.equal(ink-bg>=.36,j===i%6,'compact marks');}
 }
-assert(s.includes('packet.scrollHeight<=packet.clientHeight+1'));
+assert(s.includes('packet.scrollHeight<=packet.clientHeight'));
 console.log('PAPER compact QR and bubble coordinates OK');
