@@ -31,6 +31,7 @@ php -r '
       fwrite(STDERR, "Production release marker check failed.\n");
       exit(1);
   }
+  if (getenv("GITHUB_SHA") && $data["version"] !== getenv("GITHUB_SHA")) { fwrite(STDERR, "Production still serves an older release.\n"); exit(1); }
   echo "Production release marker OK\n";
 ' "$VERSION_FILE"
 
