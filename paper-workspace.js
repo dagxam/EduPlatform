@@ -35,7 +35,7 @@ function createForm(d){
  text(56,64,'UROVIA',41,800);text(57,89,'БЛАНК ОТВЕТОВ',16,600);
  const name=[d.student.last_name,d.student.first_name,d.student.middle_name].filter(Boolean).join(' ');text(57,120,name,Math.min(21,Math.max(9,800/Math.max(1,name.length))),600);
  const clsText=d.student.class_name+'  ·  Вариант '+d.variant_label;text(57,144,clsText,Math.min(17,800/Math.max(1,clsText.length)));text(57,164,'Код: '+d.code,12);
- const qr=qrcode(0,'M');qr.addData('UP1:'+d.code);qr.make();const n=qr.getModuleCount(),step=104/(n+8);add('rect',{x:568,y:43,width:104,height:104,fill:'#fff'});let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(qr.isDark(y,x)){const left=568+(x+4)*step,top=43+(y+4)*step;path+='M'+left+' '+top+'h'+step+'v'+step+'h-'+step+'Z';}add('path',{d:path,fill:'#000','shape-rendering':'crispEdges'});
+ const qr=qrcode(0,'M');qr.addData('UP2:'+d.code);qr.make();const n=qr.getModuleCount(),step=104/(n+8);add('rect',{x:568,y:43,width:104,height:104,fill:'#fff'});let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(qr.isDark(y,x)){const left=568+(x+4)*step,top=43+(y+4)*step;path+='M'+left+' '+top+'h'+step+'v'+step+'h-'+step+'Z';}add('path',{d:path,fill:'#000','shape-rendering':'crispEdges'});
  line(50,178,670,178);const count=d.questions.length,split=Math.ceil(count/2);
  for(let col=0;col<2;col++){const group=d.questions.slice(col*split,(col+1)*split);if(!group.length)continue;const max=Math.max(0,...group.map(q=>q.options.length));for(let j=0;j<max;j++)text(96+334*col+j*36,201,String.fromCharCode(65+j),17,700,'middle');}
  if(count>1)add('line',{x1:358,y1:193,x2:358,y2:900,stroke:'#ddd','stroke-width':1});
@@ -109,7 +109,7 @@ async function recognizeWriting(file,input,status,changed,questionId){
  catch(e){status.textContent=e.message+' Введите ответ вручную.';}finally{file.disabled=false;file.value='';}
 }
 function qrResult(frame){try{return typeof jsQR==='function'?jsQR(frame.data,frame.width,frame.height,{inversionAttempts:'dontInvert'}):null;}catch{return null;}}
-function qrCode(result){const match=String(result?.data||'').match(/^UP1:([a-f0-9]{32})$/i);return match?match[1].toLowerCase():null;}
+function qrCode(result){const match=String(result?.data||'').match(/^UP[12]:([a-f0-9]{32})$/i);return match?match[1].toLowerCase():null;}
 async function openByCode(code){
  if(current?.code===code)return current;
  if(current&&!window.confirm('Открыть другой бланк? Несохранённые ответы текущего бланка будут сброшены.'))return null;
@@ -128,7 +128,7 @@ function showFrame(frame,points,qrVerified){
 }
 async function processFrame(frame,result,points){
  const code=qrCode(result);
- if(code){const d=await openByCode(code);if(!d)return false;showFrame(frame,points||autoCorners(frame,result),true);return true;}
+ if(code){const d=await openByCode(code);if(!d)return false;const format=String(result.data).slice(0,3).toUpperCase()==='UP2'?2:1;if(Number(d.layout_version||1)!==format)throw Error('Формат QR не соответствует сохранённому бланку. Используйте оригинальную распечатку.');showFrame(frame,points||autoCorners(frame,result),true);return true;}
  if(current){showFrame(frame,null,false);report('scanState','QR не распознан. Укажите четыре угла и введите код вручную.',true);return true;}
  throw Error('Не найден QR UROVIA PAPER. Выберите ученика вручную или наведите камеру на бланк.');
 }
