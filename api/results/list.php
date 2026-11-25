@@ -21,8 +21,8 @@ $sql =
              WHERE ans.attempt_id = at.id
                AND ans.is_correct = 1
                AND COALESCE(ans.needs_review, 0) = 0) AS correct_count,
-            (SELECT COUNT(*) FROM questions q
-             WHERE q.assignment_id = at.assignment_id) AS total_questions,
+            CASE WHEN at.termination_reason = "paper" THEN (SELECT COUNT(*) FROM answers pa WHERE pa.attempt_id = at.id)
+            ELSE (SELECT COUNT(*) FROM questions q WHERE q.assignment_id = at.assignment_id) END AS total_questions,
             a.title AS assignment_title, a.teacher_id, a.subject_id,
             s.name AS subject_name,
             u.first_name AS student_first_name, u.last_name AS student_last_name,
