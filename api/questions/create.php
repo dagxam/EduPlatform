@@ -18,6 +18,7 @@ $position = (int)$stmt->fetchColumn();
 
 $pdo->beginTransaction();
 try {
+    question_editor_lock_paper($pdo,$assignment);
     $stmt = $pdo->prepare(
         'INSERT INTO questions
          (assignment_id, type, text, points, position, correct_text, interaction_type, settings_json)
