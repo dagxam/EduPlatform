@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const s=fs.readFileSync('paper-cabinet.js','utf8');
+assert(s.includes("image:'Вопрос с изображением'"));
+assert(s.includes("interaction_type:type.value"));
+assert(s.includes("savedId=Number(result.question_id)"));
+assert(s.includes("api('questions/upload-image.php',fd)"));
+assert(s.includes("if(imageMode&&!selected&&!existing.children.length&&!uploaded)"));
+assert(s.includes("points:1"));
+assert(s.includes("Рассмотрите изображение и выберите правильный ответ."));
+console.log('PAPER image question editor wiring OK');

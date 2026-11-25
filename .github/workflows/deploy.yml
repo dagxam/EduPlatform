@@ -63,6 +63,7 @@ jobs:
           php .github/tests/paper-one-point-smoke.php
           php .github/tests/paper-validation-smoke.php
           node .github/tests/paper-print-types-smoke.cjs
+          node .github/tests/paper-image-question-smoke.cjs
           node .github/tests/paper-mixed-scan-smoke.cjs
           node .github/tests/paper-qr-smoke.cjs
           php .github/tests/paper-cabinet-smoke.php

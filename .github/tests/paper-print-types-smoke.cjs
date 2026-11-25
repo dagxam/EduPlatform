@@ -7,7 +7,7 @@ const make=(tag,text,klass)=>{const n=new Node(tag);if(text!==undefined&&text!==
 const isChoice=q=>['single','multiple','true_false'].includes(q.type),createForm=()=>new Node('form'),location={href:'https://urovia.test/paper-workspace.html'};
 const build=new Function('make','isChoice','createForm','location','URL',s.slice(start,end)+'\nreturn buildPackage;')(make,isChoice,createForm,location,URL);
 const qs=[
- {type:'single',text:'Один ответ',points:1,options:[{text:'A'},{text:'B'}]},
+ {type:'single',text:'Один ответ',points:1,assets:[{url:'./api/questions/asset.php?id=42',original_name:'Рисунок'}],options:[{text:'A'},{text:'B'}]},
  {type:'multiple',text:'Несколько',points:2,options:[{text:'A'},{text:'B'},{text:'C'}]},
  {type:'true_false',text:'Верно/неверно',points:1,options:[{text:'Верно'},{text:'Неверно'}]},
  {type:'order',text:'Порядок',points:2,structured:{items:[{key:'1',text:'X'},{key:'2',text:'Y'}]}},
@@ -20,6 +20,7 @@ const qs=[
 const d={assignment:{title:'Проверка типов',subject_name:'История'},student:{first_name:'Тест',last_name:'Ученик',class_name:'7А'},variant_label:'A',code:'0123456789abcdef0123456789abcdef',questions:qs};
 const packet=build(d),sheet=packet.children[0];function flatten(n){return [n.textContent||'',...(n.children||[]).flatMap(flatten)].join(' ');}
 const text=flatten(sheet);
+const first=sheet.children.find(n=>n.tag==='section');const pic=first.children.find(n=>n.tag==='img');assert.equal(pic.src,'https://urovia.test/api/questions/asset.php?id=42');assert.equal(pic.alt,'Рисунок');assert(first.children.indexOf(pic)<first.children.findIndex(n=>n.tag==='ul'),'image is printed before answer choices');
 assert(text.includes('2*.'),'multi-choice question heading is marked');
 assert(text.includes('* Выберите все правильные варианты.'),'multi-choice instruction');
 assert(text.includes('Выберите один вариант ответа.'),'single choice instruction');
