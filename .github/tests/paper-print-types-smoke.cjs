@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const s=fs.readFileSync('paper-workspace.js','utf8'),start=s.indexOf('function buildPackage(d)'),end=s.indexOf('async function render',start);
 assert(start>=0&&end>start,'buildPackage present');
-class Node{constructor(tag){this.tag=tag;this.children=[];this.textContent='';this.className='';}append(...items){this.children.push(...items);} }
+class Node{constructor(tag){this.tag=tag;this.children=[];this.textContent='';this.className='';this.classList={add:(name)=>{this.className=(this.className+' '+name).trim();}};}append(...items){this.children.push(...items);} }
 const make=(tag,text,klass)=>{const n=new Node(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(klass)n.className=klass;return n;};
 const isChoice=q=>['single','multiple','true_false'].includes(q.type),createForm=()=>new Node('form'),location={href:'https://urovia.test/paper-workspace.html'};
 const build=new Function('make','isChoice','createForm','location','URL',s.slice(start,end)+'\nreturn buildPackage;')(make,isChoice,createForm,location,URL);
