@@ -51,3 +51,5 @@ html{--paper-brand:#1d68f0;--paper-blue:#1d68f0;--paper-hover:#1559d5;--paper-ti
 @media print{.paper-main-sidebar,.paper-main-scrim,.paper-main-toggle{display:none!important}.paper-main-area{display:block!important}}
 
 @media screen{.paper-unified .paper-brand-mark{background:var(--paper-brand);color:#fff}.paper-unified .paper-main-brand .paper-brand-mark{background:var(--paper-blue)}}
+
+@media screen{.paper-version-meta{font-size:12px;color:var(--paper-muted);margin:-7px 0 12px}.paper-version-note{border:1px solid var(--paper-border);background:var(--paper-subtle);border-radius:13px;padding:16px;margin:12px 0}.paper-version-note strong{font-size:16px}.paper-version-note p{margin:6px 0 12px}}

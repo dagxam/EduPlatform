@@ -120,6 +120,10 @@ if(db_is_mysql($pdo)) {
         if($q->fetchColumn()) paper_fail('Работа уже назначена этому ученику онлайн. Для бумажного режима выберите ученика без онлайн-назначения.');
     }
     $snapshot=paper_snapshot($pdo,$assignmentId,$studentId);
+    // Layout is fixed when a sheet is issued. Legacy sheets retain their original coordinates.
+    $layout=2;
+    if($sheet){$stored=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);$layout=(int)($stored['layout_version']??1);}
+    if($layout===2)$snapshot['layout_version']=2;
     $encoded=paper_json($snapshot);
     if($action==='prepare') {
         if(!$sheet) {
@@ -131,7 +135,7 @@ if(db_is_mysql($pdo)) {
             paper_fail('Задание изменилось после создания бланка. Старый бланк нельзя проверять автоматически. Обратитесь к администратору.');
         } else $code=(string)$sheet['code'];
         $pdo->commit();
-        json_response(['ok'=>true,'code'=>$code,'assignment'=>['id'=>$assignmentId,'title'=>(string)$assignment['title'],'subject_name'=>(string)$assignment['subject_name']],'student'=>$student,'variant_label'=>$snapshot['variant']['variant_label'],'questions'=>paper_public($snapshot)]);
+        json_response(['ok'=>true,'code'=>$code,'assignment'=>['id'=>$assignmentId,'title'=>(string)$assignment['title'],'subject_name'=>(string)$assignment['subject_name']],'student'=>$student,'layout_version'=>$layout,'variant_label'=>$snapshot['variant']['variant_label'],'questions'=>paper_public($snapshot)]);
     }
     if(!$sheet || !hash_equals((string)$sheet['code'],(string)($data['code']??''))) paper_fail('Код бланка не совпадает.');
     if(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',$encoded))) paper_fail('Задание изменилось после печати. Проверка остановлена, чтобы не выставить неверные оценки.');
