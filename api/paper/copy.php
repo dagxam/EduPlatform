@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
+require __DIR__ . '/versions.php';
 
 $user = require_user(['admin', 'teacher']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -9,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = read_json_body();
 $sourceId = (int)($data['assignment_id'] ?? 0);
+$isRevision = ($data['new_revision'] ?? false) === true;
 $title = trim((string)($data['title'] ?? ''));
 $startsAtRaw = trim((string)($data['starts_at'] ?? ''));
 $dueAtRaw = trim((string)($data['due_at'] ?? ''));
@@ -116,10 +118,21 @@ if (!$manager) {
     }
 }
 
+if ($isRevision && ($source['type'] !== 'paper' || $source['status'] !== 'paper_locked' || (!$manager && (int)$source['teacher_id'] !== (int)$user['id']))) {
+    json_response(['ok'=>false,'error'=>'Новая версия доступна для выпущенной бумажной работы её автора.'],409);
+}
+if ($isRevision) paper_versions_schema($pdo);
 $copiedFiles = [];
 $pdo->beginTransaction();
 
 try {
+    $revision = $isRevision ? paper_version_next($pdo,$sourceId,$schoolId) : null;
+    if ($revision) {
+        $baseTitle = preg_replace('/ — версия \d+$/u','',(string)$source['title']);
+        $suffix = ' — версия '.$revision['revision_no'];
+        $title = (function_exists('mb_substr') ? mb_substr($baseTitle,0,470) : preg_replace('/^(.{0,470}).*$/us','$1',$baseTitle)) . $suffix;
+        $timeLimit = $source['time_limit_minutes'];
+    }
     $stmt = $pdo->prepare(
         'INSERT INTO assignments
          (teacher_id, school_id, subject_id, title, description, type, status, workflow_status,
@@ -131,7 +144,7 @@ try {
           :focus_policy, :variant_count, :shuffle_questions, :shuffle_options, :shuffle_structured)'
     );
     $stmt->execute([
-        'teacher_id' => (int)$user['id'],
+        'teacher_id' => $isRevision ? (int)$source['teacher_id'] : (int)$user['id'],
         'school_id' => $schoolId,
         'subject_id' => (int)$source['subject_id'],
         'title' => $title,
@@ -143,10 +156,10 @@ try {
         'due_at' => $dueAt,
         'show_answers' => (int)$source['show_answers'],
         'focus_policy' => $focusPolicy,
-        'variant_count' => 1,
-        'shuffle_questions' => 0,
-        'shuffle_options' => 0,
-        'shuffle_structured' => 0,
+        'variant_count' => $isRevision ? (int)$source['variant_count'] : 1,
+        'shuffle_questions' => $isRevision ? (int)$source['shuffle_questions'] : 0,
+        'shuffle_options' => $isRevision ? (int)$source['shuffle_options'] : 0,
+        'shuffle_structured' => $isRevision ? (int)$source['shuffle_structured'] : 0,
     ]);
     $newAssignmentId = (int)$pdo->lastInsertId();
 
@@ -269,6 +282,7 @@ try {
         }
     }
 
+    if ($revision) paper_version_record($pdo,$newAssignmentId,$revision);
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
@@ -278,7 +292,7 @@ try {
     throw $e;
 }
 
-audit_event('paper_assignment_copied', 'assignment', $newAssignmentId, [
+audit_event($isRevision ? 'paper_revision_created' : 'paper_assignment_copied', 'assignment', $newAssignmentId, [
     'source_assignment_id' => $sourceId,
     'subject_id' => (int)$source['subject_id'],
     'questions_count' => count($questions),
@@ -290,6 +304,7 @@ json_response([
         'id' => $newAssignmentId,
         'title' => $title,
         'subject_id' => (int)$source['subject_id'],
+        'paper_revision' => $revision['revision_no'] ?? 1,
         'status' => 'draft',
         'workflow_status' => 'draft',
         'questions_count' => count($questions),
