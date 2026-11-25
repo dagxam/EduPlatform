@@ -67,6 +67,7 @@ jobs:
           php .github/tests/paper-versions-smoke.php --mysql
           node .github/tests/paper-layout-smoke.cjs
           php .github/tests/paper-in-place-smoke.php
+          php .github/tests/paper-in-place-smoke.php --mysql
 
       - name: Validate tablet layout and PWA installation
         run: node .github/tests/pwa-tablet-smoke.mjs
