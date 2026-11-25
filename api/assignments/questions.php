@@ -12,7 +12,7 @@ $schoolId = require_active_school($user, false);
 $pdo = app_db();
 
 $stmt = $pdo->prepare(
-    'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status,
+    'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status, type,
             max_attempts, time_limit_minutes, focus_policy
      FROM assignments
      WHERE id = :id AND school_id = :school_id
@@ -84,7 +84,8 @@ $targetsCount = (int)$targetStmt->fetchColumn();
 $editable =
     $targetsCount === 0
     && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
-    && (string)$assignment['status'] !== 'closed';
+    && (string)$assignment['status'] !== 'closed'
+    && !($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked');
 
 $stmt = $pdo->prepare(
     'SELECT q.id, q.type, q.interaction_type, q.text, q.points, q.position,

@@ -5,7 +5,8 @@ require dirname(__DIR__) . '/bootstrap.php';
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
 $params = ['school_id' => $schoolId];
-$conditions = ['a.school_id = :school_id'];
+$paperMode = ($_GET['mode'] ?? '') === 'paper';
+$conditions = ['a.school_id = :school_id', $paperMode ? "a.type = 'paper'" : "a.type <> 'paper'"];
 
 if (!can_manage_school($user, $schoolId)) {
     if (!can_teach_school($user, $schoolId)) {

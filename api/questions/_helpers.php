@@ -9,7 +9,7 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
 
     $schoolId = require_active_school($user, false);
     $stmt = $pdo->prepare(
-        'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status
+        'SELECT id, teacher_id, school_id, subject_id, title, status, workflow_status, type
          FROM assignments
          WHERE id = :id AND school_id = :school_id
          LIMIT 1'
@@ -83,7 +83,8 @@ function question_editor_assignment(PDO $pdo, array $user, int $assignmentId, bo
     $assignment['editable'] =
         $targetsCount === 0
         && !in_array((string)($assignment['workflow_status'] ?? 'draft'), ['assigned', 'completed'], true)
-        && (string)$assignment['status'] !== 'closed';
+        && (string)$assignment['status'] !== 'closed'
+        && !($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked');
 
     if ($requireEditable && !$assignment['editable']) {
         $assigned = $targetsCount > 0;

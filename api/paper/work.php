@@ -100,6 +100,7 @@ if(db_is_mysql($pdo)) {
     [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
     $q=$pdo->prepare('SELECT * FROM paper_sheets WHERE assignment_id=? AND student_id=?');
     $q->execute([$assignmentId,$studentId]);$sheet=$q->fetch();
+    if(!$sheet && $assignment['type'] !== 'paper') paper_fail('Сначала создайте бумажную копию онлайн-теста в разделе PAPER.');
     if($sheet && ((int)$sheet['school_id']!==$schoolId || (int)$sheet['class_id']!==$classId)) paper_fail('Бланк был создан для другого класса.');
     if($sheet && $sheet['attempt_id']!==null) {
         $q=$pdo->prepare('SELECT id,score,max_score,percent,grade FROM attempts WHERE id=? AND student_id=? AND assignment_id=?');
@@ -125,6 +126,7 @@ if(db_is_mysql($pdo)) {
             $code=bin2hex(random_bytes(16));
             $q=$pdo->prepare('INSERT INTO paper_sheets(code,assignment_id,student_id,class_id,school_id,snapshot) VALUES(?,?,?,?,?,?)');
             $q->execute([$code,$assignmentId,$studentId,$classId,$schoolId,$encoded]);
+            $pdo->prepare("UPDATE assignments SET status='paper_locked' WHERE id=? AND type='paper'")->execute([$assignmentId]);
         } elseif(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',$encoded))) {
             paper_fail('Задание изменилось после создания бланка. Старый бланк нельзя проверять автоматически. Обратитесь к администратору.');
         } else $code=(string)$sheet['code'];
