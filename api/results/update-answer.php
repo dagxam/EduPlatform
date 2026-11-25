@@ -22,6 +22,9 @@ if ($attemptId < 1 || $questionId < 1) {
 $pdo = app_db();
 $schoolId = require_active_school($user, false);
 $attempt = result_attempt_for_staff($pdo, $user, $schoolId, $attemptId);
+if ((string)($attempt['termination_reason'] ?? '') === 'paper') {
+    json_response(['ok'=>false,'error'=>'Ответы бумажного бланка закреплены. Для корректировки используйте изменение итоговой оценки.'],409);
+}
 
 $stmt = $pdo->prepare(
     'SELECT q.id
