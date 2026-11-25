@@ -12,7 +12,7 @@ $pdo = app_db();
 $question = question_editor_question($pdo, $user, $questionId, true);
 $assignmentId = (int)$question['assignment_id'];
 $assignment = question_editor_assignment($pdo, $user, $assignmentId, true);
-$hasHistory = (int)($assignment['attempts_count'] ?? 0) > 0;
+$hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;
 
 $stmt = $pdo->prepare('SELECT stored_name FROM question_assets WHERE question_id = :question_id');
 $stmt->execute(['question_id' => $questionId]);
@@ -20,6 +20,7 @@ $files = array_map('strval', array_column($stmt->fetchAll(), 'stored_name'));
 
 $pdo->beginTransaction();
 try {
+    question_editor_lock_paper($pdo,$assignment,$questionId);
     if ($hasHistory) {
         $pdo->prepare('UPDATE questions SET is_active = 0 WHERE id = :id')
             ->execute(['id' => $questionId]);
