@@ -19,7 +19,7 @@ $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
     'SELECT a.id, a.school_id, a.teacher_id, a.title, a.status, a.workflow_status,
-            a.subject_id, ai.stored_name AS import_stored_name
+            a.subject_id, a.type, ai.stored_name AS import_stored_name
      FROM assignments a
      LEFT JOIN assignment_imports ai ON ai.assignment_id = a.id
      WHERE a.id = :id AND a.school_id = :school_id
@@ -43,6 +43,10 @@ if (!$isManager && !$isOwner) {
         'ok' => false,
         'error' => 'Удалить задание может его автор или администратор школы.',
     ], 403);
+}
+
+if ($assignment['type'] === 'paper' && $assignment['status'] === 'paper_locked') {
+    json_response(['ok'=>false,'error'=>'Выпущенную бумажную работу нельзя удалить: её бланки могут ещё использоваться.','code'=>'PAPER_HAS_ISSUED_SHEETS'],409);
 }
 
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM attempts WHERE assignment_id = :assignment_id');
