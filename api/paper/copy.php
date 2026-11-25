@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = read_json_body();
 $sourceId = (int)($data['assignment_id'] ?? 0);
 $isRevision = ($data['new_revision'] ?? false) === true;
+if($isRevision)json_response(['ok'=>false,'error'=>'Редактируйте существующую работу без создания копии. Обновите страницу.'],409);
 $title = trim((string)($data['title'] ?? ''));
 $startsAtRaw = trim((string)($data['starts_at'] ?? ''));
 $dueAtRaw = trim((string)($data['due_at'] ?? ''));

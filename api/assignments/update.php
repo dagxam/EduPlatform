@@ -37,6 +37,8 @@ if (!in_array($focusPolicy, ['allow', 'strict'], true)) {
     json_response(['ok' => false, 'error' => 'Неизвестный режим контроля.'], 422);
 }
 
+$paperEdit=($assignment['type']??'')==='paper';
+if($paperEdit){$pdo->beginTransaction();question_editor_lock_paper($pdo,$assignment);}
 $stmt = $pdo->prepare(
     'UPDATE assignments
      SET title = :title,
@@ -53,6 +55,8 @@ $stmt->execute([
     'focus_policy' => $focusPolicy,
     'id' => $assignmentId,
 ]);
+
+if($paperEdit)$pdo->commit();
 
 audit_event('assignment_settings_updated', 'assignment', $assignmentId, [
     'title' => $title,

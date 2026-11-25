@@ -3,6 +3,8 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/grading.php';
+require __DIR__ . '/sheets.php';
+require __DIR__ . '/catalog-archive.php';
 
 $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
@@ -35,7 +37,7 @@ function paper_access(PDO $pdo,array $user,int $schoolId,int $assignmentId,int $
     $q=$pdo->prepare('SELECT u.id,u.first_name,u.last_name,u.middle_name,COALESCE(c.display_name,c.name) AS class_name FROM class_students cs JOIN classes c ON c.id=cs.class_id JOIN users u ON u.id=cs.student_id WHERE c.id=? AND c.school_id=? AND u.id=? AND u.is_active=1 AND u.role=?');
     $q->execute([$classId,$schoolId,$studentId,'student']); $student=$q->fetch();
     if (!$student) paper_fail('Ученик не найден в выбранном классе.',403);
-    if (!in_array((string)$a['workflow_status'],['ready','assigned','completed'],true)) paper_fail('Для сохранения результата задание должно быть готово. Черновик можно просто распечатать.');
+    // Existing issued sheets remain checkable during editing.
     return [$a,$student];
 }
 function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
@@ -90,16 +92,26 @@ if(db_is_mysql($pdo)) {
 } else {
     $pdo->exec('CREATE TABLE IF NOT EXISTS paper_sheets (code TEXT PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE, student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE, snapshot TEXT NOT NULL, attempt_id INTEGER REFERENCES attempts(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(assignment_id,student_id))');
 }
+    paper_archive_schema($pdo);
+    paper_catalog_archive_schema($pdo);
     $pdo->beginTransaction();
     if(db_is_mysql($pdo)) {
+        $lock=$pdo->prepare('SELECT id FROM assignments WHERE id=? AND school_id=? FOR UPDATE');$lock->execute([$assignmentId,$schoolId]);$lock->fetchColumn();
         $lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');$lock->execute([$studentId]);$lock->fetchColumn();
     } else {
         // Obtain a SQLite write lock before conflict checks.
         $lock=$pdo->prepare('UPDATE paper_sheets SET code=code WHERE assignment_id=? AND student_id=?');$lock->execute([$assignmentId,$studentId]);
     }
     [$assignment,$student]=paper_access($pdo,$user,$schoolId,$assignmentId,$classId,$studentId);
-    $q=$pdo->prepare('SELECT * FROM paper_sheets WHERE assignment_id=? AND student_id=?');
-    $q->execute([$assignmentId,$studentId]);$sheet=$q->fetch();
+    $requestedCode=trim((string)($data['code']??''));$sheetTable='paper_sheets';
+    if($requestedCode!=='') {
+        if(!preg_match('/^[a-f0-9]{32}$/D',$requestedCode))paper_fail('Некорректный код бланка.',422);
+        $q=$pdo->prepare('SELECT * FROM paper_sheets WHERE assignment_id=? AND student_id=? AND code=?');$q->execute([$assignmentId,$studentId,$requestedCode]);$sheet=$q->fetch();
+        if(!$sheet){$sheetTable='paper_sheet_archive';$q=$pdo->prepare('SELECT * FROM paper_sheet_archive WHERE assignment_id=? AND student_id=? AND code=?');$q->execute([$assignmentId,$studentId,$requestedCode]);$sheet=$q->fetch();}
+        if(!$sheet)paper_fail('Бланк не найден.',404);
+    } else {
+        $q=$pdo->prepare('SELECT * FROM paper_sheets WHERE assignment_id=? AND student_id=?');$q->execute([$assignmentId,$studentId]);$sheet=$q->fetch();
+    }
     if(!$sheet && $assignment['type'] !== 'paper') paper_fail('Сначала создайте бумажную копию онлайн-теста в разделе PAPER.');
     if($sheet && ((int)$sheet['school_id']!==$schoolId || (int)$sheet['class_id']!==$classId)) paper_fail('Бланк был создан для другого класса.');
     if($sheet && $sheet['attempt_id']!==null) {
@@ -113,32 +125,46 @@ if(db_is_mysql($pdo)) {
     }
     $q=$pdo->prepare('SELECT 1 FROM attempts WHERE assignment_id=? AND student_id=? LIMIT 1');
     $q->execute([$assignmentId,$studentId]);
-    if($q->fetchColumn()) paper_fail('У ученика уже есть попытка по этой работе. Она не будет изменена.');
+    if($q->fetchColumn()) paper_fail('По этой работе ученик уже получил результат. Повторная оценка не создаётся.');
     if((string)$assignment['status']==='published') {
         $q=$pdo->prepare('SELECT 1 FROM assignment_students WHERE assignment_id=? AND student_id=? UNION ALL SELECT 1 FROM assignment_classes ac JOIN class_students cs ON cs.class_id=ac.class_id WHERE ac.assignment_id=? AND cs.student_id=? LIMIT 1');
         $q->execute([$assignmentId,$studentId,$assignmentId,$studentId]);
         if($q->fetchColumn()) paper_fail('Работа уже назначена этому ученику онлайн. Для бумажного режима выберите ученика без онлайн-назначения.');
     }
-    $snapshot=paper_snapshot($pdo,$assignmentId,$studentId);
-    // Layout is fixed when a sheet is issued. Legacy sheets retain their original coordinates.
-    $layout=2;
-    if($sheet){$stored=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);$layout=(int)($stored['layout_version']??1);}
-    if($layout===2)$snapshot['layout_version']=2;
-    $encoded=paper_json($snapshot);
-    if($action==='prepare') {
-        if(!$sheet) {
-            $code=bin2hex(random_bytes(16));
-            $q=$pdo->prepare('INSERT INTO paper_sheets(code,assignment_id,student_id,class_id,school_id,snapshot) VALUES(?,?,?,?,?,?)');
-            $q->execute([$code,$assignmentId,$studentId,$classId,$schoolId,$encoded]);
-            $pdo->prepare("UPDATE assignments SET status='paper_locked' WHERE id=? AND type='paper'")->execute([$assignmentId]);
-        } elseif(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',$encoded))) {
-            paper_fail('Задание изменилось после создания бланка. Старый бланк нельзя проверять автоматически. Обратитесь к администратору.');
-        } else $code=(string)$sheet['code'];
+    if($requestedCode!=='') {
+        $snapshot=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);
+        $layout=(int)($snapshot['layout_version']??1);$code=(string)$sheet['code'];
+        if($assignment['type']!=='paper'){
+            $live=paper_snapshot($pdo,$assignmentId,$studentId);if($layout===2)$live['layout_version']=2;
+            if(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',paper_json($live))))paper_fail('Исходное онлайн-задание изменилось. Проверка остановлена.');
+        }
+    } else {
+        if($action!=='prepare')paper_fail('Укажите код бланка.',422);
+        if(paper_catalog_is_archived($pdo,$assignmentId))paper_fail('Работа в архиве. Восстановите её для выпуска новых бланков.');
+        if(!in_array((string)$assignment['workflow_status'],['ready','assigned','completed'],true))paper_fail('Сначала подготовьте работу к печати. Старые бланки можно проверить по QR.');
+        $snapshot=paper_snapshot($pdo,$assignmentId,$studentId);
+        $layout=2;$snapshot['layout_version']=2;
+        if($sheet){
+            $stored=json_decode((string)$sheet['snapshot'],true,512,JSON_THROW_ON_ERROR);$oldLayout=(int)($stored['layout_version']??1);
+            $candidate=$snapshot;if($oldLayout===1)unset($candidate['layout_version']);
+            if(hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',paper_json($candidate)))){$snapshot=$stored;$layout=$oldLayout;$code=(string)$sheet['code'];}
+            else {
+                if($assignment['type']!=='paper')paper_fail('Исходное онлайн-задание изменилось.');
+                if(($data['reissue']??false)!==true)paper_fail('Работа изменена. Подтвердите выпуск нового бланка.');
+                paper_archive_current($pdo,(string)$sheet['code']);$sheet=false;
+            }
+        }
+        if(!$sheet){
+            $code=bin2hex(random_bytes(16));$encoded=paper_json($snapshot);
+            $q=$pdo->prepare('INSERT INTO paper_sheets(code,assignment_id,student_id,class_id,school_id,snapshot) VALUES(?,?,?,?,?,?)');$q->execute([$code,$assignmentId,$studentId,$classId,$schoolId,$encoded]);
+        }
+        $pdo->prepare("UPDATE assignments SET status='paper_locked' WHERE id=? AND type='paper'")->execute([$assignmentId]);
+    }
+    if($action==='prepare'){
         $pdo->commit();
         json_response(['ok'=>true,'code'=>$code,'assignment'=>['id'=>$assignmentId,'title'=>(string)$assignment['title'],'subject_name'=>(string)$assignment['subject_name']],'student'=>$student,'layout_version'=>$layout,'variant_label'=>$snapshot['variant']['variant_label'],'questions'=>paper_public($snapshot)]);
     }
     if(!$sheet || !hash_equals((string)$sheet['code'],(string)($data['code']??''))) paper_fail('Код бланка не совпадает.');
-    if(!hash_equals(hash('sha256',(string)$sheet['snapshot']),hash('sha256',$encoded))) paper_fail('Задание изменилось после печати. Проверка остановлена, чтобы не выставить неверные оценки.');
     $answers=$data['answers']??null;
     if(!is_array($answers) || count($answers)!==count($snapshot['questions']) || ($data['confirmed']??false)!==true) paper_fail('Подтвердите все распознанные ответы.',422);
     $score=0.0;$max=0.0;$graded=[];
@@ -156,7 +182,7 @@ if(db_is_mysql($pdo)) {
     $attemptId=(int)$pdo->lastInsertId();
     $q=$pdo->prepare('INSERT INTO answers (attempt_id,question_id,answer_text,score,is_correct,needs_review,updated_at) VALUES (?,?,?,?,?,0,CURRENT_TIMESTAMP)');
     foreach($graded as $g) $q->execute(array_merge([$attemptId],$g));
-    $q=$pdo->prepare('UPDATE paper_sheets SET attempt_id=? WHERE code=? AND attempt_id IS NULL');$q->execute([$attemptId,$sheet['code']]);
+    $q=$pdo->prepare('UPDATE '.$sheetTable.' SET attempt_id=? WHERE code=? AND attempt_id IS NULL');$q->execute([$attemptId,$sheet['code']]);
     if($q->rowCount()!==1) paper_fail('Бланк уже обработан.');
     $pdo->commit();
     audit_event('paper_result_submitted','attempt',$attemptId,['assignment_id'=>$assignmentId,'student_id'=>$studentId,'class_id'=>$classId],$schoolId,(int)$user['id']);
