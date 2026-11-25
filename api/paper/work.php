@@ -3,6 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 require dirname(__DIR__) . '/attempts/_helpers.php';
 require __DIR__ . '/grading.php';
+require __DIR__ . '/validation.php';
 require __DIR__ . '/sheets.php';
 require __DIR__ . '/catalog-archive.php';
 
@@ -53,11 +54,13 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
     $questions=[];
     foreach(decoded_json_array($variant['question_order_json']) as $id) {
         $row=$byId[(int)$id];
-        $type=(string)($row['interaction_type'] ?: $row['type']);
+        $rawType=(string)($row['interaction_type'] ?: $row['type']);
+        $type=$rawType;
         if($type==='ordering') $type='order';
         if(in_array($type,['short_answer','image_answer'],true)) $type='text';
         $choice=in_array($type,['single','multiple','true_false'],true);
         $settings=decoded_json_array($row['settings_json']);$structured=[];
+        if(in_array($rawType,['short_answer','image_answer'],true)&&trim((string)($settings['answer_hint']??''))!=='')$structured['answer_hint']=trim((string)$settings['answer_hint']);
         $order=$structuredOrder[(string)$id]??[];
         if($type==='order') {
             foreach($order['items']??[] as $key) if(isset($settings['items'][$key])) $structured['items'][]=['key'=>(string)$key,'text'=>(string)$settings['items'][$key]];
@@ -79,6 +82,7 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
         foreach($assets->fetchAll() as $asset) $images[]=['id'=>(int)$asset['id'],'original_name'=>(string)$asset['original_name'],'url'=>'./api/questions/asset.php?id='.(int)$asset['id']];
         $questions[]=['id'=>(int)$id,'type'=>$type,'text'=>(string)$row['text'],'points'=>(float)$row['points'],'options'=>$choice?$ordered:[],'assets'=>$images,'structured'=>$structured,'correct'=>$correct,'correct_text'=>(string)($row['correct_text']??'')];
     }
+    paper_validate_questions($questions);
     return ['variant'=>$variant,'questions'=>$questions];
 }
 function paper_public(array $snapshot): array {
