@@ -16,12 +16,15 @@ $number=['type'=>'number','text'=>'Число','points'=>1,'correct_text'=>'2.5'
 $correction=['type'=>'correction','text'=>'Исправьте','points'=>1,'correct_text'=>'правильно','structured'=>['original_text'=>'текст с ошибкой']];
 $essay=['type'=>'essay','text'=>'Развернуто','points'=>3,'correct_text'=>''];
 $manual=['type'=>'text','text'=>'Ответ','points'=>1,'correct_text'=>''];
-paper_validate_questions([$single,$multi,$tf,$order,$matching,$text,$number,$correction,$essay,$manual]);
+$manualOrder=array_merge($order,['correct_text'=>'']);$manualMatching=array_merge($matching,['correct_text'=>'']);
+paper_validate_questions([$single,$multi,$tf,$order,$matching,$text,$number,$correction,$essay,$manual,$manualOrder,$manualMatching]);
 pv(paper_grade_answer($order,['text'=>'B A','score'=>null])['score']===2.0,'order grading');
 pv(paper_grade_answer($matching,['text'=>'1-B, 2-A','score'=>null])['score']===2.0,'matching grading');
 pv(paper_grade_answer($correction,['text'=>'Правильно','score'=>null])['score']===1.0,'correction grading');
 pv(paper_grade_answer($number,['text'=>'2,5','score'=>null])['score']===1.0,'numeric grading');
 pv(paper_grade_answer($text,['text'=>'Верно','score'=>null])['score']===1.0,'short answer grading');
+pv(paper_grade_answer($manualOrder,['text'=>'A B','score'=>1])['score']===1.0,'manual order scoring');
+pv(paper_grade_answer($manualMatching,['text'=>'1-A, 2-B','score'=>1])['score']===1.0,'manual matching scoring');
 pvreject(array_merge($order,['correct_text'=>'["K1"]']),'ключ последовательности');
 pvreject(array_merge($matching,['correct_text'=>'{"L1":"R2"}']),'ключ соответствий');
 pvreject(array_merge($number,['correct_text'=>'2x']),'числовой ключ');
