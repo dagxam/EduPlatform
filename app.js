@@ -3576,7 +3576,7 @@ function renderJournal() {
     const cells = visibleCells.map(cell => {
       if (!cell) return '<td class="journal-result-cell"><span class="journal-missing" title="Работа не сдана">—</span></td>';
       const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
-      const flags = cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '';
+      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '') + (cell.source === 'paper' ? '<i title="Бумажный тест" aria-label="Бумажный тест">Б</i>' : '');
       return `<td class="journal-result-cell">
         <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
           data-journal-review="${Number(cell.attempt_id)}"
@@ -3639,7 +3639,7 @@ function renderJournal() {
         + '</div>'
         + '<div class="journal-mobile-work-meta">'
         + '<span><b>' + escapeHtml(journalFormatNumber(cell.score, 2)) + '</b> / ' + escapeHtml(journalFormatNumber(cell.max_score, 2)) + ' балл.</span>'
-        + (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>')
+        + (cell.source === 'paper' ? '<span>Бумажный тест</span>' : (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>'))
         + adjustedMarker
         + '</div>'
         + '<div class="journal-mobile-actions">'
@@ -3947,6 +3947,7 @@ function attemptReviewAnswerList(values, emptyText = 'Нет ответа') {
 }
 
 function renderAttemptAnswerEditor(question) {
+  if (question?.editor === null) return '';
   const editor = question?.editor || {};
   const kind = String(editor.kind || 'text');
   const questionId = Number(question?.id || 0);
@@ -4202,6 +4203,7 @@ async function openAttemptReview(attemptId) {
           ${studentMeta}
           <span>${escapeHtml(resultDateTime(attempt.submitted_at))}</span>
           ${browserClosed}
+          ${attempt.termination_reason === 'paper' ? '<span>Бумажный тест</span>' : ''}
           ${adjusted}
         </div>
         <div class="attempt-review-scoreboard">
@@ -4747,7 +4749,7 @@ async function loadStudentResults() {
         <tr>
           <td>${escapeHtml(resultDateTime(item.submitted_at))}</td>
           <td>${escapeHtml(item.subject_name || '—')}</td>
-          <td><b>${escapeHtml(item.assignment_title)}</b>${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
+          <td><b>${escapeHtml(item.assignment_title)}</b>${item.termination_reason === 'paper' ? '<small class="results-cell-sub">Бумажный тест</small>' : ''}${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
           <td>${Number(item.score || 0).toLocaleString('ru-RU')} / ${Number(item.max_score || 0).toLocaleString('ru-RU')}</td>
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
           <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span></td>
@@ -4766,6 +4768,7 @@ async function loadStudentResults() {
               <div>
                 <span class="student-result-subject">${escapeHtml(item.subject_name || 'Предмет')}</span>
                 <h3>${escapeHtml(item.assignment_title)}</h3>
+                ${item.termination_reason === 'paper' ? '<small>Бумажный тест</small>' : ''}
                 <small>${escapeHtml(resultDateTime(item.submitted_at))}</small>
               </div>
               <span class="student-result-grade-wrap"><span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
@@ -5794,6 +5797,10 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
     loadSubscriptionPage().catch(() => {});
     return;
   }
+  if (btn.dataset.view === 'paper-tests') {
+    if (currentUser && currentUser.role !== 'student') window.location.href = './paper-workspace.html';
+    return;
+  }
   showView(btn.dataset.view);
   if (btn.dataset.view === 'teacher-dashboard') loadTeacherDashboard().catch(() => {});
   if (btn.dataset.view === 'classes') loadClasses();
@@ -6036,6 +6043,7 @@ function renderSubjectAssignments() {
         <div class="subject-assignment-footer">
           <div class="subject-assignment-actions">
             <button class="secondary-btn compact-btn test-run-btn" type="button" data-test-assignment="${item.id}">▶ Пройти как ученик</button>
+            <button class="secondary-btn compact-btn" type="button" data-paper-assignment="${Number(item.id)}">Распечатать тест</button>
             ${assignmentEditAction(item, 'subject')}
             <button class="secondary-btn compact-btn duplicate-btn" type="button" data-duplicate-assignment="${item.id}">⧉ Дублировать</button>
             ${libraryAssignmentAction(item)}
@@ -6505,6 +6513,12 @@ function wireAssignmentWorkflowButtons(root) {
       button
     ));
   });
+  root.querySelectorAll('[data-paper-assignment]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.paperAssignment);
+      if (Number.isSafeInteger(id) && id > 0) window.open('./paper.html?assignment_id=' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
+    });
+  });
   root.querySelectorAll('[data-test-assignment]').forEach(button => {
     button.addEventListener('click', () => openAssignmentTestPreview(Number(button.dataset.testAssignment)));
   });
@@ -6527,6 +6541,7 @@ function wireAssignmentWorkflowButtons(root) {
 
 function assignmentTableActionIcon(type) {
   const icons = {
+    paper: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7zM17 11h.01"/></svg>',
     test: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.7l5.3 3.3-5.3 3.3z"/></svg>',
     builder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v4h4M9 12h3M9 15h2"/><path d="M14.5 12.5l2 2-3.8 3.8-2.4.5.5-2.4z"/></svg>',
     duplicate: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>',
@@ -6700,6 +6715,7 @@ function renderAssignments() {
         <td class="row-actions-cell assignment-table-actions" data-label="Действия">
           <div class="assignment-action-group assignment-action-tools">
             ${assignmentTableIconButton('test', 'Пройти как ученик', 'data-test-assignment="' + Number(item.id) + '"', 'primary')}
+            ${assignmentTableIconButton('paper', 'Распечатать бумажный тест', 'data-paper-assignment="' + Number(item.id) + '"')}
             ${assignmentEditAction(item)}
             ${assignmentTableIconButton('duplicate', 'Дублировать задание', 'data-duplicate-assignment="' + Number(item.id) + '"')}
             ${assignmentTableLibraryAction(item)}

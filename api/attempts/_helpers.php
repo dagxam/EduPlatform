@@ -408,7 +408,9 @@ function repair_imported_answer_keys_and_scores(PDO $pdo, ?int $studentId = null
             'SELECT a.id, a.attempt_id, a.answer_text, q.points
              FROM answers a
              JOIN questions q ON q.id = a.question_id
-             WHERE a.question_id = :question_id'
+             JOIN attempts paper_guard ON paper_guard.id = a.attempt_id
+             WHERE a.question_id = :question_id
+               AND COALESCE(paper_guard.termination_reason, "") <> "paper"'
         );
         $stmt->execute(['question_id' => $questionId]);
 
@@ -672,6 +674,10 @@ function save_attempt_answer(PDO $pdo, int $attemptId, int $questionId, array $p
 
 function regrade_attempt_answers(PDO $pdo, int $attemptId): void
 {
+    // Paper scores were confirmed against a printed snapshot, including manual points.
+    $paperGuard = $pdo->prepare('SELECT termination_reason FROM attempts WHERE id = ?');
+    $paperGuard->execute([$attemptId]);
+    if ((string)$paperGuard->fetchColumn() === 'paper') return;
     $stmt = $pdo->prepare(
         'SELECT a.id, a.question_id, a.answer_text,
                 q.type, q.interaction_type
@@ -746,6 +752,7 @@ function repair_zero_total_attempts(PDO $pdo, ?int $studentId = null, ?int $scho
          JOIN assignments ass ON ass.id = at.assignment_id
          WHERE at.status <> "in_progress"
            AND COALESCE(at.score, 0) = 0
+           AND COALESCE(at.termination_reason, "") <> "paper"
            AND EXISTS (
              SELECT 1 FROM answers ans WHERE ans.attempt_id = at.id
            )';
