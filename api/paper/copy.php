@@ -215,6 +215,7 @@ try {
     $stmt->execute(['assignment_id' => $sourceId]);
     $partition=paper_choice_partition($stmt->fetchAll());
     $questions=$partition['questions'];$skipped=$partition['skipped'];
+    if(count($questions)>20)throw new DomainException('В исходном тесте больше 20 подходящих вопросов. Создайте бумажную работу с максимум 20 вопросами.',422);
     if(!$questions)throw new DomainException('В исходной работе нет вопросов с выбором ответа. Создайте бумажный тест вручную.',422);
 
     $insertQuestion = $pdo->prepare(

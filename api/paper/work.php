@@ -48,7 +48,7 @@ function paper_snapshot(PDO $pdo,int $assignmentId,int $studentId): array {
     $q->execute([$assignmentId]); $byId=[];
     $activeRows=$q->fetchAll();paper_require_choice_questions($activeRows);
     foreach($activeRows as $row) $byId[(int)$row['id']]=$row;
-    if (!$byId || count($byId)>36) paper_fail('Персональный бланк поддерживает от 1 до 36 вопросов. Для длинных заданий используйте обычную печать.',422);
+    if (!$byId || count($byId)>20) paper_fail('Для нового бумажного бланка нужно от 1 до 20 вопросов.',422);
     $options=$pdo->prepare('SELECT id,text,is_correct FROM question_options WHERE question_id=? ORDER BY position,id');
     $assets=$pdo->prepare('SELECT id,original_name,mime_type FROM question_assets WHERE question_id=? ORDER BY position,id');
     $optionOrder=decoded_json_array($variant['option_order_json']);

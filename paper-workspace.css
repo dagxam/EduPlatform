@@ -41,3 +41,26 @@
 .paper-question-sheet .asset{max-height:85mm}
 .paper-modern-form svg{width:100%;height:auto;max-height:250mm}
 }
+
+/* Compact A4: same dimensions in preview and print; overflow uses standard packet. */
+.paper-compact-probe{position:fixed;left:-20000px;top:0;visibility:hidden;width:182mm;pointer-events:none}
+.paper-app .paper-compact-sheet{box-sizing:border-box;width:182mm;height:266mm;padding:0;margin:0 auto;background:#fff;color:#151e2b;display:flex;flex-direction:column;gap:2mm;font:9pt/1.22 Arial,sans-serif;overflow:visible}
+.paper-compact-sheet>*{flex-shrink:0;min-width:0}
+.paper-compact-head,.paper-compact-title,.paper-compact-identity,.paper-compact-footer{display:flex;align-items:center;justify-content:space-between;gap:3mm}
+.paper-compact-head{border-bottom:.35mm solid #15202d;padding-bottom:2mm}
+.paper-compact-brand{display:flex;gap:3mm;align-items:center}.paper-compact-logo{display:grid;place-items:center;width:12mm;height:12mm;border:.35mm solid #15202d;border-radius:2mm;font:800 22pt Arial;color:#15202d}
+.paper-compact-brand b{display:block;font:800 23pt/1 Arial;letter-spacing:.3mm}.paper-compact-brand small{display:block;font:700 7pt Arial;margin-top:1mm;color:#4b5768}
+.paper-compact-variant{text-align:center;border:.25mm solid #15202d;border-radius:1.5mm;padding:1.5mm 4mm}.paper-compact-variant small,.paper-compact-variant b{display:block}.paper-compact-variant small{font-size:7pt}.paper-compact-variant b{font-size:17pt}
+.paper-compact-title h1{font:700 15pt/1.12 Arial;margin:0;overflow-wrap:anywhere}.paper-compact-title small{font-size:7.5pt;text-align:right;color:#4b5768}
+.paper-compact-identity{font-size:9pt;flex-wrap:wrap}.paper-compact-identity span:first-child{flex:1;min-width:60mm;border-bottom:.2mm solid #aab2bc;padding-bottom:.8mm}
+.paper-compact-instruction{border:.25mm solid #aab2bc;border-radius:1mm;padding:1.5mm 2mm}.paper-compact-instruction b,.paper-compact-instruction small{display:block}.paper-compact-instruction small{color:#4b5768;font-size:8pt}
+.paper-compact-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm;flex:1 1 auto;min-height:0}
+.paper-compact-column{display:flex;flex-direction:column;min-height:0;min-width:0;gap:0;justify-content:space-between}.paper-compact-column+ .paper-compact-column{border-left:.2mm solid #aab2bc;padding-left:4mm}
+.paper-compact-question{flex:0 0 auto;border-top:.2mm solid #aab2bc;padding:1.4mm 0;break-inside:avoid;overflow-wrap:anywhere}.paper-compact-question:first-child{border-top:0;padding-top:0}
+.paper-compact-qhead{display:grid;grid-template-columns:7mm minmax(0,1fr);gap:1mm}.paper-compact-qhead h2{font:700 9pt/1.2 Arial;margin:0;white-space:pre-wrap}.paper-compact-qhead>b{font-size:9pt}
+.paper-compact-options{margin:1mm 0 0 8mm;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6mm 2mm;font-size:8.5pt}.paper-compact-options>div{display:flex;gap:1.2mm;align-items:baseline}.paper-compact-options span{min-width:0;white-space:pre-wrap}
+.paper-compact-image{display:block;max-width:calc(100% - 8mm);max-height:25mm;width:auto;height:auto;object-fit:contain;margin:1mm auto}
+.paper-compact-form{width:100%;margin:0}.paper-compact-form svg{display:block;width:100%;height:auto}
+.paper-compact-footer{font-size:7pt;color:#4b5768;padding-top:.6mm}
+@media screen{.paper-app #printArea{overflow-x:auto}.paper-app #printArea .paper-compact-sheet{padding:0;min-width:182mm;outline:1px solid #dce2e7;margin:12px auto}}
+@media print{.paper-app .paper-compact-sheet{margin:0!important;break-inside:avoid;page-break-inside:avoid}.paper-app #printArea{overflow:visible!important}.paper-app .paper-compact-logo{color:#111}}

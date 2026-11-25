@@ -22,6 +22,10 @@ $position = (int)$stmt->fetchColumn();
 $pdo->beginTransaction();
 try {
     question_editor_lock_paper($pdo,$assignment);
+    if(($assignment['type']??'')==='paper'){
+        $count=$pdo->prepare('SELECT COUNT(*) FROM questions WHERE assignment_id=? AND is_active=1'.(db_is_mysql($pdo)?' FOR UPDATE':''));$count->execute([$assignmentId]);
+        if((int)$count->fetchColumn()>=20){$pdo->rollBack();json_response(['ok'=>false,'error'=>'В бумажном тесте максимум 20 вопросов.'],422);}
+    }
     $stmt = $pdo->prepare(
         'INSERT INTO questions
          (assignment_id, type, text, points, position, correct_text, interaction_type, settings_json)

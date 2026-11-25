@@ -24,9 +24,10 @@
   const qx=(tl.x+tr.x+bl.x+br.x)/4,qy=(tl.y+tr.y+bl.y+br.y)/4,qrWidth=Math.hypot(tr.x-tl.x,tr.y-tl.y);
   const modules=Number.isInteger(qr.version)&&qr.version>=1&&qr.version<=40?17+4*qr.version:29;
   const edge=104*modules/(modules+8),ux=[(tr.x-tl.x+br.x-bl.x)/(2*edge),(tr.y-tl.y+br.y-bl.y)/(2*edge)],uy=[(bl.x-tl.x+br.x-tr.x)/(2*edge),(bl.y-tl.y+br.y-tr.y)/(2*edge)];
-  const predict=(x,y)=>[qx+(x-620)*ux[0]+(y-95)*uy[0],qy+(x-620)*ux[1]+(y-95)*uy[1]];
-  const mid=predict(360,500);
-  const targets=[[28,28],[692,28],[692,972],[28,972]].map(([x,y])=>predict(x,y));
+  const compact=/^UP3:/i.test(String(qr.data||'')),cy=compact?143:95,top=compact?12:28,bottom=compact?268:972;
+  const predict=(x,y)=>[qx+(x-620)*ux[0]+(y-cy)*uy[0],qy+(x-620)*ux[1]+(y-cy)*uy[1]];
+  const mid=predict(360,(top+bottom)/2);
+  const targets=[[28,top],[692,top],[692,bottom],[28,bottom]].map(([x,y])=>predict(x,y));
   const det=ux[0]*uy[1]-ux[1]*uy[0];if(Math.abs(det)<.0001)return null;
   const lists=targets.map(([x,y],i)=>candidates.filter(c=>{const dx=c.p[0]-mid[0],dy=c.p[1]-mid[1],u=(dx*uy[1]-dy*uy[0])/det,v=(dy*ux[0]-dx*ux[1])/det;return (i===0||i===3?u<0:u>0)&&(i<2?v<0:v>0);}).sort((a,b)=>Math.hypot(a.p[0]-x,a.p[1]-y)-Math.hypot(b.p[0]-x,b.p[1]-y)).slice(0,7));
   if(lists.some(l=>!l.length))return null;
@@ -36,9 +37,9 @@
    const p=[a.p,b.p,c.p,d.p],cross=p.map((v,i)=>{const u=p[(i+1)%4],z=p[(i+2)%4];return (u[0]-v[0])*(z[1]-u[1])-(u[1]-v[1])*(z[0]-u[0]);});
    if(cross.some(v=>v<=0))continue;
    const area=p.reduce((s,v,i)=>s+v[0]*p[(i+1)%4][1]-v[1]*p[(i+1)%4][0],0)/2;
-   if(area<W*H*.12)continue;
+   if(area<W*H*(compact?.08:.12))continue;
    try{
-    const map=homography(p),center=map(620,95),left=map(580,95),right=map(660,95);
+    const map=homography(p),qyNorm=compact?28+(cy-12)*944/256:95,center=map(620,qyNorm),left=map(620-edge/2,qyNorm),right=map(620+edge/2,qyNorm);
     const predicted=Math.hypot(right[0]-left[0],right[1]-left[1]);
     if(!Number.isFinite(predicted)||predicted<=0||qrWidth/predicted<.6||qrWidth/predicted>1.5)continue;
     const err=Math.hypot(center[0]-qx,center[1]-qy)+Math.abs(predicted-qrWidth)*.35;

@@ -73,6 +73,7 @@ jobs:
           php .github/tests/paper-versions-smoke.php
           php .github/tests/paper-versions-smoke.php --mysql
           node .github/tests/paper-layout-smoke.cjs
+          node .github/tests/paper-compact-smoke.cjs
           node .github/tests/paper-camera-smoke.cjs
           php .github/tests/paper-in-place-smoke.php
           php .github/tests/paper-in-place-smoke.php --mysql
