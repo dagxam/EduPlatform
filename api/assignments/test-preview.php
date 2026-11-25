@@ -174,7 +174,7 @@ foreach ($questionOrder as $questionId) {
         'type' => (string)$row['type'],
         'interaction_type' => $interaction,
         'text' => (string)$row['text'],
-        'points' => (float)$row['points'],
+        'points' => $assignment['type']==='paper' ? 1.0 : (float)$row['points'],
         'options' => $options,
         'structured' => $safeStructured,
         'assets' => $assets,
