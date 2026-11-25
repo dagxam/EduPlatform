@@ -8,7 +8,7 @@ function report(id,text,error=false){const e=$(id);e.textContent=text;e.classLis
 async function request(path,body){const options={credentials:'same-origin',cache:'no-store'};if(body){options.method='POST';options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body);}const r=await fetch(path,options),d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Ошибка запроса.');return d;}
 function fill(select,items,placeholder,label){select.replaceChildren(new Option(placeholder,''));for(const item of items)select.add(new Option(label(item),String(item.id)));}
 function reset(){generation++;current=null;scanTarget=null;rows=[];image=null;corners=[];$('review').hidden=true;$('navReview').hidden=true;$('photoCanvas').hidden=true;$('photo').value='';$('verify').value='';$('confirmed').checked=false;$('printArea').replaceChildren();$('printArea').hidden=true;$('save').disabled=true;$('batchPrint').disabled=true;$('batchPrint').hidden=true;report('result','');report('scanState','');}
-function buttons(){ $('cameraStart').disabled=!ready||!!stream||scanBusy;$('cameraStop').disabled=!stream;$('cameraCapture').disabled=!stream||scanBusy;$('plain').disabled=!assignment.value;$('prepare').disabled=batchBusy||!(assignment.value&&cls.value&&student.value);$('batch').disabled=batchBusy||!(assignment.value&&cls.value&&Array.from(student.options).some(o=>o.value)); }
+function buttons(){ $('cameraStart').disabled=!ready||!!stream||scanBusy||batchBusy;$('cameraStop').disabled=!stream;$('cameraCapture').disabled=!stream||scanBusy;$('plain').disabled=!assignment.value;$('prepare').disabled=batchBusy||!(assignment.value&&cls.value&&student.value);$('batch').disabled=batchBusy||!(assignment.value&&cls.value&&Array.from(student.options).some(o=>o.value)); }
 function payload(action){return {action,...(action==='submit'&&scanTarget?scanTarget:{assignment_id:Number(assignment.value),class_id:Number(cls.value),student_id:Number(student.value)})};}
 async function init(){try{const [a,c]=await Promise.all([request('./api/assignments/list.php?mode=paper'),request('./api/classes/list.php')]);fill(assignment,(a.assignments||a.items||[]).filter(x=>x.paper_latest!==false&&!x.paper_archived),'Выберите бумажное задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));fill(cls,c.classes||c.items||[],'Выберите класс',x=>x.name);const id=new URLSearchParams(location.search).get('assignment_id');if(id)assignment.value=id;ready=true;buttons();request('./api/paper/ocr.php').then(d=>{ocrEnabled=d.enabled===true;}).catch(()=>{});}catch(e){report('message',e.message,true);}}
 assignment.addEventListener('change',()=>{reset();buttons();});
@@ -121,9 +121,7 @@ async function openByCode(code){
  if(d.saved){reset();report('message','Бланк уже проверен: оценка '+d.result.grade+' ('+d.result.percent+'%).');return null;}
  if(d.code!==code)throw Error('Код не совпадает с сохранённым бланком.');
  reset();scanTarget=ids;current=d;const epoch=generation;
- const set=(select,id,label)=>{if(!Array.from(select.options).some(o=>o.value===String(id)))select.add(new Option(label,String(id)));select.value=String(id);};
- set(assignment,ids.assignment_id,d.assignment.title);set(cls,ids.class_id,d.student.class_name);
- fill(student,[],'Выберите ученика',()=> '');set(student,ids.student_id,[d.student.last_name,d.student.first_name,d.student.middle_name].filter(Boolean).join(' '));
+ // Keep printing selectors and the full class roster intact; submit uses the authorized QR target.
  await render(d,epoch,true);if(epoch!==generation)return null;
  $('review').hidden=false;$('navReview').hidden=false;report('message','Бланк найден по QR.');buttons();return d;
 }
@@ -131,7 +129,7 @@ function showFrame(frame,points,qrVerified){
  canvas.width=frame.width;canvas.height=frame.height;const pixels=ctx.createImageData(frame.width,frame.height);pixels.data.set(frame.data);ctx.putImageData(pixels,0,0);image=pixels;corners=points||[];canvas.hidden=false;$('confirmed').checked=false;if(qrVerified)$('verify').value=current.code.slice(-8);else $('verify').value='';updateSave();
  $('review').scrollIntoView({behavior:'smooth',block:'start'});document.dispatchEvent(new CustomEvent('paper:navigate',{detail:'review'}));
  if(corners.length===4){try{scan();return;}catch(e){corners=[];report('scanState',e.message+' Укажите углы вручную.',true);return;}}
- report('scanState','QR прочитан. Не все углы определились автоматически. Нажмите четыре чёрных квадрата в порядке: верхний левый, верхний правый, нижний правый, нижний левый.');
+ report('scanState',(qrVerified?'QR прочитан. Не все углы определились автоматически. ':'QR не прочитан. ' )+'Нажмите четыре чёрных квадрата в порядке: верхний левый, верхний правый, нижний правый, нижний левый. Если углы не попали в кадр, снимите бланк повторно.');
 }
 async function processFrame(frame,result,points){
  const code=qrCode(result);
@@ -140,7 +138,7 @@ async function processFrame(frame,result,points){
  if(current){showFrame(frame,null,false);report('scanState','QR не распознан. Укажите четыре угла и введите код вручную.',true);return true;}
  throw Error('Не найден QR UROVIA PAPER. Выберите ученика вручную или наведите камеру на бланк.');
 }
-$('photo').addEventListener('change',async()=>{const file=$('photo').files[0];if(!file)return;const version=generation;try{const c=await decodeFile(file);if(version!==generation)return;const frame=c.getContext('2d').getImageData(0,0,c.width,c.height);const result=qrResult(frame);await processFrame(frame,result,null);}catch(e){report('cameraState',e.message,true);}finally{$('photo').value='';}});
+$('photo').addEventListener('change',async()=>{const file=$('photo').files[0];if(!file)return;if(scanBusy||batchBusy){$('photo').value='';report('cameraState','Дождитесь завершения текущей операции.',true);return;}stopCamera();scanBusy=true;buttons();const version=generation;try{const c=await decodeFile(file);if(version!==generation)return;const frame=c.getContext('2d').getImageData(0,0,c.width,c.height);const result=qrResult(frame);await processFrame(frame,result,null);}catch(e){report('cameraState',e.message,true);}finally{$('photo').value='';scanBusy=false;buttons();}});
 function videoFrame(){const video=$('cameraVideo');if(video.readyState<2||!video.videoWidth||!video.videoHeight)return null;const c=videoCanvas||(videoCanvas=document.createElement('canvas')),scale=Math.min(1,1920/Math.max(video.videoWidth,video.videoHeight));const w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);if(c.width!==w||c.height!==h){c.width=w;c.height=h;}const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(video,0,0,w,h);return x.getImageData(0,0,w,h);}
 function stage(text){if($('cameraState').textContent!==text)report('cameraState',text);}
 function stopCamera(){cameraEpoch++;clearTimeout(cameraTimer);cameraTimer=null;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;qrSeen=null;manualCapture=null;const video=$('cameraVideo');video.srcObject=null;video.hidden=true;$('cameraGuide').hidden=true;buttons();}
@@ -166,7 +164,7 @@ async function liveLoop(epoch){
     if(now-qrSeen.since>=2200){await finishCapture(u.frame,u.qr,null);return;}
     stage('QR найден. Покажите все четыре чёрных угла. Если они не определятся, откроем ручную проверку.');
    }else{
-    qrSeen=null;
+    if(qrSeen&&manualCapture&&Date.now()-qrSeen.since>=2200){const u=manualCapture;await finishCapture(u.frame,u.qr,null);return;}
     stage(result?'Обнаружен другой QR. Нужен персональный бланк UROVIA PAPER.':'Ищем QR-код… Поднесите лист ближе, избегайте бликов, держите его неподвижно.');
    }
   }
@@ -176,7 +174,7 @@ async function liveLoop(epoch){
 $('cameraStart').addEventListener('click',async()=>{if(stream||scanBusy)return;scanBusy=true;buttons();const epoch=++cameraEpoch;try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Камера недоступна. Загрузите фотографию.');if(typeof jsQR!=='function'||typeof PaperScan!=='object')throw Error('Модуль сканирования не загрузился. Обновите страницу.');const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});if(epoch!==cameraEpoch){media.getTracks().forEach(t=>t.stop());return;}stream=media;const video=$('cameraVideo');video.srcObject=stream;video.hidden=false;$('cameraGuide').hidden=false;await video.play();if(epoch!==cameraEpoch)return;for(const track of media.getVideoTracks()){track.addEventListener('ended',()=>{if(epoch===cameraEpoch){stopCamera();report('cameraState','Камера отключилась. Включите её повторно.',true);}});try{const caps=track.getCapabilities?.();if(caps?.focusMode?.includes('continuous'))await track.applyConstraints({advanced:[{focusMode:'continuous'}]});}catch{}}
  stage('Камера включена. Ищем QR-код на бланке ответов.');}catch(e){stopCamera();report('cameraState','Камера недоступна: '+e.message,true);}finally{scanBusy=false;buttons();if(stream&&epoch===cameraEpoch)liveLoop(epoch);}});
 $('cameraStop').addEventListener('click',stopCamera);
-$('cameraCapture').addEventListener('click',async()=>{if(!stream||scanBusy)return;try{const frame=videoFrame();if(!frame){report('cameraState','Кадр ещё не готов. Попробуйте снова.',true);return;}const result=qrResult(frame);if(!qrCode(result)&&!current){report('cameraState','QR не прочитан. Приблизьте код или загрузите чёткую фотографию. Камера продолжает работать.',true);return;}await finishCapture(frame,result,null);}catch(e){report('cameraState',e.message,true);}});
+$('cameraCapture').addEventListener('click',async()=>{if(!stream||scanBusy)return;try{if(manualCapture){const u=manualCapture;await finishCapture(u.frame,u.qr,u.points);return;}const frame=videoFrame();if(!frame){report('cameraState','Кадр ещё не готов. Попробуйте снова.',true);return;}const result=qrResult(frame);if(!qrCode(result)&&!current){report('cameraState','QR не прочитан. Приблизьте код или загрузите чёткую фотографию. Камера продолжает работать.',true);return;}await finishCapture(frame,result,null);}catch(e){report('cameraState',e.message,true);}});
 window.addEventListener('pagehide',stopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
 
 function homography(points){const [p0,p1,p2,p3]=points;const dx1=p1[0]-p2[0],dx2=p3[0]-p2[0],dx3=p0[0]-p1[0]+p2[0]-p3[0],dy1=p1[1]-p2[1],dy2=p3[1]-p2[1],dy3=p0[1]-p1[1]+p2[1]-p3[1],det=dx1*dy2-dx2*dy1;if(Math.abs(det)<1)throw Error('Углы выбраны неверно.');const g=(dx3*dy2-dx2*dy3)/det,h=(dx1*dy3-dx3*dy1)/det,a=p1[0]-p0[0]+g*p1[0],b=p3[0]-p0[0]+h*p3[0],c=p0[0],d=p1[1]-p0[1]+g*p1[1],e=p3[1]-p0[1]+h*p3[1],f=p0[1];return(x,y)=>{const u=(x-28)/664,v=(y-28)/944,z=g*u+h*v+1;return [(a*u+b*v+c)/z,(d*u+e*v+f)/z];};}
