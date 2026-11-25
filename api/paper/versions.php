@@ -18,7 +18,7 @@ function paper_version_next(PDO $pdo,int $sourceId,int $schoolId): array {
     // Serialize versions in the family; SQLite obtains a write lock before reading max.
     if(db_is_mysql($pdo)){$q=$pdo->prepare("SELECT id FROM assignments WHERE id=? AND school_id=? AND type='paper' FOR UPDATE");$q->execute([$root,$schoolId]);if(!$q->fetchColumn())throw new DomainException('Исходная версия недоступна.',409);}
     else{$q=$pdo->prepare("UPDATE assignments SET id=id WHERE id=? AND school_id=? AND type='paper'");$q->execute([$root,$schoolId]);if(!$q->rowCount())throw new DomainException('Исходная версия недоступна.',409);}
-    $q=$pdo->prepare('SELECT COALESCE(MAX(revision_no),1) FROM paper_versions WHERE root_id=?'.(db_is_mysql($pdo)?' FOR UPDATE':''));$q->execute([$root]);
+    $q=$pdo->prepare('SELECT revision_no FROM paper_versions WHERE root_id=? ORDER BY revision_no DESC LIMIT 1'.(db_is_mysql($pdo)?' FOR UPDATE':''));$q->execute([$root]);
     return ['root_id'=>$root,'revision_no'=>max(1,(int)$q->fetchColumn())+1,'parent_id'=>$sourceId];
 }
 function paper_version_record(PDO $pdo,int $id,array $version): void {
