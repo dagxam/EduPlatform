@@ -14,5 +14,7 @@ for(const layout of [1,2]){
  for(const node of svg.children){const v=node.attrs;if(node.tag==='rect'&&v.fill==='#000')rect(v.x,v.y,v.width,v.height);if(node.tag==='path')for(const m of v.d.matchAll(/M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+Z/g))rect(Number(m[1]),Number(m[2]),Number(m[3]),Number(m[4]));}
  const decoded=jsQR(pixels,W,H,{inversionAttempts:'dontInvert'});assert.equal(decoded?.data,'UP'+layout+':'+d.code);assert(PaperScan.findCorners({width:W,height:H,data:pixels},decoded,homography));
  const circles=svg.children.filter(n=>n.tag==='circle');assert.equal(circles.length,80);for(let i=0;i<20;i++)for(let j=0;j<4;j++)assert.deepEqual([circles[i*4+j].attrs.cx,circles[i*4+j].attrs.cy],center(i,j,20,layout));
+ const selected=[0,3,1,2];for(let i=0;i<20;i++){const [x,y]=center(i,selected[i%4],20,layout);for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++)if(dx*dx+dy*dy<=36)put(Math.round(x+dx),Math.round(y+dy));}
+ const frame={width:W,height:H,data:pixels};const dark=new Function('image',s.slice(s.indexOf('function darkness('),s.indexOf('function autoCorners('))+'\nreturn darkness;')(frame);const map=homography(marker);for(let i=0;i<20;i++)for(let j=0;j<4;j++){const [x,y]=center(i,j,20,layout);assert.equal(dark(x,y,map)-dark(x+(layout===2?18:22),y,map)>=.36,j===selected[i%4]);}
 }
 console.log('PAPER actual legacy and new SVG QR + circle coordinates OK');
