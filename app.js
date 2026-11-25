@@ -3576,7 +3576,7 @@ function renderJournal() {
     const cells = visibleCells.map(cell => {
       if (!cell) return '<td class="journal-result-cell"><span class="journal-missing" title="Работа не сдана">—</span></td>';
       const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
-      const flags = cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '';
+      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '') + (cell.source === 'paper' ? '<i title="Бумажный тест" aria-label="Бумажный тест">Б</i>' : '');
       return `<td class="journal-result-cell">
         <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
           data-journal-review="${Number(cell.attempt_id)}"
@@ -3639,7 +3639,7 @@ function renderJournal() {
         + '</div>'
         + '<div class="journal-mobile-work-meta">'
         + '<span><b>' + escapeHtml(journalFormatNumber(cell.score, 2)) + '</b> / ' + escapeHtml(journalFormatNumber(cell.max_score, 2)) + ' балл.</span>'
-        + (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>')
+        + (cell.source === 'paper' ? '<span>Бумажный тест</span>' : (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>'))
         + adjustedMarker
         + '</div>'
         + '<div class="journal-mobile-actions">'
@@ -4202,6 +4202,7 @@ async function openAttemptReview(attemptId) {
           ${studentMeta}
           <span>${escapeHtml(resultDateTime(attempt.submitted_at))}</span>
           ${browserClosed}
+          ${attempt.termination_reason === 'paper' ? '<span>Бумажный тест</span>' : ''}
           ${adjusted}
         </div>
         <div class="attempt-review-scoreboard">
@@ -4747,7 +4748,7 @@ async function loadStudentResults() {
         <tr>
           <td>${escapeHtml(resultDateTime(item.submitted_at))}</td>
           <td>${escapeHtml(item.subject_name || '—')}</td>
-          <td><b>${escapeHtml(item.assignment_title)}</b>${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
+          <td><b>${escapeHtml(item.assignment_title)}</b>${item.termination_reason === 'paper' ? '<small class="results-cell-sub">Бумажный тест</small>' : ''}${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
           <td>${Number(item.score || 0).toLocaleString('ru-RU')} / ${Number(item.max_score || 0).toLocaleString('ru-RU')}</td>
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
           <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span></td>
@@ -4766,6 +4767,7 @@ async function loadStudentResults() {
               <div>
                 <span class="student-result-subject">${escapeHtml(item.subject_name || 'Предмет')}</span>
                 <h3>${escapeHtml(item.assignment_title)}</h3>
+                ${item.termination_reason === 'paper' ? '<small>Бумажный тест</small>' : ''}
                 <small>${escapeHtml(resultDateTime(item.submitted_at))}</small>
               </div>
               <span class="student-result-grade-wrap"><span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
@@ -5792,6 +5794,10 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (staffSubscriptionLocked() && btn.dataset.view !== 'subscription') {
     showView('subscription');
     loadSubscriptionPage().catch(() => {});
+    return;
+  }
+  if (btn.dataset.view === 'paper-tests') {
+    if (currentUser && currentUser.role !== 'student') window.location.href = './paper-workspace.html';
     return;
   }
   showView(btn.dataset.view);
