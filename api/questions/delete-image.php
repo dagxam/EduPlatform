@@ -24,13 +24,14 @@ if (!$asset) json_response(['ok' => false, 'error' => 'Изображение н
 
 $question = question_editor_question($pdo, $user, (int)$asset['question_id'], true);
 $assignment = question_editor_assignment($pdo, $user, (int)$asset['assignment_id'], true);
-$hasHistory = (int)($assignment['attempts_count'] ?? 0) > 0;
+$hasHistory = ($assignment['type']??'')==='paper' || (int)($assignment['attempts_count'] ?? 0) > 0;
 $effectiveQuestionId = (int)$asset['question_id'];
 $deletedAssetId = $assetId;
 
 if ($hasHistory) {
     $pdo->beginTransaction();
     try {
+        question_editor_lock_paper($pdo,$assignment,(int)$asset['question_id']);
         $effectiveQuestionId = question_editor_fork_revision($pdo, (int)$asset['question_id']);
         $stmt = $pdo->prepare(
             'SELECT id
