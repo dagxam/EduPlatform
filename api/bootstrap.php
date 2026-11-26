@@ -1470,70 +1470,123 @@ function ai_is_configured(): bool
     return ai_config()['api_key'] !== '';
 }
 
+class AiProviderException extends RuntimeException
+{
+    public function __construct(string $message, public readonly array $diagnostic)
+    {
+        parent::__construct($message);
+    }
+}
+
+function ai_safe_provider_detail(string $value,string $key): string
+{
+    if($key!=='')$value=str_replace($key,'[скрыто]',$value);
+    $value=preg_replace('/\bgsk_[A-Za-z0-9_-]+/i','[скрыто]',$value)??'';
+    $value=preg_replace('/[\x00-\x1F\x7F]/u',' ',$value)??'';
+    return mb_substr(trim($value),0,500);
+}
+
+function ai_chat_payload(array $payload): array
+{
+    $model=(string)($payload['model']??'');
+    $input=$payload['input']??null;
+    if(!is_string($input)||trim($input)==='')throw new InvalidArgumentException('Не задан текст для ИИ.');
+    $body=[
+        'model'=>$model,
+        'messages'=>[
+            ['role'=>'system','content'=>'Верни только валидный объект JSON с учебными вопросами.'],
+            ['role'=>'user','content'=>$input],
+        ],
+        'response_format'=>['type'=>'json_object'],
+        'max_completion_tokens'=>8192,
+        'stream'=>false,
+    ];
+    if(in_array($model,['openai/gpt-oss-20b','openai/gpt-oss-120b'],true))$body['reasoning_effort']='low';
+    return $body;
+}
+
+function ai_provider_failure(int $status,int $errno,string $detail='',string $providerCode='',string $key=''): AiProviderException
+{
+    $detail=ai_safe_provider_detail($detail,$key);
+    $providerCode=ai_safe_provider_detail($providerCode,$key);
+    $message=$errno!==0 ? match($errno){
+        6=>'Сервер UROVIA не смог разрешить DNS-имя api.groq.com.',
+        7=>'Сервер UROVIA не смог установить соединение с Groq.',
+        28=>'Истекло время ожидания ответа Groq.',
+        35,51,58,60,77=>'Ошибка TLS/сертификата при подключении к Groq.',
+        default=>'Ошибка сетевого подключения к Groq.',
+    } : match($status){
+        400,422=>'Groq отклонил параметры запроса или формат ответа.',
+        401=>'Groq отклонил API-ключ (401). Проверьте ключ в Groq Console.',
+        403=>'Groq запретил доступ (403). Проверьте разрешения модели и доступность сервиса для IP хостинга.',
+        404=>'Groq не нашёл модель или адрес API (404).',
+        429=>'Достигнут лимит запросов или токенов Groq (429).',
+        498=>'Groq временно не располагает свободной мощностью.',
+        500,502,503,504=>'Сервис Groq временно недоступен.',
+        default=>$status>=200&&$status<300?'Groq вернул неожиданный формат ответа.':'Не удалось получить успешный ответ Groq.',
+    };
+    return new AiProviderException($message,[
+        'http_status'=>$status,'curl_errno'=>$errno,'provider_code'=>$providerCode,
+        'detail'=>$detail,'endpoint'=>'/chat/completions',
+    ]);
+}
+
 function ai_request(array $payload): array
 {
-    $config = ai_config();
-    if ($config['api_key'] === '') {
-        throw new RuntimeException('ИИ UROVIA ещё не настроен главным администратором.');
-    }
-    if (!extension_loaded('curl')) {
-        throw new RuntimeException('На сервере недоступен cURL для подключения ИИ.');
-    }
-
-    $curl = curl_init(rtrim((string)$config['api_base'], '/') . '/responses');
-    if ($curl === false) {
-        throw new RuntimeException('Не удалось подготовить подключение ИИ.');
-    }
-
-    $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    curl_setopt_array($curl, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 12,
-        CURLOPT_TIMEOUT => 75,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json',
-        ],
-        CURLOPT_POSTFIELDS => $body,
+    $config=ai_config();
+    $key=(string)$config['api_key'];
+    if($key==='')throw new AiProviderException('API-ключ Groq не настроен.',['provider_code'=>'KEY_MISSING','endpoint'=>'/chat/completions']);
+    if(!extension_loaded('curl'))throw new AiProviderException('На сервере отсутствует расширение PHP cURL.',['provider_code'=>'CURL_UNAVAILABLE','endpoint'=>'/chat/completions']);
+    $curl=curl_init(rtrim((string)$config['api_base'],'/').'/chat/completions');
+    if($curl===false)throw new AiProviderException('Не удалось инициализировать cURL.',['provider_code'=>'CURL_INIT_FAILED','endpoint'=>'/chat/completions']);
+    $body=json_encode(ai_chat_payload($payload),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
+    curl_setopt_array($curl,[
+        CURLOPT_POST=>true,
+        CURLOPT_RETURNTRANSFER=>true,
+        CURLOPT_CONNECTTIMEOUT=>12,
+        CURLOPT_TIMEOUT=>55,
+        CURLOPT_FOLLOWLOCATION=>false,
+        CURLOPT_SSL_VERIFYPEER=>true,
+        CURLOPT_SSL_VERIFYHOST=>2,
+        CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$key,'Content-Type: application/json','Accept: application/json'],
+        CURLOPT_POSTFIELDS=>$body,
     ]);
-    $raw = curl_exec($curl);
-    $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    $curlError = curl_error($curl);
+    $raw=curl_exec($curl);
+    $status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE);
+    $errno=curl_errno($curl);
+    $curlError=curl_error($curl);
     curl_close($curl);
-
-    if ($raw === false || $curlError !== '') {
-        throw new RuntimeException('Не удалось связаться с ИИ: ' . ($curlError !== '' ? $curlError : 'ошибка соединения.'));
+    if($raw===false||$errno!==0)throw ai_provider_failure($status,$errno?:-1,$curlError,'',$key);
+    $data=json_decode((string)$raw,true);
+    if($status<200||$status>=300){
+        $error=is_array($data['error']??null)?$data['error']:[];
+        $detail=is_string($error['message']??null)?$error['message']:'Groq не вернул структурированное описание ошибки.';
+        $code=is_string($error['code']??null)?$error['code']:(is_string($error['type']??null)?$error['type']:'');
+        throw ai_provider_failure($status,0,$detail,$code,$key);
     }
-
-    $data = json_decode((string)$raw, true);
-    if (!is_array($data)) {
-        throw new RuntimeException('ИИ вернул некорректный ответ.');
+    if(!is_array($data))throw ai_provider_failure($status,0,'Ответ не является JSON.','INVALID_RESPONSE',$key);
+    $choice=$data['choices'][0]??null;
+    if(!is_array($choice)||!is_string($choice['message']['content']??null)||trim($choice['message']['content'])===''){
+        $reason=is_array($choice)?(string)($choice['finish_reason']??''):'';
+        throw ai_provider_failure($status,0,'Нет текста ответа. Причина: '.$reason,'EMPTY_RESPONSE',$key);
     }
-    if ($status < 200 || $status >= 300) {
-        $message = trim((string)($data['error']['message'] ?? ''));
-        throw new RuntimeException($message !== '' ? 'Ошибка ИИ: ' . $message : 'Сервис ИИ временно недоступен.');
-    }
-
     return $data;
 }
 
 function ai_response_text(array $response): string
 {
-    if (isset($response['output_text']) && is_string($response['output_text'])) {
-        return trim($response['output_text']);
-    }
-    foreach ((array)($response['output'] ?? []) as $output) {
-        if (!is_array($output)) continue;
-        foreach ((array)($output['content'] ?? []) as $content) {
-            if (!is_array($content)) continue;
-            if (isset($content['text']) && is_string($content['text'])) {
-                $text = trim($content['text']);
-                if ($text !== '') return $text;
-            }
+    $chat=$response['choices'][0]['message']['content']??null;
+    if(is_string($chat))return trim($chat);
+    if(isset($response['output_text'])&&is_string($response['output_text']))return trim($response['output_text']);
+    $parts=[];
+    foreach((array)($response['output']??[]) as $output){
+        if(!is_array($output)||($output['type']??'message')!=='message')continue;
+        foreach((array)($output['content']??[]) as $content){
+            if(!is_array($content)||($content['type']??'output_text')!=='output_text')continue;
+            if(is_string($content['text']??null))$parts[]=$content['text'];
         }
     }
-    return '';
+    return trim(implode('',$parts));
 }
 
 function subscription_assert_ai_capacity(PDO $pdo, array $user, ?int $schoolId): array

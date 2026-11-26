@@ -5592,8 +5592,12 @@ document.getElementById('aiRunDiagnostic')?.addEventListener('click',async()=>{
     try{
       const r=await fetch('./api/admin/ai/test.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
       const d=await readJsonResponse(r,'Некорректный ответ диагностики.');
-      if(!r.ok||!d.ok)throw Error(d.error||'Ошибка диагностики.');
-      messages.push(label+': успешно · '+d.questions_count+' вопросов · '+d.duration_ms+' мс');
+      if(!r.ok||!d.ok){
+        const info=d.diagnostic||{};
+        const details=[info.http_status?'HTTP '+info.http_status:'',info.curl_errno?'cURL '+info.curl_errno:'',info.provider_code,info.detail].filter(Boolean).join(' · ');
+        throw Error((d.error||'Ошибка диагностики.')+(details?' ['+details+']':''));
+      }
+      messages.push(label+': успешно · '+d.questions_count+' вопросов · '+d.duration_ms+' мс · '+d.model);
     }catch(e){success=false;messages.push(label+': '+e.message);}
     out.textContent=messages.join(' | ');
   }

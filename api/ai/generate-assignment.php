@@ -84,7 +84,8 @@ try {
 } catch (UnexpectedValueException $error) {
     json_response(['ok'=>false,'error'=>$error->getMessage(),'code'=>'AI_INVALID_OUTPUT'],502);
 } catch (Throwable $error) {
-    json_response(['ok'=>false,'error'=>$error->getMessage(),'code'=>'AI_REQUEST_FAILED'],502);
+    if(!($error instanceof AiProviderException))error_log('[UROVIA AI] generation: '.get_class($error));
+    json_response(['ok'=>false,'error'=>$error instanceof AiProviderException?$error->getMessage():'Не удалось обработать ответ ИИ. Обратитесь к администратору.','code'=>'AI_REQUEST_FAILED'],502);
 }
 
 $title = $customTitle !== '' ? $customTitle : trim((string)($generated['title'] ?? ''));

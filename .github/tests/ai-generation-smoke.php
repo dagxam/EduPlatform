@@ -16,4 +16,18 @@ $paper=ai_normalize_generated_assignment(answer([single(1),$multiple,$tf]),3,tru
 $bad=single(1);$bad['options'][1]['is_correct']='false';
 foreach([[answer([$bad]),1,false],[answer([$num]),1,true],[answer([single(1),single(1)]),2,true],[answer([single(1)]),3,false],[['output_text'=>'bad'],1,true]] as [$payload,$n,$isPaper]){try{ai_normalize_generated_assignment($payload,$n,$isPaper);throw new RuntimeException('accepted invalid output');}catch(UnexpectedValueException $e){}}
 must(str_contains(ai_assignment_prompt('Математика','Сложение','5','easy',20,true),'ровно 20'),'prompt count');
-echo "AI online and PAPER: response validation, keys, 1/10/20 questions, invalid output OK (mock provider)\n";
+foreach([false,true] as $isPaper){
+ $payload=ai_chat_payload(['model'=>'openai/gpt-oss-20b','input'=>ai_assignment_prompt('Математика','Сложение','5','easy',3,$isPaper)]);
+ must($payload['response_format']['type']==='json_object','JSON mode');
+ must($payload['messages'][1]['role']==='user','chat input');
+ $mock=answer([single(1),single(2),single(3)]);
+ $chat=['choices'=>[['message'=>['content'=>$mock['output'][0]['content'][0]['text']],'finish_reason'=>'stop']]];
+ must(count(ai_normalize_generated_assignment($chat,3,$isPaper)['questions'])===3,'chat output');
+}
+foreach([401,403,404,429,503] as $code){
+ $e=ai_provider_failure($code,0,'example gsk_fakekey','test','gsk_fakekey');
+ must($e->diagnostic['http_status']===$code,'HTTP status');
+ must(!str_contains(json_encode($e->diagnostic),'gsk_fakekey'),'key redaction');
+}
+foreach([6,7,28,60] as $errno)must(ai_provider_failure(0,$errno)->diagnostic['curl_errno']===$errno,'cURL error');
+echo "AI online and PAPER: chat payload, response validation, safe HTTP/cURL diagnostics OK (mock provider)\n";

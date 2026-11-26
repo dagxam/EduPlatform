@@ -20,5 +20,8 @@ try{
  $parsed=ai_normalize_generated_assignment(ai_request(['model'=>(string)$config['model'],'input'=>$prompt]),3,$paper,'mixed');
  json_response(['ok'=>true,'mode'=>$mode,'questions_count'=>count($parsed['questions']),'duration_ms'=>(int)round((microtime(true)-$start)*1000),'model'=>$config['model']]);
 }catch(Throwable $e){
- json_response(['ok'=>false,'mode'=>$mode,'error'=>$e instanceof UnexpectedValueException?$e->getMessage():'Groq не ответил успешно. Проверьте ключ, модель, доступ сервера и лимиты API.'],502);
+ $diagnostic=$e instanceof AiProviderException?$e->diagnostic:['provider_code'=>$e instanceof UnexpectedValueException?'AI_INVALID_OUTPUT':'INTERNAL_ERROR'];
+ $message=$e instanceof AiProviderException||$e instanceof UnexpectedValueException?$e->getMessage():'Внутренняя ошибка обработки ИИ. Проверьте журнал PHP.';
+ if(!($e instanceof AiProviderException)&&!($e instanceof UnexpectedValueException))error_log('[UROVIA AI] diagnostic: '.get_class($e));
+ json_response(['ok'=>false,'mode'=>$mode,'error'=>$message,'diagnostic'=>$diagnostic,'model'=>(string)ai_config()['model'],'duration_ms'=>(int)round((microtime(true)-$start)*1000)],502);
 }

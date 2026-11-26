@@ -14,6 +14,6 @@ json_response([
         'model' => (string)$config['model'],
         'api_key_configured' => (string)$config['api_key'] !== '',
         'provider' => 'groq',
-        'endpoint' => 'https://api.groq.com/openai/v1/responses',
+        'endpoint' => 'https://api.groq.com/openai/v1/chat/completions',
     ],
 ]);
