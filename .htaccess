@@ -4,6 +4,9 @@
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "same-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  <Files "version.json">
+    Header always set Cache-Control "no-store, no-cache, must-revalidate"
+  </Files>
   <Files "paper-workspace.html">
     Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
     Header always set Cache-Control "no-store"

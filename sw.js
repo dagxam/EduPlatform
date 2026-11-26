@@ -1,4 +1,6 @@
-const CACHE = 'uvoria-v120';
+const CACHE = 'uvoria-v121';
+const RELEASE = 'dev';
+const RELEASE_CACHE = CACHE + '-' + RELEASE;
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,13 +28,13 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(RELEASE_CACHE).then(cache => cache.addAll(APP_SHELL)));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key !== RELEASE_CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -52,6 +54,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  if (url.pathname.endsWith('/version.json')) {event.respondWith(fetch(request,{cache:'no-store'}));return;}
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
@@ -69,7 +72,7 @@ self.addEventListener('fetch', event => {
       .then(response => {
         if (response.ok) {
           const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, copy));
+          caches.open(RELEASE_CACHE).then(cache => cache.put(request, copy));
         }
         return response;
       })

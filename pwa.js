@@ -5,7 +5,8 @@
   const LEGACY_INSTALLED_KEY = 'urovia-pwa-installed-v1';
   const INSTALLED_HINT_KEY = 'urovia-pwa-installed-v2';
   const RELOAD_KEY = 'uvoria-sw-reloading';
-  const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 1000;
+  const UPDATE_CHECK_INTERVAL_MS = 30 * 1000;
+  const updateOnly = () => document.body?.classList?.contains('paper-app') || document.body?.classList?.contains('paper-preview');
   let deferredInstallPrompt = null;
   let registration = null;
   let assessmentActive = false;
@@ -16,6 +17,8 @@
   let releaseUpdateAvailable = false;
   let latestReleaseVersion = '';
   let updateCheckTimer = null;
+  let updateRequested = false;
+  let releaseCheckInFlight = false;
 
   const modes = ['standalone'];
   const isStandalone = () =>
@@ -203,8 +206,8 @@
 
     document.documentElement.classList.toggle('pwa-standalone', standalone);
     const copy = installButtonCopy();
-    button.classList.toggle('hidden', installed);
-    button.disabled = installed;
+    button.classList.toggle('hidden', installed || !!updateOnly());
+    button.disabled = installed || !!updateOnly();
     button.classList.remove('pwa-shortcut-helper', 'pwa-installing');
     button.classList.toggle('pwa-install-android', isAndroid());
     button.classList.toggle('pwa-install-ios', isIOS());
@@ -230,7 +233,9 @@
 
     const update = document.createElement('div');
     update.id = 'pwaUpdateToast';
-    update.className = 'pwa-update-toast hidden';
+    update.className = 'pwa-update-toast hidden no-print';
+    update.setAttribute('role','status');
+    update.setAttribute('aria-live','polite');
     update.innerHTML = '<div><b>Доступно обновление UROVIA</b><span>Нажмите «Обновить», чтобы загрузить новую версию.</span></div>' +
       '<button type="button" id="pwaUpdateButton">Обновить UROVIA</button>';
 
@@ -331,10 +336,11 @@
   }
 
   async function checkForReleaseUpdate() {
-    if (typeof window.fetch !== 'function') return;
+    if (typeof window.fetch !== 'function' || releaseCheckInFlight) return;
     const loaded = loadedReleaseVersion();
     if (!loaded || loaded === 'dev') return;
 
+    releaseCheckInFlight = true;
     try {
       const response = await window.fetch('./version.json?t=' + Date.now(), {
         cache: 'no-store',
@@ -343,28 +349,29 @@
       if (!response.ok) return;
       const payload = await response.json();
       const remote = String(payload?.version || payload?.sha || '').trim();
-      if (!remote) return;
+      if (!/^[a-f0-9]{40}$/i.test(remote)) return;
 
       latestReleaseVersion = remote;
       releaseUpdateAvailable = remote !== loaded;
       if (releaseUpdateAvailable) showUpdateReady();
+      else {updatePending=false;hideUpdateReady();}
     } catch {
-      // Service Worker update detection remains the fallback.
-    }
+      // Keep the last known state on network failure.
+    } finally {releaseCheckInFlight=false;}
   }
 
   async function checkForUpdates() {
-    if (registration) {
+    await checkForReleaseUpdate();
+    if (registration && releaseUpdateAvailable) {
       try { await registration.update(); } catch {}
     }
-    await checkForReleaseUpdate();
   }
 
   function hardReloadToLatest() {
     if (!window.location) return;
     const url = new URL(window.location.href);
     url.searchParams.set('urovia_update', (latestReleaseVersion || Date.now().toString()).slice(0, 16));
-    sessionStorage.setItem(RELOAD_KEY, '1');
+    try {sessionStorage.setItem(RELOAD_KEY, '1');} catch {}
     window.location.replace(url.toString());
   }
 
@@ -375,6 +382,8 @@
       return;
     }
 
+    if(updateOnly() && document.body?.classList?.contains('paper-app') && !window.confirm('Обновить UROVIA? Несохранённые вопросы и результаты сканирования могут быть потеряны.'))return;
+    updateRequested=true;
     const toastButton = document.getElementById('pwaUpdateButton');
     if (toastButton) {
       toastButton.disabled = true;
@@ -387,7 +396,7 @@
 
     if (registration?.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      window.setTimeout(() => hardReloadToLatest(), 2500);
+      window.setTimeout(() => {if(updateRequested)hardReloadToLatest();}, 2500);
       return;
     }
 
@@ -408,6 +417,8 @@
   }
 
   function showUpdateReady() {
+    if(updateRequested)return;
+    if(loadedReleaseVersion() && loadedReleaseVersion()!=='dev' && !releaseUpdateAvailable)return;
     if (assessmentActive || assessmentUiVisible()) {
       updatePending = true;
       hideUpdateReady();
@@ -466,6 +477,7 @@
   window.addEventListener('pageshow', () => {
     refreshInstallButton();
     detectInstalledPwa().catch(() => {});
+    checkForUpdates().catch(() => {});
   });
   window.addEventListener('focus', () => {
     refreshInstallButton();
@@ -492,27 +504,23 @@
     installedThisSession = readInstalledHint();
     ensureUi();
     refreshInstallButton();
+    // Release checks also work when Service Worker is unavailable.
+    window.addEventListener('load', () => checkForUpdates().catch(() => {}));
+    if (typeof window.setInterval === 'function' && updateCheckTimer === null) {
+      updateCheckTimer = window.setInterval(() => {if (!document.hidden) checkForUpdates().catch(() => {});},UPDATE_CHECK_INTERVAL_MS);
+    }
+    checkForReleaseUpdate().catch(() => {});
     await detectInstalledPwa();
     if (!('serviceWorker' in navigator)) return;
     try {
       const reg = await navigator.serviceWorker.register('./sw.js');
       watchRegistration(reg);
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (sessionStorage.getItem(RELOAD_KEY) === '1') return;
-        if (assessmentActive || assessmentUiVisible()) {
-          reloadPending = true;
-          hideUpdateReady();
-          return;
-        }
-        sessionStorage.setItem(RELOAD_KEY, '1');
-        window.location.reload();
+        // Another tab can activate a worker. Never reload this tab implicitly.
+        if(!updateRequested){checkForReleaseUpdate().catch(()=>{});return;}
+        if(assessmentActive||assessmentUiVisible()){updateRequested=false;updatePending=true;hideUpdateReady();return;}
+        updateRequested=false;hardReloadToLatest();
       });
-      window.addEventListener('load', () => checkForUpdates().catch(() => {}));
-      if (typeof window.setInterval === 'function' && updateCheckTimer === null) {
-        updateCheckTimer = window.setInterval(() => {
-          if (!document.hidden) checkForUpdates().catch(() => {});
-        }, UPDATE_CHECK_INTERVAL_MS);
-      }
       checkForReleaseUpdate().catch(() => {});
       window.setTimeout(() => {
         if (typeof sessionStorage.removeItem === 'function') sessionStorage.removeItem(RELOAD_KEY);

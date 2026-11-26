@@ -227,3 +227,7 @@
     min-height:46px;
   }
 }
+
+.paper-app .pwa-install-button,.paper-preview .pwa-install-button,.paper-app .pwa-ios-modal,.paper-preview .pwa-ios-modal{display:none!important}
+.pwa-update-toast.hidden{display:none!important}
+@media print{.pwa-update-toast,.pwa-install-button,.pwa-ios-modal{display:none!important}}

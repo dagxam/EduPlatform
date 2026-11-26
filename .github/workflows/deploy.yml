@@ -9,6 +9,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: urovia-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -162,6 +166,7 @@ jobs:
         run: |
           printf '{"version":"%s","deployed_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
           SHORT_SHA="${GITHUB_SHA:0:12}"
+          sed -i "s/const RELEASE = 'dev';/const RELEASE = '${GITHUB_SHA}';/" sw.js
           for file in index.html login.html paper.html paper-workspace.html; do
             sed -E -i "s/(<meta name=\"urovia-release\" content=\")[^\"]*(\">)/\1${GITHUB_SHA}\2/" "$file"
             sed -E -i "s/\?v=[0-9]+/?v=${SHORT_SHA}/g" "$file"
