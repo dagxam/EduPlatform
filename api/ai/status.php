@@ -16,7 +16,7 @@ $used = (int)($usage['ai_generations'] ?? 0);
 json_response([
     'ok' => true,
     'configured' => ai_is_configured(),
-    'provider' => 'groq',
+    'provider' => ai_config()['provider'],
     'model' => (string)ai_config()['model'],
     'plan_code' => $planCode,
     'used' => $used,

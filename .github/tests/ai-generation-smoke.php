@@ -30,4 +30,13 @@ foreach([401,403,404,429,503] as $code){
  must(!str_contains(json_encode($e->diagnostic),'gsk_fakekey'),'key redaction');
 }
 foreach([6,7,28,60] as $errno)must(ai_provider_failure(0,$errno)->diagnostic['curl_errno']===$errno,'cURL error');
-echo "AI online and PAPER: chat payload, response validation, safe HTTP/cURL diagnostics OK (mock provider)\n";
+$stored=['provider'=>'groq','api_key'=>'gsk_test','model'=>'openai/gpt-oss-20b','openrouter_api_key'=>'sk-or-v1-test','active_provider'=>'openrouter'];
+must(ai_config_for_provider('groq',$stored)['api_key']==='gsk_test','preserve Groq key');
+must(ai_config_for_provider('openrouter',$stored)['api_key']==='sk-or-v1-test','separate OpenRouter key');
+must(ai_config_for_provider('openrouter',$stored)['model']==='openrouter/free','free-only model');
+$or=ai_chat_payload(['model'=>'openrouter/free','input'=>'JSON test']);
+must($or['model']==='openrouter/free'&&$or['provider']['require_parameters']===true,'OpenRouter routing');
+must(!isset($or['reasoning_effort'])&&isset($or['max_tokens']),'OpenRouter compatible parameters');
+$e=ai_provider_failure(403,0,'Forbidden sk-or-v1-test','403','sk-or-v1-test','openrouter');
+must(str_contains($e->getMessage(),'OpenRouter')&&!str_contains(json_encode($e->diagnostic),'sk-or-v1-test'),'OpenRouter diagnostics redaction');
+echo "AI online and PAPER: provider selection, free-only routing and response validation OK (mock provider)\n";

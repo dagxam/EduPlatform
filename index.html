@@ -1080,21 +1080,24 @@
           </div>
           <p class="panel-note">ИИ создаёт только черновик задания. Учитель всегда проверяет вопросы и правильные ответы в обычном конструкторе перед назначением. Данные учеников в генерацию не отправляются. Функция доступна учителям на тарифах <b>PRO и Premium</b>.</p>
           <div class="ai-connect-guide">
-            <b>Как подключить API Groq</b>
+            <b>Подключение ИИ</b>
             <ol>
-              <li>Откройте <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console → API Keys</a> и войдите в аккаунт.</li>
+              <li>Выберите провайдера: <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console</a> или <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter API Keys</a>. Используйте только доступный вам на законных условиях сервис.</li>
               <li>Создайте новый API-ключ и скопируйте его. Сам ключ повторно в Groq обычно не показывается, поэтому сохраните его сразу.</li>
-              <li>Вставьте ключ ниже в поле <b>API-ключ Groq</b>.</li>
-              <li>Оставьте модель <code>openai/gpt-oss-20b</code> и нажмите <b>Сохранить ИИ</b>.</li>
-              <li>После статуса <b>«ИИ подключён»</b> учителя PRO/Premium смогут создавать задания через кнопку «Создать с ИИ».</li>
+              <li>Вставьте отдельный ключ выбранного сервиса. Ключи Groq и OpenRouter не взаимозаменяемы.</li>
+              <li>Groq: модель <code>openai/gpt-oss-20b</code>. OpenRouter: только <code>openrouter/free</code>. Нажмите <b>Сохранить ИИ</b>.</li>
+              <li>Нажмите «Проверить ИИ: онлайн и PAPER». Доступность и бесплатные лимиты зависят от провайдера.</li>
             </ol>
-            <small>UROVIA использует Groq Chat Completions API через <code>https://api.groq.com/openai/v1</code>. Ключ хранится только в закрытом storage сервера и не попадает в GitHub.</small>
+            <small>Ключи хранятся отдельно в закрытом storage сервера и не попадают в GitHub. OpenRouter не переключается на платные модели.</small>
           </div>
           <form id="aiConfigForm" class="profile-form">
+            <label>Провайдер генерации
+              <select id="aiProvider" name="provider"><option value="groq">Groq</option><option value="openrouter">OpenRouter (бесплатные модели)</option></select>
+            </label>
             <div class="form-row">
               <label>
                 <span class="ai-key-label-row">
-                  <span>API-ключ Groq</span>
+                  <span id="aiProviderKeyLabel">API-ключ Groq</span>
                   <span class="ai-key-connection-badge is-offline" id="aiKeyConnectionBadge">Не подключён</span>
                 </span>
                 <input id="aiApiKey" name="api_key" type="password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять">
@@ -1103,7 +1106,7 @@
                 <input id="aiModel" name="model" value="openai/gpt-oss-20b" autocomplete="off">
               </label>
             </div>
-            <small class="field-help">Groq используется как API-провайдер. Доступ к ИИ-созданию заданий в UROVIA предоставляется только на PRO/Premium. PRO — до 50 генераций в месяц, Premium — до 300. Общий лимит для онлайн-тестов и UROVIA PAPER.</small>
+            <small class="field-help">Выбранный сервис используется для онлайн и PAPER. Доступ к ИИ-созданию заданий в UROVIA предоставляется только на PRO/Premium. PRO — до 50 генераций в месяц, Premium — до 300. Общий лимит для онлайн-тестов и UROVIA PAPER.</small>
             <div class="form-error hidden" id="aiConfigError"></div>
             <div class="import-result hidden" id="aiConfigResult"></div>
             <button class="primary-btn" type="submit">Сохранить ИИ</button>
@@ -1975,7 +1978,7 @@
   </div>
 
   <script src="attempt-security.js?v=52"></script>
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=116"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=56"></script>
 </body>

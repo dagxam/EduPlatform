@@ -13,7 +13,8 @@ json_response([
     'config' => [
         'model' => (string)$config['model'],
         'api_key_configured' => (string)$config['api_key'] !== '',
-        'provider' => 'groq',
-        'endpoint' => 'https://api.groq.com/openai/v1/chat/completions',
+        'provider' => $config['provider'],
+        'endpoint' => $config['api_base'].'/chat/completions',
+        'providers' => array_map(static fn($name)=>['provider'=>$name,'model'=>ai_config_for_provider($name)['model'],'api_key_configured'=>ai_config_for_provider($name)['api_key']!==''],['groq','openrouter']),
     ],
 ]);

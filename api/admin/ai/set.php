@@ -11,28 +11,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
-$apiKey = trim((string)($data['api_key'] ?? ''));
-$model = trim((string)($data['model'] ?? 'openai/gpt-oss-20b'));
-$current = ai_runtime_config();
-$currentGroqKey = (string)($current['provider'] ?? '') === 'groq'
-    ? trim((string)($current['api_key'] ?? ''))
-    : '';
-
-if ($apiKey === '' && $currentGroqKey === '' && trim((string)(getenv('GROQ_API_KEY') ?: '')) === '') {
-    json_response(['ok' => false, 'error' => 'Укажите бесплатный API-ключ Groq.'], 422);
-}
-if ($apiKey === '') {
-    $apiKey = $currentGroqKey;
-}
-if ($model === '' || !preg_match('~^[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)*$~D', $model) || strlen($model)>100 || strlen($model)<2) {
-    json_response(['ok' => false, 'error' => 'Укажите корректное название модели.'], 422);
-}
-
-$config = [
-    'provider' => 'groq',
-    'api_key' => $apiKey,
-    'model' => $model,
-];
+$apiKey=trim((string)($data['api_key']??''));
+$current=ai_runtime_config();
+$provider=(string)($data['provider']??($current['active_provider']??'groq'));
+if(!in_array($provider,['groq','openrouter'],true))json_response(['ok'=>false,'error'=>'Неизвестный провайдер.'],422);
+$model=$provider==='openrouter'?'openrouter/free':trim((string)($data['model']??'openai/gpt-oss-20b'));
+if($provider==='groq'&&(!preg_match('~^[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)*$~D',$model)||strlen($model)>100||strlen($model)<2))json_response(['ok'=>false,'error'=>'Укажите корректное название модели.'],422);
+if($apiKey!==''&&(strlen($apiKey)>512||preg_match('/[\r\n]/',$apiKey)))json_response(['ok'=>false,'error'=>'Некорректный формат ключа.'],422);
+$oldGroq=ai_config_for_provider('groq',$current);
+$config=['provider'=>'groq','api_key'=>($current['provider']??'')==='groq'?(string)($current['api_key']??''):'',
+ 'model'=>$oldGroq['model'],'openrouter_api_key'=>(string)($current['openrouter_api_key']??''),'active_provider'=>$provider];
+if($provider==='groq'){if($apiKey!=='')$config['api_key']=$apiKey;$config['model']=$model;}
+else if($apiKey!=='')$config['openrouter_api_key']=$apiKey;
+if(ai_config_for_provider($provider,$config)['api_key']==='')json_response(['ok'=>false,'error'=>'Введите API-ключ выбранного провайдера.'],422);
 
 $path = ai_config_path();
 $dir = dirname($path);
@@ -45,9 +36,9 @@ if (file_put_contents($path, $php, LOCK_EX) === false) {
 }
 @chmod($path, 0600);
 
-audit_event('ai_config_updated', 'system', 1, ['provider' => 'groq', 'model' => $model], null, (int)$user['id']);
+audit_event('ai_config_updated', 'system', 1, ['provider' => $provider, 'model' => $model], null, (int)$user['id']);
 
 json_response([
     'ok' => true,
-    'message' => 'Бесплатный ИИ UROVIA через Groq настроен. API-ключ хранится только в закрытом storage и не попадает в GitHub.',
+    'message' => 'Настройки сохранены. Проверьте онлайн и PAPER. Ключи хранятся в закрытом storage.',
 ]);

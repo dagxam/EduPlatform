@@ -1445,24 +1445,25 @@ function ai_runtime_config(): array
     return is_array($config) ? $config : [];
 }
 
+function ai_config_for_provider(string $provider, ?array $stored=null): array
+{
+    $stored=$stored??ai_runtime_config();
+    if($provider==='openrouter'){
+        $key=trim((string)($stored['openrouter_api_key']??''));
+        return ['provider'=>'openrouter','api_key'=>$key!==''?$key:trim((string)(getenv('OPENROUTER_API_KEY')?:'')),
+            'model'=>'openrouter/free','api_base'=>'https://openrouter.ai/api/v1'];
+    }
+    $storedKey=($stored['provider']??'')==='groq'?trim((string)($stored['api_key']??'')):'';
+    $storedModel=($stored['provider']??'')==='groq'?trim((string)($stored['model']??'')):'';
+    return ['provider'=>'groq','api_key'=>$storedKey!==''?$storedKey:trim((string)(getenv('GROQ_API_KEY')?:'')),
+        'model'=>$storedModel!==''?$storedModel:trim((string)(getenv('UROVIA_AI_MODEL')?:'openai/gpt-oss-20b')) ?: 'openai/gpt-oss-20b',
+        'api_base'=>'https://api.groq.com/openai/v1'];
+}
+
 function ai_config(): array
 {
-    $stored = ai_runtime_config();
-    $provider = trim((string)($stored['provider'] ?? ''));
-    $storedKey = $provider === 'groq' ? trim((string)($stored['api_key'] ?? '')) : '';
-    $storedModel = $provider === 'groq' ? trim((string)($stored['model'] ?? '')) : '';
-    $apiKey = $storedKey !== '' ? $storedKey : trim((string)(getenv('GROQ_API_KEY') ?: ''));
-    $model = $storedModel !== ''
-        ? $storedModel
-        : trim((string)(getenv('UROVIA_AI_MODEL') ?: 'openai/gpt-oss-20b'));
-    if ($model === '') $model = 'openai/gpt-oss-20b';
-
-    return [
-        'provider' => 'groq',
-        'api_key' => $apiKey,
-        'model' => $model,
-        'api_base' => 'https://api.groq.com/openai/v1',
-    ];
+    $stored=ai_runtime_config();
+    return ai_config_for_provider(($stored['active_provider']??'groq')==='openrouter'?'openrouter':'groq',$stored);
 }
 
 function ai_is_configured(): bool
@@ -1481,7 +1482,7 @@ class AiProviderException extends RuntimeException
 function ai_safe_provider_detail(string $value,string $key): string
 {
     if($key!=='')$value=str_replace($key,'[скрыто]',$value);
-    $value=preg_replace('/\bgsk_[A-Za-z0-9_-]+/i','[скрыто]',$value)??'';
+    $value=preg_replace('/\b(?:gsk_|sk-or-v1-)[A-Za-z0-9_-]+/i','[скрыто]',$value)??'';
     $value=preg_replace('/[\x00-\x1F\x7F]/u',' ',$value)??'';
     return mb_substr(trim($value),0,500);
 }
@@ -1501,11 +1502,15 @@ function ai_chat_payload(array $payload): array
         'max_completion_tokens'=>8192,
         'stream'=>false,
     ];
+    if($model==='openrouter/free'){
+        $body['max_tokens']=$body['max_completion_tokens'];unset($body['max_completion_tokens']);
+        $body['provider']=['require_parameters'=>true,'data_collection'=>'deny'];
+    }
     if(in_array($model,['openai/gpt-oss-20b','openai/gpt-oss-120b'],true))$body['reasoning_effort']='low';
     return $body;
 }
 
-function ai_provider_failure(int $status,int $errno,string $detail='',string $providerCode='',string $key=''): AiProviderException
+function ai_provider_failure(int $status,int $errno,string $detail='',string $providerCode='',string $key='',string $provider='groq'): AiProviderException
 {
     $detail=ai_safe_provider_detail($detail,$key);
     $providerCode=ai_safe_provider_detail($providerCode,$key);
@@ -1525,9 +1530,10 @@ function ai_provider_failure(int $status,int $errno,string $detail='',string $pr
         500,502,503,504=>'Сервис Groq временно недоступен.',
         default=>$status>=200&&$status<300?'Groq вернул неожиданный формат ответа.':'Не удалось получить успешный ответ Groq.',
     };
+    if($provider==='openrouter')$message=str_replace(['api.groq.com','Groq Console','Groq'],['openrouter.ai','OpenRouter','OpenRouter'],$message);
     return new AiProviderException($message,[
         'http_status'=>$status,'curl_errno'=>$errno,'provider_code'=>$providerCode,
-        'detail'=>$detail,'endpoint'=>'/chat/completions',
+        'detail'=>$detail,'endpoint'=>'/chat/completions','provider'=>$provider,
     ]);
 }
 
@@ -1535,7 +1541,8 @@ function ai_request(array $payload): array
 {
     $config=ai_config();
     $key=(string)$config['api_key'];
-    if($key==='')throw new AiProviderException('API-ключ Groq не настроен.',['provider_code'=>'KEY_MISSING','endpoint'=>'/chat/completions']);
+    $provider=(string)$config['provider'];
+    if($key==='')throw new AiProviderException('API-ключ выбранного провайдера не настроен.',['provider_code'=>'KEY_MISSING','endpoint'=>'/chat/completions']);
     if(!extension_loaded('curl'))throw new AiProviderException('На сервере отсутствует расширение PHP cURL.',['provider_code'=>'CURL_UNAVAILABLE','endpoint'=>'/chat/completions']);
     $curl=curl_init(rtrim((string)$config['api_base'],'/').'/chat/completions');
     if($curl===false)throw new AiProviderException('Не удалось инициализировать cURL.',['provider_code'=>'CURL_INIT_FAILED','endpoint'=>'/chat/completions']);
@@ -1556,19 +1563,19 @@ function ai_request(array $payload): array
     $errno=curl_errno($curl);
     $curlError=curl_error($curl);
     curl_close($curl);
-    if($raw===false||$errno!==0)throw ai_provider_failure($status,$errno?:-1,$curlError,'',$key);
+    if($raw===false||$errno!==0)throw ai_provider_failure($status,$errno?:-1,$curlError,'',$key,$provider);
     $data=json_decode((string)$raw,true);
     if($status<200||$status>=300){
         $error=is_array($data['error']??null)?$data['error']:[];
         $detail=is_string($error['message']??null)?$error['message']:'Groq не вернул структурированное описание ошибки.';
         $code=is_string($error['code']??null)?$error['code']:(is_string($error['type']??null)?$error['type']:'');
-        throw ai_provider_failure($status,0,$detail,$code,$key);
+        throw ai_provider_failure($status,0,$detail,$code,$key,$provider);
     }
-    if(!is_array($data))throw ai_provider_failure($status,0,'Ответ не является JSON.','INVALID_RESPONSE',$key);
+    if(!is_array($data))throw ai_provider_failure($status,0,'Ответ не является JSON.','INVALID_RESPONSE',$key,$provider);
     $choice=$data['choices'][0]??null;
     if(!is_array($choice)||!is_string($choice['message']['content']??null)||trim($choice['message']['content'])===''){
         $reason=is_array($choice)?(string)($choice['finish_reason']??''):'';
-        throw ai_provider_failure($status,0,'Нет текста ответа. Причина: '.$reason,'EMPTY_RESPONSE',$key);
+        throw ai_provider_failure($status,0,'Нет текста ответа. Причина: '.$reason,'EMPTY_RESPONSE',$key,$provider);
     }
     return $data;
 }

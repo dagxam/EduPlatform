@@ -5507,6 +5507,20 @@ document.getElementById('yookassaConfigForm')?.addEventListener('submit', async 
   }
 });
 
+let aiProviderConfigs=[];
+document.getElementById('aiProvider')?.addEventListener('change',()=>{
+  const provider=document.getElementById('aiProvider').value;
+  const entry=aiProviderConfigs.find(x=>x.provider===provider)||{};
+  const key=document.getElementById('aiApiKey'),model=document.getElementById('aiModel'),badge=document.getElementById('aiKeyConnectionBadge');
+  key.value='';key.placeholder=entry.api_key_configured?'Ключ сохранён — оставьте пустым':'Введите ключ выбранного сервиса';
+  model.value=provider==='openrouter'?'openrouter/free':entry.model||'openai/gpt-oss-20b';model.readOnly=provider==='openrouter';
+  document.getElementById('aiProviderKeyLabel').textContent='API-ключ '+(provider==='openrouter'?'OpenRouter':'Groq');
+  badge.textContent=entry.api_key_configured?'Ключ сохранён':'Не подключён';
+  badge.classList.toggle('is-online',!!entry.api_key_configured);badge.classList.toggle('is-offline',!entry.api_key_configured);
+  document.getElementById('aiConnectionState').textContent='Сохраните выбранный провайдер';
+  document.getElementById('aiRunDiagnostic').disabled=true;
+  document.getElementById('aiDiagnosticResult').classList.add('hidden');
+});
 async function loadAIAdminConfig() {
   if (Number(currentUser?.is_platform_admin) !== 1) return null;
   const response = await fetch('./api/admin/ai/get.php', {
@@ -5517,6 +5531,10 @@ async function loadAIAdminConfig() {
   if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки ИИ.');
 
   const config = data.config || {};
+  aiProviderConfigs=config.providers||[];
+  const provider=document.getElementById('aiProvider');if(provider)provider.value=config.provider||'groq';
+  document.getElementById('aiProviderKeyLabel').textContent='API-ключ '+(config.provider==='openrouter'?'OpenRouter':'Groq');
+  document.getElementById('aiRunDiagnostic').disabled=!config.api_key_configured;
   const key = document.getElementById('aiApiKey');
   const model = document.getElementById('aiModel');
   const state = document.getElementById('aiConnectionState');
@@ -5525,9 +5543,9 @@ async function loadAIAdminConfig() {
     key.value = '';
     key.placeholder = config.api_key_configured
       ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
-      : 'Вставьте API-ключ Groq';
+      : 'Вставьте API-ключ выбранного сервиса';
   }
-  if (model) model.value = config.model || 'openai/gpt-oss-20b';
+  if (model) {model.value = config.model || 'openai/gpt-oss-20b';model.readOnly=config.provider==='openrouter';}
   if (state) {
     state.textContent = config.api_key_configured ? 'Ключ сохранён · нужна проверка' : 'API-ключ не настроен';
     state.classList.toggle('green', Boolean(config.api_key_configured));
@@ -5560,6 +5578,7 @@ document.getElementById('aiConfigForm')?.addEventListener('submit', async event 
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        provider: document.getElementById('aiProvider')?.value || 'groq',
         api_key: document.getElementById('aiApiKey')?.value || '',
         model: document.getElementById('aiModel')?.value || 'openai/gpt-oss-20b'
       })
@@ -5585,7 +5604,7 @@ document.getElementById('aiConfigForm')?.addEventListener('submit', async event 
 document.getElementById('aiRunDiagnostic')?.addEventListener('click',async()=>{
   if(Number(currentUser?.is_platform_admin)!==1)return;
   const button=document.getElementById('aiRunDiagnostic'),out=document.getElementById('aiDiagnosticResult');
-  button.disabled=true;out.classList.remove('hidden');out.textContent='Проверяем сохранённую конфигурацию Groq…';
+  button.disabled=true;out.classList.remove('hidden');out.textContent='Проверяем сохранённую конфигурацию ИИ…';
   const messages=[];let success=true;
   for(const mode of ['online','paper']){
     const label=mode==='paper'?'PAPER':'Онлайн';
@@ -7359,7 +7378,7 @@ async function openAiTaskCreator() {
         status.textContent = 'ИИ-создание заданий доступно только на PRO/Premium.';
       } else {
         status.textContent = 'ИИ UROVIA · ' + usageText +
-          (data.configured ? '' : ' · API-ключ Groq ещё не настроен');
+          (data.configured ? '' : ' · API-ключ ИИ ещё не настроен');
       }
     }
     submit.disabled = !data.available || !data.configured || (limit !== null && Number(data.remaining || 0) <= 0);

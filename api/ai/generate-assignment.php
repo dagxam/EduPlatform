@@ -151,6 +151,7 @@ audit_event('ai_assignment_generated', 'assignment', $assignmentId, [
     'difficulty' => $difficulty,
     'questions_count' => count($normalizedQuestions),
     'model' => (string)$config['model'],
+    'provider' => (string)$config['provider'],
 ], $schoolId, (int)$user['id']);
 
 $usage = subscription_usage_snapshot($pdo, $user, $schoolId);

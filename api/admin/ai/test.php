@@ -8,7 +8,7 @@ if($_SERVER['REQUEST_METHOD']!=='POST')json_response(['ok'=>false,'error'=>'Ме
 $data=read_json_body();
 $mode=$data['mode']??'';
 if(!in_array($mode,['online','paper'],true))json_response(['ok'=>false,'error'=>'Укажите режим проверки.'],422);
-if(!ai_is_configured())json_response(['ok'=>false,'error'=>'Ключ Groq не настроен.'],503);
+if(!ai_is_configured())json_response(['ok'=>false,'error'=>'Ключ выбранного провайдера не настроен.'],503);
 $recent=array_values(array_filter((array)($_SESSION['ai_diagnostic_times']??[]),static fn($t)=>is_int($t)&&$t>time()-300));
 if(count($recent)>=6)json_response(['ok'=>false,'error'=>'Повторите проверку через несколько минут.'],429);
 $recent[]=time();$_SESSION['ai_diagnostic_times']=$recent;
