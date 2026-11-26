@@ -6,6 +6,7 @@ $user = require_user(['admin', 'teacher']);
 $schoolId = require_active_school($user, false);
 $params = ['school_id' => $schoolId];
 $paperMode = ($_GET['mode'] ?? '') === 'paper';
+if($paperMode)subscription_require_paper(app_db(),$user);
 $conditions = ['a.school_id = :school_id', $paperMode ? "a.type = 'paper'" : "a.type <> 'paper'"];
 
 if (!can_manage_school($user, $schoolId)) {

@@ -9,11 +9,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = read_json_body();
+$paper = ($data['mode'] ?? 'online') === 'paper';
+$questionMode = (string)($data['question_mode'] ?? 'mixed');
+if(!in_array($questionMode,['mixed','single','multiple'],true)) $questionMode='mixed';
 $subjectId = (int)($data['subject_id'] ?? 0);
 $topic = trim((string)($data['topic'] ?? ''));
 $gradeLevel = trim((string)($data['grade_level'] ?? ''));
 $difficulty = trim((string)($data['difficulty'] ?? 'medium'));
-$questionCount = max(3, min(20, (int)($data['question_count'] ?? 10)));
+$questionCount = max($paper ? 1 : 3, min(20, (int)($data['question_count'] ?? 10)));
 $customTitle = trim((string)($data['title'] ?? ''));
 
 if ($subjectId < 1 || $topic === '') {
@@ -61,6 +64,7 @@ if ($subjectName === '') {
     json_response(['ok' => false, 'error' => 'Этот предмет недоступен вашему аккаунту.'], 403);
 }
 
+if($paper) subscription_require_paper($pdo,$user);
 $state = subscription_assert_ai_capacity($pdo, $user, $schoolId);
 
 if (!ai_is_configured()) {
@@ -96,6 +100,14 @@ $prompt =
     "Не используй essay. Не добавляй спорные факты. Формулировки должны быть понятными и проверяемыми. " .
     "Сделай ровно {$questionCount} вопросов.";
 
+if($paper){
+    $allowedTypes = $questionMode === 'mixed' ? 'single, multiple, true_false' : $questionMode;
+    $prompt .= "\nВАЖНО: это бумажный тест UROVIA PAPER. Правила PAPER имеют приоритет. Разрешены только типы: {$allowedTypes}. "
+        . "У каждого вопроса ровно 1 балл. Для single и multiple: от 2 до 6 различных коротких текстовых вариантов, желательно 4. "
+        . "Для single ровно один правильный, для multiple минимум два правильных и минимум один неверный. "
+        . "is_correct должен быть JSON boolean. Для true_false укажи true_false_answer как строку true или false. "
+        . "Не добавляй вопросы, требующие отсутствующего изображения, таблицы или текста. Формулируй компактно для печати на А4.";
+}
 $config = ai_config();
 try {
     $response = ai_request([
@@ -126,11 +138,12 @@ foreach ((array)$generated['questions'] as $rawQuestion) {
     if (!is_array($rawQuestion)) continue;
     $interaction = trim((string)($rawQuestion['interaction_type'] ?? ''));
     if (!in_array($interaction, ['single', 'multiple', 'true_false', 'text', 'number'], true)) continue;
+    if($paper && (!in_array($interaction,['single','multiple','true_false'],true)||($questionMode!=='mixed'&&$interaction!==$questionMode)))continue;
 
     $candidate = [
         'interaction_type' => $interaction,
         'text' => trim((string)($rawQuestion['text'] ?? '')),
-        'points' => max(1, min(10, (float)($rawQuestion['points'] ?? 1))),
+        'points' => $paper ? 1 : max(1, min(10, (float)($rawQuestion['points'] ?? 1))),
     ];
     if ($candidate['text'] === '') continue;
 
@@ -140,6 +153,7 @@ foreach ((array)$generated['questions'] as $rawQuestion) {
             if (!is_array($option)) continue;
             $optionText = trim((string)($option['text'] ?? ''));
             if ($optionText === '') continue;
+            if($paper && !is_bool($option['is_correct'] ?? null))continue;
             $options[] = ['text' => $optionText, 'is_correct' => !empty($option['is_correct'])];
         }
         $correctCount = count(array_filter(
@@ -147,10 +161,12 @@ foreach ((array)$generated['questions'] as $rawQuestion) {
             static fn(array $option): bool => !empty($option['is_correct'])
         ));
         if (count($options) < 2) continue;
+        if($paper && (count($options)>6||count(array_unique(array_map(static fn($o)=>mb_strtolower($o['text']),$options)))!==count($options)||($interaction==='multiple'&&($correctCount<2||$correctCount>=count($options)))))continue;
         if ($interaction === 'single' && $correctCount !== 1) continue;
         if ($interaction === 'multiple' && $correctCount < 1) continue;
         $candidate['options'] = $options;
     } elseif ($interaction === 'true_false') {
+        if($paper&&!in_array($rawQuestion['true_false_answer']??null,['true','false'],true))continue;
         $candidate['true_false_answer'] =
             (string)($rawQuestion['true_false_answer'] ?? 'true') === 'false' ? 'false' : 'true';
     } else {
@@ -170,7 +186,7 @@ foreach ((array)$generated['questions'] as $rawQuestion) {
     if (count($normalizedQuestions) >= $questionCount) break;
 }
 
-if (count($normalizedQuestions) < max(3, (int)ceil($questionCount / 2))) {
+if (count($normalizedQuestions) < ($paper ? $questionCount : max(3, (int)ceil($questionCount / 2)))) {
     json_response([
         'ok' => false,
         'error' => 'ИИ сформировал слишком мало проверяемых вопросов. Повторите генерацию.',
@@ -193,7 +209,7 @@ try {
          (teacher_id, school_id, subject_id, title, description, type, status, workflow_status,
           max_attempts, focus_policy, variant_count, shuffle_questions, shuffle_options, shuffle_structured)
          VALUES
-         (:teacher_id, :school_id, :subject_id, :title, :description, "quiz", "draft", "draft",
+         (:teacher_id, :school_id, :subject_id, :title, :description, :assignment_type, "draft", "draft",
           1, "allow", 1, 0, 0, 0)'
     );
     $stmt->execute([
@@ -202,6 +218,7 @@ try {
         'subject_id' => $subjectId,
         'title' => $title,
         'description' => $description,
+        'assignment_type' => $paper ? 'paper' : 'quiz',
     ]);
     $assignmentId = (int)$pdo->lastInsertId();
 
@@ -235,6 +252,7 @@ try {
 audit_event('ai_assignment_generated', 'assignment', $assignmentId, [
     'subject_id' => $subjectId,
     'topic' => $topic,
+    'mode' => $paper ? 'paper' : 'online',
     'grade_level' => $gradeLevel,
     'difficulty' => $difficulty,
     'questions_count' => count($normalizedQuestions),
@@ -252,5 +270,6 @@ json_response([
         'used' => (int)($usage['ai_generations'] ?? 0),
         'limit' => $limit,
     ],
+    'mode' => $paper ? 'paper' : 'online',
     'message' => 'Черновик создан. Проверьте вопросы и правильные ответы в конструкторе.',
 ], 201);

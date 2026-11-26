@@ -23,5 +23,6 @@ json_response([
     'limit' => $limit,
     'remaining' => $limit === null ? null : max(0, $limit - $used),
     'available' => $available,
+    'paper_available' => $available && !empty($state['plan']['features']['paper_tests']),
     'paid_feature' => true,
 ]);

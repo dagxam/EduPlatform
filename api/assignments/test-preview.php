@@ -25,6 +25,7 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute(['id' => $assignmentId, 'school_id' => $schoolId]);
 $assignment = $stmt->fetch();
+if($assignment && ($assignment['type']??'')==='paper')subscription_require_paper($pdo,$user);
 
 if (!$assignment) {
     json_response(['ok' => false, 'error' => 'Задание не найдено в выбранной школе.'], 404);

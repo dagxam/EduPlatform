@@ -88,6 +88,7 @@ $stmt->execute([
     'school_id' => $schoolId,
 ]);
 $source = $stmt->fetch();
+if($source && ($source['type']??'')==='paper')subscription_require_paper($pdo,$user);
 
 if (!$source) {
     json_response(['ok' => false, 'error' => 'Исходное задание не найдено.'], 404);

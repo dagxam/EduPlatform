@@ -1252,6 +1252,8 @@ function require_user(?array $roles = null): array
     }
 
     enforce_staff_subscription_for_request($user);
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if(in_array($user['role'],['admin','teacher'],true) && str_contains($script,'/api/paper/'))subscription_require_paper(app_db(),$user);
     return $user;
 }
 
@@ -1756,6 +1758,7 @@ function subscription_plan_catalog(): array
             'max_active_assignments' => 1,
             'ai_monthly_limit' => 0,
             'features' => [
+                'paper_tests' => false,
                 'manual_assignments' => true,
                 'auto_grading' => true,
                 'journal' => true,
@@ -1778,6 +1781,7 @@ function subscription_plan_catalog(): array
             'max_active_assignments' => 10,
             'ai_monthly_limit' => 0,
             'features' => [
+                'paper_tests' => false,
                 'manual_assignments' => true,
                 'auto_grading' => true,
                 'journal' => true,
@@ -1800,6 +1804,7 @@ function subscription_plan_catalog(): array
             'max_active_assignments' => 60,
             'ai_monthly_limit' => 50,
             'features' => [
+                'paper_tests' => true,
                 'manual_assignments' => true,
                 'auto_grading' => true,
                 'journal' => true,
@@ -1822,6 +1827,7 @@ function subscription_plan_catalog(): array
             'max_active_assignments' => null,
             'ai_monthly_limit' => 300,
             'features' => [
+                'paper_tests' => true,
                 'manual_assignments' => true,
                 'auto_grading' => true,
                 'journal' => true,
@@ -1988,6 +1994,11 @@ function subscription_require_feature(PDO $pdo, array $user, string $feature, st
         ], 403);
     }
     return $state;
+}
+
+function subscription_require_paper(PDO $pdo,array $user): array
+{
+    return subscription_require_feature($pdo,$user,'paper_tests','UROVIA PAPER доступен только на тарифах PRO и Premium.');
 }
 
 function subscription_assert_class_capacity(PDO $pdo, array $user, ?int $schoolId, int $additionalClasses = 1): array
