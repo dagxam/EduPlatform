@@ -182,7 +182,9 @@ foreach ((array)$generated['questions'] as $rawQuestion) {
         }
     }
 
-    $normalizedQuestions[] = question_editor_normalize_payload($candidate);
+    $normalized = question_editor_normalize_payload($candidate);
+    if($paper){require_once dirname(__DIR__).'/paper/choice-policy.php';paper_check_new_question(['type'=>'paper'],$normalized);}
+    $normalizedQuestions[] = $normalized;
     if (count($normalizedQuestions) >= $questionCount) break;
 }
 

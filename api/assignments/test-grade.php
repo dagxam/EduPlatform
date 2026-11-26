@@ -21,13 +21,14 @@ $pdo = app_db();
 $schoolId = require_active_school($user, false);
 
 $stmt = $pdo->prepare(
-    'SELECT id, teacher_id, subject_id, title
+    'SELECT id, teacher_id, subject_id, title, type
      FROM assignments
      WHERE id = :id AND school_id = :school_id
      LIMIT 1'
 );
 $stmt->execute(['id' => $assignmentId, 'school_id' => $schoolId]);
 $assignment = $stmt->fetch();
+if($assignment && ($assignment['type']??'')==='paper')subscription_require_paper($pdo,$user);
 
 if (!$assignment) {
     json_response(['ok' => false, 'error' => 'Задание не найдено.'], 404);

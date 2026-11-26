@@ -64,6 +64,7 @@ if ($existingId > 0) {
 }
 
 $assignment = $row;
+if(($assignment['type']??'')==='paper')subscription_require_paper($pdo,$user);
 $assignment['id'] = (int)$row['library_source_assignment_id'];
 $assignment['school_id'] = $sourceSchoolId;
 

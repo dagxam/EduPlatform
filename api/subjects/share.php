@@ -95,6 +95,7 @@ if ($assignmentIds) {
     );
     $stmt->execute(array_merge([$sourceSchoolId, $subjectId], $assignmentIds));
     $assignments = $stmt->fetchAll();
+    foreach($assignments as $assignment)if(($assignment['type']??'')==='paper')subscription_require_paper($pdo,$user);
 
     if (count($assignments) !== count($assignmentIds)) {
         json_response([

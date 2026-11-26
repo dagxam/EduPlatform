@@ -79,6 +79,7 @@ $stmt->execute([
 ]);
 $assignments = $stmt->fetchAll();
 
+foreach($assignments as $assignment)if(($assignment['type']??'')==='paper')subscription_require_paper($pdo,$user);
 $targetOwnerId = material_target_owner_id($pdo, $schoolId, (int)$user['id']);
 $copiedFiles = [];
 $copied = [];
