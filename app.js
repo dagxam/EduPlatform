@@ -1387,7 +1387,7 @@ let incomingMaterialsFilter = 'pending';
 function formatIncomingDate(value) {
   if (!value) return '—';
   const normalized = String(value).replace(' ', 'T');
-  const date = new Date(normalized.endsWith('Z') ? normalized : normalized + 'Z');
+  const date = uroviaUtcDate(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString('ru-RU', {
     day: '2-digit',
@@ -3110,7 +3110,7 @@ function historyEventLabel(eventType) {
 function historyDateTime(value) {
   if (!value) return '—';
   const raw = String(value).trim();
-  const date = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
+  const date = uroviaUtcDate(value);
   if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleString('ru-RU', {
     day: '2-digit',
@@ -3264,7 +3264,7 @@ document.getElementById('clearHistoryBtn')?.addEventListener('click', () => {
 
 function dashboardDueLabel(value) {
   if (!value) return ['Без срока', 'blue'];
-  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  const date = uroviaUtcDate(value);
   if (Number.isNaN(date.getTime())) return [String(value), 'blue'];
   const now = new Date();
   const diff = date.getTime() - now.getTime();
@@ -3380,9 +3380,10 @@ async function loadTeacherDashboard() {
 }
 
 
+function uroviaUtcDate(value){const raw=String(value??'').trim().replace(' ','T');return new Date(raw&& !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)?raw+'Z':raw);}
 function resultDateTime(value) {
   if (!value) return '—';
-  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  const date = uroviaUtcDate(value);
   return Number.isNaN(date.getTime())
     ? String(value)
     : date.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -3420,11 +3421,17 @@ function journalFormatNumber(value, digits = 1) {
 
 function journalShortDate(value) {
   if (!value) return '';
-  const date = new Date(String(value).replace(' ', 'T'));
+  const date = uroviaUtcDate(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
 }
 
+function journalWorkDate(assignment,students){
+  const dates=[...new Set(students.map(s=>s.cells?.[String(assignment.id)]).filter(Boolean).map(c=>journalShortDate(c.performed_at||c.submitted_at)).filter(Boolean))];
+  if(dates.length===1)return dates[0];
+  if(dates.length>1)return 'Разные даты';
+  return assignment.due_at?'Срок: '+journalShortDate(assignment.due_at):'Не проводилось';
+}
 function journalAvailableClasses() {
   const map = new Map();
   teacherOptionsCache.forEach(item => {
@@ -3548,7 +3555,7 @@ function renderJournal() {
   }
 
   const headerCells = assignments.map(item => {
-    const date = journalShortDate(item.due_at || item.created_at);
+    const date = journalWorkDate(item,students);
     return `<th class="journal-assignment-head" title="${escapeHtml(item.title)}">
       <span>${escapeHtml(item.title)}</span>
       <small>${escapeHtml(date)}</small>
@@ -3581,9 +3588,9 @@ function renderJournal() {
       return `<td class="journal-result-cell">
         <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
           data-journal-review="${Number(cell.attempt_id)}"
-          title="${escapeHtml(journalFormatNumber(cell.score,2))} / ${escapeHtml(journalFormatNumber(cell.max_score,2))} балл. · ${Math.round(Number(cell.percent || 0))}%">
+          title="${escapeHtml(journalFormatNumber(cell.score,2))} / ${escapeHtml(journalFormatNumber(cell.max_score,2))} балл. · ${Math.round(Number(cell.percent || 0))}% · ${escapeHtml((cell.source==='paper'?'Проверено: ':'Выполнено: ')+resultDateTime(cell.performed_at||cell.submitted_at))}">
           <strong>${escapeHtml(grade)}</strong>
-          <small>${Math.round(Number(cell.percent || 0))}%</small>
+          <small>${Math.round(Number(cell.percent || 0))}%</small><small>${escapeHtml(journalShortDate(cell.performed_at||cell.submitted_at))}</small>
           <span class="journal-cell-flags">${flags}</span>
         </button>
       </td>`;
@@ -3612,7 +3619,7 @@ function renderJournal() {
     const browserClosedCount = completedCells.filter(item => Boolean(item.cell.closed_by_browser)).length;
 
     const workItems = visibleCells.map(({ assignment, cell }) => {
-      const date = journalShortDate(assignment.due_at || assignment.created_at);
+      const date = cell ? (cell.source==='paper'?'Проверено: ':'Выполнено: ')+resultDateTime(cell.performed_at||cell.submitted_at) : (assignment.due_at?'Срок: '+journalShortDate(assignment.due_at):'Не сдано');
       if (!cell) {
         return '<article class="journal-mobile-work is-missing">'
           + '<div class="journal-mobile-work-main">'
@@ -6761,9 +6768,10 @@ function renderAssignments() {
 }
 
 function assignmentDateTimeLocal(value) {
-  if (!value) return '';
-  return String(value).replace(' ', 'T').slice(0, 16);
+  if(!value)return '';const d=uroviaUtcDate(value);if(!Number.isFinite(d.getTime()))return '';
+  const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());
 }
+function assignmentLocalToUtc(value){if(!value)return '';const d=new Date(value);return Number.isFinite(d.getTime())?d.toISOString().slice(0,19).replace('T',' '):'';}
 
 async function deleteAssignment(assignmentId, button) {
   const assignment = assignmentsCache.find(item => Number(item.id) === Number(assignmentId));
@@ -6907,8 +6915,8 @@ document.getElementById('duplicateAssignmentForm')?.addEventListener('submit', a
       body: JSON.stringify({
         assignment_id: assignmentId,
         title,
-        starts_at: startsAt,
-        due_at: dueAt,
+        starts_at: assignmentLocalToUtc(startsAt),
+        due_at: assignmentLocalToUtc(dueAt),
         time_limit_minutes: timeLimit,
         max_attempts: maxAttempts,
         focus_policy: focusPolicy
@@ -8457,19 +8465,20 @@ async function handleQuizTimeExpired() {
   }, 2500);
 }
 
-function startQuizCountdown(startedAt, timeLimitMinutes) {
+function startQuizCountdown(startedAt, timeLimitMinutes, serverTime = null) {
   stopQuizCountdown();
   const node = document.getElementById('quizTimeRemaining');
   const limit = Number(timeLimitMinutes || 0);
   if (!node || limit <= 0) return;
 
-  const normalized = String(startedAt || '').replace(' ', 'T') + (String(startedAt || '').includes('Z') ? '' : 'Z');
-  const startMs = Date.parse(normalized);
+  const startMs = uroviaUtcDate(startedAt).getTime();
+  const serverMs=uroviaUtcDate(serverTime).getTime();
+  const clockOffset=Number.isFinite(serverMs)?serverMs-Date.now():0;
   if (!Number.isFinite(startMs)) return;
 
   const deadlineMs = startMs + (limit * 60 * 1000);
   const tick = () => {
-    const remaining = Math.ceil((deadlineMs - Date.now()) / 1000);
+    const remaining = Math.ceil((deadlineMs - (Date.now()+clockOffset)) / 1000);
     node.textContent = remaining > 0 ? formatQuizRemaining(remaining) : '00:00';
     node.classList.toggle('urgent', remaining > 0 && remaining <= 300);
     node.classList.toggle('expired', remaining <= 0);
@@ -8489,7 +8498,7 @@ function startQuizCountdown(startedAt, timeLimitMinutes) {
 
 function formatStudentDeadline(value) {
   if (!value) return 'без срока';
-  const date = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  const date = uroviaUtcDate(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
@@ -9008,7 +9017,7 @@ async function startRealStudentAssignment(assignmentId) {
     wireRealStudentQuestionControls();
     openModal(quizModal);
     notifyAssessmentState(true);
-    startQuizCountdown(questionData.attempt.started_at, questionData.attempt.time_limit_minutes);
+    startQuizCountdown(questionData.attempt.started_at, questionData.attempt.time_limit_minutes,questionData.server_time);
 
     AttemptSecurity.start({
       attemptId: questionData.attempt.id,
@@ -9027,7 +9036,7 @@ async function startRealStudentAssignment(assignmentId) {
         }
       },
       onHidden: reason => {
-        sendActiveAttemptCloseBeacon(reason === 'blur' ? 'window_blur' : 'page_hidden');
+        sendActiveAttemptCloseBeacon(reason === 'pagehide' ? 'page_closed' : reason === 'blur' ? 'window_blur' : 'page_hidden');
       },
       onTerminated: (result, reason) => {
         const finalReason = reason || result?.termination_reason || '';
@@ -9037,7 +9046,7 @@ async function startRealStudentAssignment(assignmentId) {
             ? 'Вкладка была скрыта. Тест завершён автоматически; учтены ответы, отмеченные до этого момента.'
             : finalReason === 'window_blur'
               ? 'Окно теста потеряло фокус. Переключение на другое окно Android засчитано как уход из теста.'
-              : 'Попытка завершена системой контроля.';
+              : finalReason==='connection_lost'?'Связь с устройством долго отсутствовала. Учтены сохранённые ответы.':finalReason==='page_closed'?'Страница теста была закрыта или перезагружена. Учтены сохранённые ответы.':'Попытка завершена системой контроля.';
         renderRealAttemptResult(result || {}, note);
       }
     });
@@ -9222,46 +9231,28 @@ async function finishActiveStudentAttemptFromClose() {
 }
 
 function sendActiveAttemptCloseBeacon(reason = 'page_closed') {
-  if (!activeStudentAttempt?.id || quizExitBeaconSent) return false;
-
-  const payload = JSON.stringify({
-    attempt_id: Number(activeStudentAttempt.id),
-    finish_reason: reason,
-    answers: collectQuizAnswerSnapshot(activeStudentQuestions, { onlyAnswered: true })
-  });
-  quizExitBeaconSent = true;
-
-  try {
-    const blob = new Blob([payload], { type: 'application/json' });
-    if (navigator.sendBeacon?.('./api/attempts/close.php', blob)) {
-      return true;
-    }
-  } catch {}
-
-  // Fallback for browsers where sendBeacon is unavailable/rejected.
-  try {
-    fetch('./api/attempts/close.php', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-      keepalive: true
-    }).catch(() => {});
+  if(!activeStudentAttempt?.id||quizExitBeaconSent||quizSubmitting)return false;
+  const strict=String(activeStudentAttempt.focus_policy||'allow')==='strict';
+  const attemptId=Number(activeStudentAttempt.id);
+  const payload=JSON.stringify({attempt_id:attemptId,finish_reason:reason,answers:collectQuizAnswerSnapshot(activeStudentQuestions,{onlyAnswered:true})});
+  if(strict)quizExitBeaconSent=true;
+  // A foreground request provides an acknowledgement; do not treat enqueueing a beacon as delivery.
+  if(!document.hidden && reason!=='page_closed'){
+    fetch('./api/attempts/close.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:payload,keepalive:true})
+      .then(async r=>{const d=await r.json();if(!r.ok||!d.ok)throw Error('close failed');if(strict&&activeStudentAttempt?.id===attemptId&&d.result)renderRealAttemptResult(d.result);})
+      .catch(()=>{if(strict&&activeStudentAttempt?.id===attemptId)quizExitBeaconSent=false;});
     return true;
-  } catch {
-    quizExitBeaconSent = false;
-    return false;
   }
+  try{if(navigator.sendBeacon?.('./api/attempts/close.php',new Blob([payload],{type:'application/json'}))){if(strict)quizExitBeaconSent=false;return true;}}catch{}
+  fetch('./api/attempts/close.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:payload,keepalive:true}).catch(()=>{}).finally(()=>{if(strict&&activeStudentAttempt?.id===attemptId)quizExitBeaconSent=false;});
+  return true;
 }
 
-window.addEventListener('pagehide', () => {
-  sendActiveAttemptCloseBeacon('browser_closed');
-}, { capture: true });
-
-window.addEventListener('beforeunload', () => {
-  sendActiveAttemptCloseBeacon('browser_closed');
-}, { capture: true });
-
+// In normal mode pagehide only saves answers; never interpret it as confirmed browser closure.
+window.addEventListener('pagehide',event=>{
+  if(event.persisted||!activeStudentAttempt?.id)return;
+  if(String(activeStudentAttempt.focus_policy||'allow')!=='strict')sendActiveAttemptCloseBeacon('page_closed');
+});
 function collectStaffTestAnswers() {
   if (!activeStaffPreview) return [];
   return collectQuizAnswerSnapshot(activeStaffPreview.questions || []);

@@ -5,12 +5,13 @@ const AttemptSecurity = (() => {
   let hiddenTimer = null;
   const HEARTBEAT_MIN_MS = 25000;
   const HEARTBEAT_JITTER_MS = 10000;
-  const FOCUS_LOSS_GRACE_MS = 3000;
-  const HIDDEN_GRACE_MS = 1800;
+  const FOCUS_LOSS_GRACE_MS = 5000;
+  const HIDDEN_GRACE_MS = 5000;
   let hiddenHandled = false;
 
   async function sendEvent(eventType, keepalive = false) {
     if (!state) return null;
+    const current=state;
     const response = await fetch('./api/attempts/security-event.php', {
       method: 'POST',
       credentials: 'same-origin',
@@ -19,7 +20,7 @@ const AttemptSecurity = (() => {
       keepalive
     });
     const data = await response.json().catch(() => null);
-    if (data?.terminated) {
+    if (state===current && data?.terminated) {
       const callback = state?.onTerminated;
       stop();
       callback?.(data.result || null, data?.reason || null);
@@ -31,14 +32,16 @@ const AttemptSecurity = (() => {
     if (!state) return;
     if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
     const nextDelay = delay ?? (HEARTBEAT_MIN_MS + Math.floor(Math.random() * HEARTBEAT_JITTER_MS));
+    const current=state;
     heartbeatTimer = window.setTimeout(async () => {
       await heartbeat();
-      scheduleHeartbeat();
+      if(state===current)scheduleHeartbeat();
     }, nextDelay);
   }
 
   async function heartbeat() {
     if (!state || document.hidden) return;
+    const current=state;
     try {
       const response = await fetch('./api/attempts/heartbeat.php', {
         method: 'POST',
@@ -47,7 +50,7 @@ const AttemptSecurity = (() => {
         body: JSON.stringify({ attempt_id: state.attemptId })
       });
       const data = await response.json().catch(() => null);
-      if (data?.active === false) {
+      if (state===current && response.ok && data?.active === false) {
         const callback = state.onTerminated;
         stop();
         callback?.(data?.result || null, data?.reason || null);
@@ -72,6 +75,7 @@ const AttemptSecurity = (() => {
     if (!state || hiddenHandled || !isStrict()) return;
     hiddenHandled = true;
     state.locked = true;
+    state.lockReason = eventType;
     clearFocusTimers();
     state.onLocked?.(eventType);
     state.onHidden?.(eventType);
@@ -101,6 +105,7 @@ const AttemptSecurity = (() => {
     hiddenTimer = null;
 
     if (state.locked) {
+      state.onHidden?.(state.lockReason||'hidden');
       heartbeat();
       window.setTimeout(heartbeat, 700);
       return;
@@ -108,6 +113,7 @@ const AttemptSecurity = (() => {
 
     hiddenHandled = false;
     sendEvent('visible').catch(() => {});
+    heartbeat();
   }
 
   function handleWindowBlur() {
@@ -118,11 +124,9 @@ const AttemptSecurity = (() => {
       focusLossTimer = null;
       if (!state || document.hasFocus()) return;
 
-      if (isStrict()) {
-        terminateForFocusLoss('blur');
-      } else {
-        sendEvent('blur', true).catch(() => {});
-      }
+      // Visible blur is not evidence of leaving: keyboards, system dialogs and assistive tools can cause it.
+      if(document.hidden && isStrict())return; // visibility timer owns strict termination
+      sendEvent('blur', true).catch(() => {});
     }, FOCUS_LOSS_GRACE_MS);
   }
 
@@ -134,14 +138,14 @@ const AttemptSecurity = (() => {
     sendEvent('focus').catch(() => {});
   }
 
-  function handlePageHide() {
-    if (!state) return;
-    if (isStrict()) {
-      terminateForFocusLoss('hidden');
-    } else {
-      sendEvent('hidden', true).catch(() => {});
-    }
+  function handlePageHide(event) {
+    if (!state || event.persisted) return;
+    if (isStrict()) terminateForFocusLoss('pagehide');
+    else sendEvent('hidden', true).catch(() => {});
   }
+
+  function handleReconnect(){if(state&&!document.hidden){if(state.locked)state.onHidden?.(state.lockReason||'hidden');heartbeat();}}
+
 
   function start({ attemptId, focusPolicy = 'allow', onLocked = null, onHidden = null, onTerminated = null }) {
     stop();
@@ -158,6 +162,8 @@ const AttemptSecurity = (() => {
     window.addEventListener('blur', handleWindowBlur);
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('online',handleReconnect);
+    window.addEventListener('pageshow',handleReconnect);
     heartbeat();
     scheduleHeartbeat(25000 + Math.floor(Math.random() * 5000));
   }
@@ -167,6 +173,8 @@ const AttemptSecurity = (() => {
     window.removeEventListener('blur', handleWindowBlur);
     window.removeEventListener('focus', handleWindowFocus);
     window.removeEventListener('pagehide', handlePageHide);
+    window.removeEventListener('online',handleReconnect);
+    window.removeEventListener('pageshow',handleReconnect);
     if (heartbeatTimer) window.clearTimeout(heartbeatTimer);
     clearFocusTimers();
     heartbeatTimer = null;

@@ -129,7 +129,7 @@ $assignmentSql =
 $assignmentParams = [$schoolId, $subjectId, $classId, $classId, $classId];
 
 if ($period > 0) {
-    $cutoff = date('Y-m-d H:i:s', time() - ($period * 86400));
+    $cutoff = gmdate('Y-m-d H:i:s', time() - ($period * 86400));
     $assignmentSql .=
         ' AND (
             COALESCE(a.due_at, a.created_at) >= ?
@@ -195,6 +195,8 @@ if ($assignmentIds && $studentIds) {
                 : ((string)($attempt['termination_reason'] ?? '') === 'paper' && in_array((string)$attempt['grade'], ['2','3','4','5'], true) ? (string)$attempt['grade'] : grade_from_percent($percent)),
             'source' => (string)($attempt['termination_reason'] ?? '') === 'paper' ? 'paper' : 'online',
             'submitted_at' => $attempt['submitted_at'] ?? $attempt['started_at'],
+            'performed_at' => ($attempt['termination_reason']??'')==='paper' ? ($attempt['submitted_at']??$attempt['started_at']) : ($attempt['started_at']??$attempt['submitted_at']),
+            'termination_reason' => $attempt['termination_reason']??null,
             'adjusted' => $adjusted,
             'closed_by_browser' => in_array(
                 (string)($attempt['termination_reason'] ?? ''),

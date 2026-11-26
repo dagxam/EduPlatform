@@ -75,7 +75,7 @@ function attempt_is_stale(array $attempt, int $staleSeconds = 120): bool
 {
     if ((string)($attempt['status'] ?? 'in_progress') !== 'in_progress') return false;
     $timestamp = attempt_activity_timestamp($attempt);
-    if ($timestamp === null) return true;
+    if ($timestamp === null) return false;
     return (time() - $timestamp) > max(60, $staleSeconds);
 }
 
@@ -84,10 +84,11 @@ function finalize_stale_attempts(
     ?int $assignmentId = null,
     ?int $studentId = null,
     ?int $schoolId = null,
-    int $staleSeconds = 120
+    int $staleSeconds = 600
 ): int {
     $sql =
-        'SELECT at.id, at.student_id, at.status, at.started_at, at.last_seen_at
+        'SELECT at.id, at.student_id, at.status, at.started_at, at.last_seen_at, ass.focus_policy,
+                COALESCE(at.time_limit_snapshot,ass.time_limit_minutes) AS time_limit_minutes
          FROM attempts at
          JOIN assignments ass ON ass.id = at.assignment_id
          WHERE at.status = "in_progress"';
@@ -113,8 +114,15 @@ function finalize_stale_attempts(
 
     $finalized = 0;
     foreach ($rows as $row) {
-        if (!attempt_is_stale($row, $staleSeconds)) continue;
-        finalize_attempt($pdo, (int)$row['id'], 'connection_lost');
+        // Unconfirmed disconnection is not cheating; allow reconnects in ordinary mode.
+        $grace=($row['focus_policy']??'allow')==='strict' ? max(600,$staleSeconds) : max(86400,$staleSeconds);
+        if(!attempt_time_expired($row)&&!attempt_is_stale($row,$grace))continue;
+        $check=$pdo->prepare('SELECT id,status,started_at,last_seen_at FROM attempts WHERE id=?');$check->execute([(int)$row['id']]);$fresh=$check->fetch();
+        if(!$fresh||$fresh['status']!=='in_progress')continue;
+        $fresh['time_limit_minutes']=$row['time_limit_minutes'];
+        $expired=attempt_time_expired($fresh);
+        if(!$expired&&!attempt_is_stale($fresh,$grace))continue;
+        finalize_attempt($pdo,(int)$row['id'],$expired?'time_limit':'connection_lost');
         $finalized++;
     }
 

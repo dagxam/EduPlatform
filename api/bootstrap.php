@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+// All database timestamps are UTC; browser converts only for display.
+date_default_timezone_set('UTC');
 
 $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 

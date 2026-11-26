@@ -20,8 +20,8 @@ $studentId = (int)$user['id'];
 // If the browser/app disappeared without delivering close.php (common on
 // Android task switching or force-close), do not let the orphaned attempt
 // block the student forever. A healthy open attempt sends heartbeat every
-// ~25-35 seconds, so 120 seconds is safely beyond the normal interval.
-finalize_stale_attempts($pdo, $assignmentId, $studentId, null, 120);
+// ~25-35 seconds; allow temporary connectivity loss without discarding the attempt.
+finalize_stale_attempts($pdo, $assignmentId, $studentId, null, 600);
 
 $stmt = $pdo->prepare(
     'SELECT ass.id,
@@ -86,6 +86,7 @@ try {
             ], 409);
         }
 
+        $pdo->prepare('UPDATE attempts SET last_seen_at=CURRENT_TIMESTAMP WHERE id=?')->execute([(int)$existing['id']]);
         $pdo->commit();
         json_response([
             'ok' => true,

@@ -171,6 +171,7 @@ json_response([
         'time_limit_minutes' => $attempt['time_limit_minutes'] !== null ? (int)$attempt['time_limit_minutes'] : null,
         'focus_policy' => (string)$attempt['focus_policy'],
     ],
+    'server_time' => gmdate('c'),
     'questions' => $questions,
     'saved_answers' => $savedAnswers,
 ]);

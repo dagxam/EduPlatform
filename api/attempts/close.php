@@ -41,6 +41,15 @@ if ($expiredResult !== null) {
 $answersSnapshot = is_array($data['answers'] ?? null) ? $data['answers'] : [];
 $savedSnapshotAnswers = save_attempt_answers_snapshot($pdo, $attemptId, $answersSnapshot);
 
+// Normal mode: old and new clients may send page lifecycle notifications. Save, but do not submit.
+if(($attempt['focus_policy']??'allow')!=='strict'){
+    $pdo->prepare('UPDATE attempts SET last_seen_at=CURRENT_TIMESTAMP WHERE id=? AND status=\'in_progress\'')->execute([$attemptId]);
+    json_response(['ok'=>true,'active'=>true,'saved_answers'=>$savedSnapshotAnswers]);
+}
+if($finishReason==='browser_closed')$finishReason='page_closed';
+if($finishReason==='window_blur'){
+    json_response(['ok'=>true,'active'=>true,'saved_answers'=>$savedSnapshotAnswers]);
+}
 $result = finalize_attempt($pdo, $attemptId, $finishReason);
 audit_event('attempt_submitted', 'attempt', $attemptId, [
     'reason' => $finishReason,
