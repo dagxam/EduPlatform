@@ -1456,7 +1456,7 @@ function ai_config_for_provider(string $provider, ?array $stored=null): array
     $storedKey=($stored['provider']??'')==='groq'?trim((string)($stored['api_key']??'')):'';
     $storedModel=($stored['provider']??'')==='groq'?trim((string)($stored['model']??'')):'';
     return ['provider'=>'groq','api_key'=>$storedKey!==''?$storedKey:trim((string)(getenv('GROQ_API_KEY')?:'')),
-        'model'=>$storedModel!==''?$storedModel:trim((string)(getenv('UROVIA_AI_MODEL')?:'openai/gpt-oss-20b')) ?: 'openai/gpt-oss-20b',
+        'model'=>$storedModel!==''?$storedModel:(trim((string)(getenv('UROVIA_AI_MODEL')?:'openai/gpt-oss-20b')) ?: 'openai/gpt-oss-20b'),
         'api_base'=>'https://api.groq.com/openai/v1'];
 }
 
