@@ -33,8 +33,8 @@ $publicReady = $ownerName !== '' && $ownerInn !== '' && $ownerPhone !== '' && $o
 <title>Оплата и получение услуги — UROVIA</title>
 <meta name="description" content="Условия покупки подписки UROVIA: описание цифровой услуги, тарифы, порядок оплаты, активации доступа и контакты исполнителя.">
 <meta name="robots" content="index,follow">
-<link rel="icon" href="favicon.png?v=3">
-<link rel="stylesheet" href="legal.css?v=3">
+<link rel="icon" href="favicon.png?v=4">
+<link rel="stylesheet" href="legal.css?v=4">
 </head>
 <body>
 <main class="legal-shell">

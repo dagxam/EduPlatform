@@ -25,8 +25,8 @@ function pricing_limit(mixed $value): string
 <title>Тарифы и цены UROVIA</title>
 <meta name="description" content="Актуальные тарифы и фиксированные цены на цифровую подписку UROVIA для учителей и администраторов.">
 <meta name="robots" content="index,follow">
-<link rel="icon" href="favicon.png?v=3">
-<link rel="stylesheet" href="legal.css?v=3">
+<link rel="icon" href="favicon.png?v=4">
+<link rel="stylesheet" href="legal.css?v=4">
 </head>
 <body>
 <main class="legal-shell">
