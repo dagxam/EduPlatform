@@ -18,15 +18,15 @@ const APP_SHELL = [
   './attempt-security.js',
   './pwa.js',
   './manifest.webmanifest',
-  './favicon.png?v=3',
+  './favicon.png?v=4',
   './icons/urovia-mark.svg?v=1',
   './icons/urovia-mark-mono.svg?v=1',
   './icons/uvoria-app.svg',
   './icons/uvoria-maskable.svg',
-  './icons/icon-180.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png'
+  './icons/icon-180.png?v=4',
+  './icons/icon-192.png?v=4',
+  './icons/icon-512.png?v=4',
+  './icons/icon-maskable-512.png?v=4'
 ];
 
 self.addEventListener('install', event => {

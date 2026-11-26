@@ -30,7 +30,7 @@ function faviconBaseImage(){
       const image=new Image();
       image.onload=()=>resolve(image);
       image.onerror=reject;
-      image.src='./favicon.png?v=3';
+      image.src='./favicon.png?v=4';
     });
   }
   return faviconBaseImagePromise;
@@ -66,8 +66,9 @@ function themeHsl(color){
 async function applySchoolFavicon(color){
   const favicon=document.getElementById('siteFavicon');
   if(!favicon)return;
-  favicon.setAttribute('href','./favicon.png?v=3');
+  favicon.setAttribute('href','./favicon.png?v=4');
   favicon.setAttribute('type','image/png');
+  if(normalizeHexColor(color)==='#1d68f0')return;
   try{
     const image=await faviconBaseImage();
     const canvas=document.createElement('canvas');

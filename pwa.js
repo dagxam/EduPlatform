@@ -244,7 +244,7 @@
     guide.className = 'pwa-ios-modal hidden';
     guide.innerHTML = '<div class="pwa-ios-card" role="dialog" aria-modal="true" aria-labelledby="pwaGuideTitle">' +
       '<button type="button" class="pwa-ios-close" id="pwaGuideClose" aria-label="Закрыть">×</button>' +
-      '<img class="pwa-guide-icon" src="./icons/icon-192.png" width="64" height="64" alt="Иконка UROVIA">' +
+      '<img class="pwa-guide-icon" src="./icons/icon-192.png?v=4" width="64" height="64" alt="Иконка UROVIA">' +
       '<h2 id="pwaGuideTitle">Установить UROVIA</h2>' +
       '<p id="pwaGuideDescription"></p><ol id="pwaGuideSteps"></ol>' +
       '<p class="pwa-guide-note" id="pwaGuideNote"></p>' +

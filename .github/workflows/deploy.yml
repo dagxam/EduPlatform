@@ -164,6 +164,9 @@ jobs:
       - name: Validate release update notification
         run: node .github/tests/release-update-smoke.mjs
 
+      - name: Validate UROVIA brand assets
+        run: python3 .github/tests/brand-assets-smoke.py
+
       - name: Stamp release metadata
         if: github.ref == 'refs/heads/main'
         run: |
