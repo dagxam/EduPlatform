@@ -9,7 +9,7 @@ $state = subscription_effective_state($pdo, $user);
 $usage = subscription_usage_snapshot($pdo, $user, $schoolId);
 $planCode = (string)($state['plan_code'] ?? '');
 $isPlatformAdmin = is_platform_admin($user);
-$available = $isPlatformAdmin || in_array($planCode, ['pro', 'premium'], true);
+$available = $isPlatformAdmin || (!empty($state['access_active']) && in_array($planCode, ['pro', 'premium'], true));
 $limit = $isPlatformAdmin ? null : (int)($state['plan']['ai_monthly_limit'] ?? 0);
 $used = (int)($usage['ai_generations'] ?? 0);
 

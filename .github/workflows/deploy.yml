@@ -65,6 +65,7 @@ jobs:
           php .github/tests/paper-preview-smoke.php
           php .github/tests/paper-choice-policy-smoke.php
           php .github/tests/paper-subscription-ai-smoke.php
+          php .github/tests/ai-generation-smoke.php
           php .github/tests/paper-one-point-smoke.php
           php .github/tests/paper-validation-smoke.php
           node .github/tests/paper-print-types-smoke.cjs

@@ -24,7 +24,7 @@ if ($apiKey === '' && $currentGroqKey === '' && trim((string)(getenv('GROQ_API_K
 if ($apiKey === '') {
     $apiKey = $currentGroqKey;
 }
-if ($model === '' || !preg_match('/^[a-zA-Z0-9._-]{2,80}$/', $model)) {
+if ($model === '' || !preg_match('~^[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)*$~D', $model) || strlen($model)>100 || strlen($model)<2) {
     json_response(['ok' => false, 'error' => 'Укажите корректное название модели.'], 422);
 }
 

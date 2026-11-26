@@ -5520,12 +5520,12 @@ async function loadAIAdminConfig() {
   }
   if (model) model.value = config.model || 'openai/gpt-oss-20b';
   if (state) {
-    state.textContent = config.api_key_configured ? 'ИИ подключён' : 'API-ключ не настроен';
+    state.textContent = config.api_key_configured ? 'Ключ сохранён · нужна проверка' : 'API-ключ не настроен';
     state.classList.toggle('green', Boolean(config.api_key_configured));
     state.classList.toggle('amber', !config.api_key_configured);
   }
   if (keyBadge) {
-    keyBadge.textContent = config.api_key_configured ? 'Подключён ✓' : 'Не подключён';
+    keyBadge.textContent = config.api_key_configured ? 'Ключ сохранён' : 'Не подключён';
     keyBadge.classList.toggle('is-online', Boolean(config.api_key_configured));
     keyBadge.classList.toggle('is-offline', !config.api_key_configured);
   }
@@ -5571,6 +5571,26 @@ document.getElementById('aiConfigForm')?.addEventListener('submit', async event 
     button.disabled = false;
     button.textContent = 'Сохранить ИИ';
   }
+});
+
+document.getElementById('aiRunDiagnostic')?.addEventListener('click',async()=>{
+  if(Number(currentUser?.is_platform_admin)!==1)return;
+  const button=document.getElementById('aiRunDiagnostic'),out=document.getElementById('aiDiagnosticResult');
+  button.disabled=true;out.classList.remove('hidden');out.textContent='Проверяем сохранённую конфигурацию Groq…';
+  const messages=[];let success=true;
+  for(const mode of ['online','paper']){
+    const label=mode==='paper'?'PAPER':'Онлайн';
+    try{
+      const r=await fetch('./api/admin/ai/test.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+      const d=await readJsonResponse(r,'Некорректный ответ диагностики.');
+      if(!r.ok||!d.ok)throw Error(d.error||'Ошибка диагностики.');
+      messages.push(label+': успешно · '+d.questions_count+' вопросов · '+d.duration_ms+' мс');
+    }catch(e){success=false;messages.push(label+': '+e.message);}
+    out.textContent=messages.join(' | ');
+  }
+  button.disabled=false;
+  const state=document.getElementById('aiConnectionState');
+  if(state){state.textContent=success?'ИИ проверен: онлайн + PAPER':'ИИ: есть ошибки проверки';state.classList.toggle('green',success);state.classList.toggle('amber',!success);}
 });
 
 async function loadLegalProfile() {
@@ -7328,7 +7348,7 @@ async function openAiTaskCreator() {
           (data.configured ? '' : ' · API-ключ Groq ещё не настроен');
       }
     }
-    submit.disabled = !data.available || !data.configured;
+    submit.disabled = !data.available || !data.configured || (limit !== null && Number(data.remaining || 0) <= 0);
   } catch (err) {
     if (error) {
       error.textContent = err.message;

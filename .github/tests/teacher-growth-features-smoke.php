@@ -44,7 +44,7 @@ growth_expect($bootstrap, "openai/gpt-oss-20b", 'default free-tier Groq model is
 growth_expect($bootstrap, 'function ai_request(array $payload)', 'AI provider request helper is missing');
 growth_expect($bootstrap, 'function subscription_record_ai_generation', 'AI generation usage accounting is missing');
 growth_expect($bootstrap, 'function subscription_assert_ai_capacity', 'paid AI subscription guard is missing');
-growth_expect($aiGenerate, 'question_editor_normalize_payload($candidate)', 'AI questions do not pass through the existing question normalizer');
+growth_expect(growth_source('api/ai/_generation.php'), 'question_editor_normalize_payload($candidate)', 'AI questions do not pass through the existing question normalizer');
 growth_expect($aiGenerate, 'subscription_assert_ai_capacity($pdo, $user, $schoolId)', 'AI generation is not subscription-gated');
 growth_expect($aiGenerate, "'ai_assignment_generated'", 'AI assignment audit event is missing');
 growth_expect($aiGenerate, '"draft", "draft"', 'AI generation must create a normal draft');
@@ -54,7 +54,7 @@ growth_expect($aiAdminGet, "'provider' => 'groq'", 'AI admin endpoint is not con
 growth_expect($aiAdminSet, "'provider' => 'groq'", 'AI configuration does not persist Groq provider');
 growth_expect($index, 'API-ключ Groq', 'Groq admin UI label is missing');
 growth_expect($index, 'id="aiKeyConnectionBadge"', 'inline Groq connection badge is missing');
-growth_expect($app, "keyBadge.textContent = config.api_key_configured ? 'Подключён ✓' : 'Не подключён'", 'inline Groq connection badge is not updated');
+growth_expect($app, "keyBadge.textContent = config.api_key_configured ? 'Ключ сохранён' : 'Не подключён'", 'inline Groq connection badge is not updated');
 growth_expect($index, 'https://console.groq.com/keys', 'Groq API key setup link is missing');
 growth_expect($index, 'Как подключить API Groq', 'Groq setup instructions are missing');
 growth_expect($index, 'тарифах <b>PRO и Premium</b>', 'paid AI tariff copy is missing');
