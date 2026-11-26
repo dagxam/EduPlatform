@@ -57,7 +57,8 @@ function attempt_time_expired(array $attempt): bool
 function finalize_expired_attempt(PDO $pdo, array $attempt): ?array
 {
     if (!attempt_time_expired($attempt)) return null;
-    return finalize_attempt($pdo, (int)$attempt['id'], 'time_limit');
+    $deadline=attempt_activity_timestamp(['started_at'=>$attempt['started_at']])+((int)$attempt['time_limit_minutes']*60);
+    return finalize_attempt($pdo, (int)$attempt['id'], 'time_limit', gmdate('Y-m-d H:i:s',$deadline));
 }
 
 function attempt_activity_timestamp(array $attempt): ?int
@@ -122,8 +123,9 @@ function finalize_stale_attempts(
         $fresh['time_limit_minutes']=$row['time_limit_minutes'];
         $expired=attempt_time_expired($fresh);
         if(!$expired&&!attempt_is_stale($fresh,$grace))continue;
-        finalize_attempt($pdo,(int)$row['id'],$expired?'time_limit':'connection_lost');
-        $finalized++;
+        $deadline=$expired?gmdate('Y-m-d H:i:s',attempt_activity_timestamp(['started_at'=>$fresh['started_at']])+((int)$fresh['time_limit_minutes']*60)):null;
+        $result=finalize_attempt($pdo,(int)$row['id'],$expired?'time_limit':'connection_lost',$deadline,$expired?null:gmdate('Y-m-d H:i:s',time()-$grace),true);
+        if(!empty($result['finalized_now']))$finalized++;
     }
 
     return $finalized;
@@ -813,7 +815,7 @@ function repair_zero_total_attempts(PDO $pdo, ?int $studentId = null, ?int $scho
     return $repaired;
 }
 
-function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): array
+function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null, ?string $finishedAt=null, ?string $staleCutoff=null, bool $onlyInProgress=false): array
 {
     // Never trust a stale score stored by an older grading implementation.
     // Recalculate every saved answer from its actual value before the total.
@@ -853,9 +855,11 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
         : grade_from_percent($percent);
     $status = $needsReview ? 'needs_review' : 'submitted';
 
+    $guard=$onlyInProgress ? ' AND status = \'in_progress\'' : '';
+    if($staleCutoff!==null)$guard.=' AND COALESCE(last_seen_at,started_at) < :stale_cutoff';
     $stmt = $pdo->prepare(
         'UPDATE attempts
-         SET submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP),
+         SET submitted_at = COALESCE(submitted_at, :finished_at, CURRENT_TIMESTAMP),
              score = :score,
              max_score = :max_score,
              percent = :percent,
@@ -863,9 +867,10 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
              status = :status,
              termination_reason = COALESCE(:termination_reason, termination_reason),
              last_seen_at = CURRENT_TIMESTAMP
-         WHERE id = :attempt_id'
+         WHERE id = :attempt_id'.$guard
     );
-    $stmt->execute([
+    $params=[
+        'finished_at'=>$finishedAt,
         'score' => $score,
         'max_score' => $maxScore,
         'percent' => $percent,
@@ -873,9 +878,13 @@ function finalize_attempt(PDO $pdo, int $attemptId, ?string $reason = null): arr
         'status' => $status,
         'termination_reason' => $reason,
         'attempt_id' => $attemptId,
-    ]);
+    ];
+    if($staleCutoff!==null)$params['stale_cutoff']=$staleCutoff;
+    $stmt->execute($params);
+    if($onlyInProgress&&$stmt->rowCount()===0)return ['attempt_id'=>$attemptId,'finalized_now'=>false];
 
     return [
+        'finalized_now'=>true,
         'attempt_id' => $attemptId,
         'score' => $score,
         'max_score' => $maxScore,

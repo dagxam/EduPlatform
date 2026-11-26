@@ -64,6 +64,7 @@ stale_assert(!attempt_is_stale([
     'last_seen_at' => gmdate('Y-m-d H:i:s'),
 ], 120), 'fresh heartbeat is incorrectly considered stale');
 
+$pdo->prepare('UPDATE attempts SET last_seen_at=? WHERE id=9202')->execute([gmdate('Y-m-d H:i:s',time()-180)]);
 $finalized = finalize_stale_attempts($pdo, 9201, null, null, 120);
 stale_assert($finalized === 1, 'expected exactly one stale attempt to be finalized');
 
@@ -72,7 +73,13 @@ $fresh = $pdo->query('SELECT status, termination_reason FROM attempts WHERE id =
 
 stale_assert(($old['status'] ?? '') !== 'in_progress', 'stale attempt stayed in_progress');
 stale_assert(($old['termination_reason'] ?? '') === 'connection_lost', 'stale attempt reason was not connection_lost');
-stale_assert(($fresh['status'] ?? '') === 'in_progress', 'fresh attempt was finalized by mistake');
+stale_assert(($fresh['status'] ?? '') === 'in_progress', 'temporary disconnect was finalized by mistake');
+$pdo->exec('UPDATE attempts SET time_limit_snapshot=1 WHERE id=9202');
+$pdo->prepare('UPDATE attempts SET started_at=? WHERE id=9202')->execute([gmdate('Y-m-d H:i:s',time()-180)]);
+stale_assert(finalize_stale_attempts($pdo,9201,null,null,600)===1,'expired deadline not finalized');
+$timed=$pdo->query('SELECT termination_reason,started_at,submitted_at FROM attempts WHERE id=9202')->fetch();
+stale_assert($timed['termination_reason']==='time_limit','deadline incorrectly labeled as disconnect');
+stale_assert(strtotime($timed['submitted_at'].' UTC')-strtotime($timed['started_at'].' UTC')===60,'deadline timestamp incorrect');
 
 $startSource = file_get_contents(dirname(__DIR__, 2) . '/api/attempts/start.php');
 $helperSource = file_get_contents(dirname(__DIR__, 2) . '/api/questions/_helpers.php');

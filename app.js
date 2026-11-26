@@ -3584,7 +3584,7 @@ function renderJournal() {
     const cells = visibleCells.map(cell => {
       if (!cell) return '<td class="journal-result-cell"><span class="journal-missing" title="Работа не сдана">—</span></td>';
       const grade = String(cell.grade || resultGradeFromPercent(cell.percent));
-      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '') + (cell.source === 'paper' ? '<i title="Бумажный тест" aria-label="Бумажный тест">Б</i>' : '');
+      const flags = (cell.adjusted ? '<i title="Оценка скорректирована">●</i>' : '') + (cell.source === 'paper' ? '<i title="Бумажный тест" aria-label="Бумажный тест">Б</i>' : '') + (cell.termination_reason==='connection_lost'?'<i title="Длительное отсутствие связи">С</i>':'');
       return `<td class="journal-result-cell">
         <button class="journal-grade-cell ${resultGradeClass(grade)}" type="button"
           data-journal-review="${Number(cell.attempt_id)}"
@@ -3647,7 +3647,7 @@ function renderJournal() {
         + '</div>'
         + '<div class="journal-mobile-work-meta">'
         + '<span><b>' + escapeHtml(journalFormatNumber(cell.score, 2)) + '</b> / ' + escapeHtml(journalFormatNumber(cell.max_score, 2)) + ' балл.</span>'
-        + (cell.source === 'paper' ? '<span>Бумажный тест</span>' : (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' выход из браузера</span>' : '<span class="journal-mobile-browser-ok">Без выхода</span>'))
+        + (cell.source === 'paper' ? '<span>Бумажный тест</span>' : (browserMarker ? '<span class="journal-mobile-browser-label">' + browserMarker + ' '+escapeHtml(resultTerminationLabel(cell)||'Уход со страницы')+'</span>' : cell.termination_reason==='connection_lost'?'<span>Длительное отсутствие связи</span>':'<span class="journal-mobile-browser-ok">Без выхода</span>'))
         + adjustedMarker
         + '</div>'
         + '<div class="journal-mobile-actions">'
@@ -3911,8 +3911,10 @@ function resultClosedByBrowser(item) {
     || ['page_hidden', 'page_closed', 'browser_closed', 'window_blur'].includes(String(item?.termination_reason || ''));
 }
 
-function resultBrowserCloseBadge() {
-  return '<span class="result-close-badge" title="З/Б · попытка завершена из-за закрытия или скрытия браузера/вкладки" aria-label="Завершено браузером">' +
+function resultTerminationLabel(item){return ({page_hidden:'Вкладка была скрыта',page_closed:'Страница закрыта или перезагружена',browser_closed:'Прежняя отметка: браузер сообщил об уходе со страницы',window_blur:'Потеря фокуса окна (прежний режим)',connection_lost:'Длительное отсутствие связи',time_limit:'Время выполнения истекло',window_closed:'Ученик подтвердил завершение',paper:'Бумажная работа'})[String(item?.termination_reason||'')]||'';}
+function resultBrowserCloseBadge(item) {
+  const label=resultTerminationLabel(item)||'Завершение при уходе со страницы';
+  return '<span class="result-close-badge" title="'+escapeHtml(label)+'" aria-label="'+escapeHtml(label)+'">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M9 12.2l6 5.6M15 12.2l-6 5.6"/></svg>' +
     '<span>З/Б</span>' +
     '</span>';
@@ -4193,8 +4195,8 @@ async function openAttemptReview(attemptId) {
       ? '<span class="attempt-review-adjusted">Оценка скорректирована учителем</span>'
       : '';
     const browserClosed = resultClosedByBrowser(attempt)
-      ? resultBrowserCloseBadge()
-      : '';
+      ? resultBrowserCloseBadge(attempt)
+      : attempt.termination_reason==='connection_lost' ? '<span title="Длительное отсутствие связи">Связь</span>' : '';
     const staffActions = currentUser?.role !== 'student'
       ? `<button class="attempt-review-grade-action" type="button" data-review-edit="${id}">
           <span class="attempt-review-grade-action-icon">${resultActionIcon('edit')}</span>
@@ -4760,7 +4762,7 @@ async function loadStudentResults() {
           <td><b>${escapeHtml(item.assignment_title)}</b>${item.termination_reason === 'paper' ? '<small class="results-cell-sub">Бумажный тест</small>' : ''}${item.adjusted ? '<small class="results-cell-sub">Оценка скорректирована учителем</small>' : ''}</td>
           <td>${Number(item.score || 0).toLocaleString('ru-RU')} / ${Number(item.max_score || 0).toLocaleString('ru-RU')}</td>
           <td><b>${Math.round(Number(item.percent || 0))}%</b></td>
-          <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span></td>
+          <td><span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge(item) : item.termination_reason==='connection_lost' ? '<span title="Длительное отсутствие связи">Связь</span>' : ''}</span></td>
           <td>${item.comment ? '<span class="student-result-comment">' + escapeHtml(item.comment) + '</span>' : '—'}</td>
         </tr>`).join('') : '<tr><td colspan="7"><div class="history-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></div></td></tr>';
     }
@@ -4779,7 +4781,7 @@ async function loadStudentResults() {
                 ${item.termination_reason === 'paper' ? '<small>Бумажный тест</small>' : ''}
                 <small>${escapeHtml(resultDateTime(item.submitted_at))}</small>
               </div>
-              <span class="student-result-grade-wrap"><span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
+              <span class="student-result-grade-wrap"><span class="student-result-grade grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge(item) : item.termination_reason==='connection_lost' ? '<span title="Длительное отсутствие связи">Связь</span>' : ''}</span>
             </div>
             <div class="student-result-metrics">
               <div><span>Результат</span><strong>${percent}%</strong></div>
@@ -4788,7 +4790,7 @@ async function loadStudentResults() {
             </div>
             <div class="student-result-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
             ${item.comment ? `<div class="student-result-message"><b>Комментарий учителя</b><span>${escapeHtml(item.comment)}</span></div>` : ''}
-            ${resultClosedByBrowser(item) ? '<div class="student-result-browser-close"><b>З/Б</b><span>Тест завершён из-за закрытия или скрытия браузера/вкладки. Засчитаны ответы, сохранённые к этому моменту.</span></div>' : ''}
+            ${(resultClosedByBrowser(item)||item.termination_reason==='connection_lost') ? '<div class="student-result-browser-close"><b>'+escapeHtml(resultTerminationLabel(item)||'Тест завершён')+'</b><span>Засчитаны сохранённые ответы.</span></div>' : ''}
             ${item.adjusted ? '<div class="student-result-adjusted">Оценка была пересмотрена и опубликована учителем.</div>' : ''}
           </article>`;
       }).join('') : '<article class="student-result-card student-results-empty"><b>Оценок пока нет</b><span>После выполнения задания результат появится здесь.</span></article>';
@@ -4798,7 +4800,7 @@ async function loadStudentResults() {
       recent.innerHTML = items.length ? items.slice(0, 4).map(item => `
         <div class="grade-row">
           <div><strong>${escapeHtml(item.subject_name || 'Без предмета')}</strong><span>${escapeHtml(item.assignment_title)} · ${Math.round(Number(item.percent || 0))}%</span></div>
-          <span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge() : ''}</span>
+          <span class="result-grade-wrap"><span class="grade ${resultGradeClass(item.grade)}">${escapeHtml(item.grade || '—')}</span>${resultClosedByBrowser(item) ? resultBrowserCloseBadge(item) : item.termination_reason==='connection_lost' ? '<span title="Длительное отсутствие связи">Связь</span>' : ''}</span>
         </div>`).join('') : '<div class="dashboard-empty"><span>Выполненных работ пока нет.</span></div>';
     }
 
@@ -9239,7 +9241,7 @@ function sendActiveAttemptCloseBeacon(reason = 'page_closed') {
   // A foreground request provides an acknowledgement; do not treat enqueueing a beacon as delivery.
   if(!document.hidden && reason!=='page_closed'){
     fetch('./api/attempts/close.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:payload,keepalive:true})
-      .then(async r=>{const d=await r.json();if(!r.ok||!d.ok)throw Error('close failed');if(strict&&activeStudentAttempt?.id===attemptId&&d.result)renderRealAttemptResult(d.result);})
+      .then(async r=>{const d=await r.json();if(!r.ok||!d.ok)throw Error('close failed');if(strict&&activeStudentAttempt?.id===attemptId&&d.result)renderRealAttemptResult(d.result,resultTerminationLabel(d.result)||'Учтены сохранённые ответы.');})
       .catch(()=>{if(strict&&activeStudentAttempt?.id===attemptId)quizExitBeaconSent=false;});
     return true;
   }

@@ -147,7 +147,9 @@ jobs:
         run: php .github/tests/yookassa-integration-smoke.php
 
       - name: Validate stale attempt recovery
-        run: php .github/tests/stale-attempt-recovery-smoke.php
+        run: |
+          php .github/tests/stale-attempt-recovery-smoke.php
+          TZ=Europe/Moscow node .github/tests/attempt-lifecycle-date-smoke.mjs
 
       - name: Validate backup engine
         run: |

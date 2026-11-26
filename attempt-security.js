@@ -42,6 +42,7 @@ const AttemptSecurity = (() => {
   async function heartbeat() {
     if (!state || document.hidden) return;
     const current=state;
+    if(current.locked)current.onHidden?.(current.lockReason||'hidden');
     try {
       const response = await fetch('./api/attempts/heartbeat.php', {
         method: 'POST',
