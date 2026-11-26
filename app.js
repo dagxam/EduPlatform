@@ -5060,7 +5060,11 @@ function subscriptionFeatureRows(plan) {
     ['Импорт PDF / DOCX / PPTX', features.file_import ? 'Да' : 'Нет'],
     ['Расширенная аналитика', features.advanced_analytics ? 'Да' : 'Нет'],
     ['Экспорт результатов', features.export_results ? 'Да' : 'Нет'],
-    ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет']
+    ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет'],
+    ['UROVIA PAPER · бумажные тесты и QR-проверка', features.paper_tests ? 'Да' : 'Только PRO / Premium'],
+    ['ИИ · онлайн-тесты', plan.ai_monthly_limit > 0 ? 'Да' : 'Нет'],
+    ['ИИ · бумажные тесты PAPER', features.paper_tests && plan.ai_monthly_limit > 0 ? 'Да' : 'Нет'],
+    ['Общий лимит ИИ в месяц', plan.ai_monthly_limit > 0 ? String(plan.ai_monthly_limit) : 'Нет']
   ];
   return rows.map(([label, value]) =>
     '<li><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value) + '</b></li>'
@@ -5093,6 +5097,8 @@ function staffSubscriptionLocked() {
   return !Boolean(subscriptionDataCache.current.access_active);
 }
 
+function paperSubscriptionAllowed(){return Number(currentUser?.is_platform_admin)===1||Boolean(subscriptionDataCache?.current?.access_active&&subscriptionDataCache.current?.plan?.features?.paper_tests);}
+function openPaperUpgrade(){showView('subscription');loadSubscriptionPage().catch(()=>{});appAlert('UROVIA PAPER доступен только на тарифах PRO и Premium.',{title:'Доступ к бумажным тестам'});}
 function applySubscriptionAccessState(data) {
   subscriptionDataCache = data;
   const schoolStaff = Boolean(currentUser) && currentUser.role !== 'student' && Number(currentUser.is_platform_admin) !== 1;
@@ -5102,11 +5108,12 @@ function applySubscriptionAccessState(data) {
   document.body.classList.toggle('subscription-locked', locked);
 
   document.querySelectorAll('.teacher-nav .nav-item').forEach(button => {
-    const gated = locked && button.dataset.view !== 'subscription';
+    const paperGated=schoolStaff&&button.dataset.view==='paper-tests'&&!paperSubscriptionAllowed();
+    const gated = (locked && button.dataset.view !== 'subscription')||paperGated;
     button.classList.toggle('subscription-gated', gated);
     if (gated) {
       button.setAttribute('aria-disabled', 'true');
-      button.dataset.subscriptionHint = 'Доступ ограничен — выберите подходящий тариф';
+      button.dataset.subscriptionHint = paperGated?'Только PRO / Premium':'Доступ ограничен — выберите подходящий тариф';
       button.title = 'Требуется активная подписка';
     } else {
       button.removeAttribute('aria-disabled');
@@ -5798,7 +5805,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
     return;
   }
   if (btn.dataset.view === 'paper-tests') {
-    if (currentUser && currentUser.role !== 'student') window.location.href = './paper-workspace.html';
+    if (currentUser && currentUser.role !== 'student') {if(!paperSubscriptionAllowed()){openPaperUpgrade();return;}window.location.href = './paper-workspace.html';}
     return;
   }
   showView(btn.dataset.view);
@@ -6515,6 +6522,7 @@ function wireAssignmentWorkflowButtons(root) {
   });
   root.querySelectorAll('[data-paper-assignment]').forEach(button => {
     button.addEventListener('click', () => {
+      if(!paperSubscriptionAllowed()){openPaperUpgrade();return;}
       const id = Number(button.dataset.paperAssignment);
       if (Number.isSafeInteger(id) && id > 0) window.open('./paper-workspace.html?copy_from=' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
     });

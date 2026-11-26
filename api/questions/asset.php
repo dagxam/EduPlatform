@@ -11,7 +11,7 @@ if ($assetId < 1) {
 $pdo = app_db();
 $stmt = $pdo->prepare(
     'SELECT qa.id, qa.stored_name, qa.mime_type,
-            a.id AS assignment_id, a.teacher_id, a.school_id, a.status
+            a.id AS assignment_id, a.teacher_id, a.school_id, a.status, a.type
      FROM question_assets qa
      JOIN questions q ON q.id = qa.question_id
      JOIN assignments a ON a.id = q.assignment_id
@@ -56,6 +56,7 @@ if (!$allowed) {
     json_response(['ok' => false, 'error' => 'Нет доступа к изображению.'], 403);
 }
 
+if(($row['type']??'')==='paper'&&in_array($user['role'],['admin','teacher'],true))subscription_require_paper($pdo,$user);
 $storedName = basename((string)$row['stored_name']);
 $path = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'question-assets' . DIRECTORY_SEPARATOR . $storedName;
 if (!is_file($path)) {
