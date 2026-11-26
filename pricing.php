@@ -63,9 +63,6 @@ function pricing_limit(mixed $value): string
           <li>Расширенная аналитика: <?=!empty($plan['features']['advanced_analytics']) ? 'да' : 'нет'?></li>
           <li>Экспорт результатов: <?=!empty($plan['features']['export_results']) ? 'да' : 'нет'?></li>
           <li>UROVIA PAPER: <?=!empty($plan['features']['paper_tests']) ? 'да, печать А4 и QR-проверка' : 'только PRO / Premium'?></li>
-          <li>ИИ для онлайн-тестов: <?=!empty($plan['ai_monthly_limit']) ? 'да' : 'нет'?></li>
-          <li>ИИ для бумажных тестов PAPER: <?=!empty($plan['features']['paper_tests']) ? 'да' : 'нет'?></li>
-          <li>Общий лимит ИИ: <?=!empty($plan['ai_monthly_limit']) ? (int)$plan['ai_monthly_limit'].' генераций в месяц' : 'нет'?></li>
         </ul>
       </article>
     <?php endforeach; ?>

@@ -4,7 +4,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 require __DIR__ . '/sheets.php';
 $user=require_user(['admin','teacher']);
 $schoolId=require_active_school($user,false);
-$enabled=getenv('UROVIA_PAPER_OCR_ENABLED')==='1' && ai_config_for_provider('groq')['api_key']!=='' && extension_loaded('curl');
+$enabled=ai_feature_enabled() && getenv('UROVIA_PAPER_OCR_ENABLED')==='1' && ai_config_for_provider('groq')['api_key']!=='' && extension_loaded('curl');
 if($_SERVER['REQUEST_METHOD']==='GET') json_response(['ok'=>true,'enabled'=>$enabled]);
 if($_SERVER['REQUEST_METHOD']!=='POST') json_response(['ok'=>false,'error'=>'Метод не поддерживается.'],405);
 if(!$enabled) json_response(['ok'=>false,'error'=>'Распознавание рукописного текста отключено администратором.'],503);

@@ -1466,9 +1466,15 @@ function ai_config(): array
     return ai_config_for_provider(($stored['active_provider']??'groq')==='openrouter'?'openrouter':'groq',$stored);
 }
 
+// Temporarily disabled until a reliable, approved AI provider is available.
+function ai_feature_enabled(): bool { return false; }
+function ai_require_enabled(): void
+{
+    if (!ai_feature_enabled()) json_response(['ok'=>false,'code'=>'AI_DISABLED','error'=>'Функция временно недоступна.'],503);
+}
 function ai_is_configured(): bool
 {
-    return ai_config()['api_key'] !== '';
+    return ai_feature_enabled() && ai_config()['api_key'] !== '';
 }
 
 class AiProviderException extends RuntimeException
@@ -1539,6 +1545,7 @@ function ai_provider_failure(int $status,int $errno,string $detail='',string $pr
 
 function ai_request(array $payload): array
 {
+    if (!ai_feature_enabled()) throw new RuntimeException('AI_DISABLED');
     $config=ai_config();
     $key=(string)$config['api_key'];
     $provider=(string)$config['provider'];
@@ -1598,6 +1605,7 @@ function ai_response_text(array $response): string
 
 function subscription_assert_ai_capacity(PDO $pdo, array $user, ?int $schoolId): array
 {
+    ai_require_enabled();
     $state = subscription_require_staff_access($pdo, $user);
     if (is_platform_admin($user)) {
         return $state;
@@ -1864,7 +1872,7 @@ function subscription_plan_catalog(): array
             'max_classes' => 7,
             'max_students' => 280,
             'max_active_assignments' => 60,
-            'ai_monthly_limit' => 50,
+            'ai_monthly_limit' => 0,
             'features' => [
                 'paper_tests' => true,
                 'manual_assignments' => true,
@@ -1887,7 +1895,7 @@ function subscription_plan_catalog(): array
             'max_classes' => null,
             'max_students' => null,
             'max_active_assignments' => null,
-            'ai_monthly_limit' => 300,
+            'ai_monthly_limit' => 0,
             'features' => [
                 'paper_tests' => true,
                 'manual_assignments' => true,

@@ -4,6 +4,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 require __DIR__ . '/_generation.php';
 
 $user = require_user(['admin', 'teacher']);
+ai_require_enabled();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }

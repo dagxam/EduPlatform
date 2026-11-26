@@ -5071,10 +5071,7 @@ function subscriptionFeatureRows(plan) {
     ['Расширенная аналитика', features.advanced_analytics ? 'Да' : 'Нет'],
     ['Экспорт результатов', features.export_results ? 'Да' : 'Нет'],
     ['Продажа материалов', features.marketplace_sell ? 'Да' : 'Нет'],
-    ['UROVIA PAPER · бумажные тесты и QR-проверка', features.paper_tests ? 'Да' : 'Только PRO / Premium'],
-    ['ИИ · онлайн-тесты', plan.ai_monthly_limit > 0 ? 'Да' : 'Нет'],
-    ['ИИ · бумажные тесты PAPER', features.paper_tests && plan.ai_monthly_limit > 0 ? 'Да' : 'Нет'],
-    ['Общий лимит ИИ в месяц', plan.ai_monthly_limit > 0 ? String(plan.ai_monthly_limit) : 'Нет']
+    ['UROVIA PAPER · бумажные тесты и QR-проверка', features.paper_tests ? 'Да' : 'Только PRO / Premium']
   ];
   return rows.map(([label, value]) =>
     '<li><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value) + '</b></li>'
@@ -5507,124 +5504,6 @@ document.getElementById('yookassaConfigForm')?.addEventListener('submit', async 
   }
 });
 
-let aiProviderConfigs=[];
-document.getElementById('aiProvider')?.addEventListener('change',()=>{
-  const provider=document.getElementById('aiProvider').value;
-  const entry=aiProviderConfigs.find(x=>x.provider===provider)||{};
-  const key=document.getElementById('aiApiKey'),model=document.getElementById('aiModel'),badge=document.getElementById('aiKeyConnectionBadge');
-  key.value='';key.placeholder=entry.api_key_configured?'Ключ сохранён — оставьте пустым':'Введите ключ выбранного сервиса';
-  model.value=provider==='openrouter'?'openrouter/free':entry.model||'openai/gpt-oss-20b';model.readOnly=provider==='openrouter';
-  document.getElementById('aiProviderKeyLabel').textContent='API-ключ '+(provider==='openrouter'?'OpenRouter':'Groq');
-  badge.textContent=entry.api_key_configured?'Ключ сохранён':'Не подключён';
-  badge.classList.toggle('is-online',!!entry.api_key_configured);badge.classList.toggle('is-offline',!entry.api_key_configured);
-  document.getElementById('aiConnectionState').textContent='Сохраните выбранный провайдер';
-  document.getElementById('aiRunDiagnostic').disabled=true;
-  document.getElementById('aiDiagnosticResult').classList.add('hidden');
-});
-async function loadAIAdminConfig() {
-  if (Number(currentUser?.is_platform_admin) !== 1) return null;
-  const response = await fetch('./api/admin/ai/get.php', {
-    credentials: 'same-origin',
-    cache: 'no-store'
-  });
-  const data = await readJsonResponse(response, 'Не удалось загрузить настройки ИИ.');
-  if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось загрузить настройки ИИ.');
-
-  const config = data.config || {};
-  aiProviderConfigs=config.providers||[];
-  const provider=document.getElementById('aiProvider');if(provider)provider.value=config.provider||'groq';
-  document.getElementById('aiProviderKeyLabel').textContent='API-ключ '+(config.provider==='openrouter'?'OpenRouter':'Groq');
-  document.getElementById('aiRunDiagnostic').disabled=!config.api_key_configured;
-  const key = document.getElementById('aiApiKey');
-  const model = document.getElementById('aiModel');
-  const state = document.getElementById('aiConnectionState');
-  const keyBadge = document.getElementById('aiKeyConnectionBadge');
-  if (key) {
-    key.value = '';
-    key.placeholder = config.api_key_configured
-      ? 'Ключ уже сохранён — оставьте пустым, чтобы не менять'
-      : 'Вставьте API-ключ выбранного сервиса';
-  }
-  if (model) {model.value = config.model || 'openai/gpt-oss-20b';model.readOnly=config.provider==='openrouter';}
-  if (state) {
-    state.textContent = config.api_key_configured ? 'Ключ сохранён · нужна проверка' : 'API-ключ не настроен';
-    state.classList.toggle('green', Boolean(config.api_key_configured));
-    state.classList.toggle('amber', !config.api_key_configured);
-  }
-  if (keyBadge) {
-    keyBadge.textContent = config.api_key_configured ? 'Ключ сохранён' : 'Не подключён';
-    keyBadge.classList.toggle('is-online', Boolean(config.api_key_configured));
-    keyBadge.classList.toggle('is-offline', !config.api_key_configured);
-  }
-  return config;
-}
-
-document.getElementById('aiConfigForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  if (Number(currentUser?.is_platform_admin) !== 1) return;
-
-  const form = event.currentTarget;
-  const button = form.querySelector('button[type="submit"]');
-  const error = document.getElementById('aiConfigError');
-  const result = document.getElementById('aiConfigResult');
-  error?.classList.add('hidden');
-  result?.classList.add('hidden');
-  button.disabled = true;
-  button.textContent = 'Сохраняем...';
-
-  try {
-    const response = await fetch('./api/admin/ai/set.php', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: document.getElementById('aiProvider')?.value || 'groq',
-        api_key: document.getElementById('aiApiKey')?.value || '',
-        model: document.getElementById('aiModel')?.value || 'openai/gpt-oss-20b'
-      })
-    });
-    const data = await readJsonResponse(response, 'Не удалось сохранить настройки ИИ.');
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось сохранить настройки ИИ.');
-    if (result) {
-      result.textContent = data.message || 'ИИ UROVIA настроен.';
-      result.classList.remove('hidden');
-    }
-    await loadAIAdminConfig();
-  } catch (err) {
-    if (error) {
-      error.textContent = err.message;
-      error.classList.remove('hidden');
-    }
-  } finally {
-    button.disabled = false;
-    button.textContent = 'Сохранить ИИ';
-  }
-});
-
-document.getElementById('aiRunDiagnostic')?.addEventListener('click',async()=>{
-  if(Number(currentUser?.is_platform_admin)!==1)return;
-  const button=document.getElementById('aiRunDiagnostic'),out=document.getElementById('aiDiagnosticResult');
-  button.disabled=true;out.classList.remove('hidden');out.textContent='Проверяем сохранённую конфигурацию ИИ…';
-  const messages=[];let success=true;
-  for(const mode of ['online','paper']){
-    const label=mode==='paper'?'PAPER':'Онлайн';
-    try{
-      const r=await fetch('./api/admin/ai/test.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
-      const d=await readJsonResponse(r,'Некорректный ответ диагностики.');
-      if(!r.ok||!d.ok){
-        const info=d.diagnostic||{};
-        const details=[info.http_status?'HTTP '+info.http_status:'',info.curl_errno?'cURL '+info.curl_errno:'',info.provider_code,info.detail].filter(Boolean).join(' · ');
-        throw Error((d.error||'Ошибка диагностики.')+(details?' ['+details+']':''));
-      }
-      messages.push(label+': успешно · '+d.questions_count+' вопросов · '+d.duration_ms+' мс · '+d.model);
-    }catch(e){success=false;messages.push(label+': '+e.message);}
-    out.textContent=messages.join(' | ');
-  }
-  button.disabled=false;
-  const state=document.getElementById('aiConnectionState');
-  if(state){state.textContent=success?'ИИ проверен: онлайн + PAPER':'ИИ: есть ошибки проверки';state.classList.toggle('green',success);state.classList.toggle('amber',!success);}
-});
-
 async function loadLegalProfile() {
   if (Number(currentUser?.is_platform_admin) !== 1) return null;
   const response = await fetch('./api/admin/legal/get.php', {
@@ -5728,7 +5607,6 @@ async function loadSubscriptionPage() {
     await Promise.all([
       loadLegalProfile().catch(() => null),
       loadYooKassaAdminConfig().catch(() => null),
-      loadAIAdminConfig().catch(() => null),
       loadYooKassaPayments().catch(() => [])
     ]);
   }
@@ -7339,103 +7217,6 @@ async function loadAssignments() {
 
 document.getElementById('assignmentSearch')?.addEventListener('input', renderAssignments);
 document.getElementById('assignmentStatusFilter')?.addEventListener('change', renderAssignments);
-
-async function openAiTaskCreator() {
-  const modal = document.getElementById('aiTaskModal');
-  const subject = document.getElementById('aiTaskSubject');
-  const sourceSubject = document.getElementById('taskSubject');
-  const status = document.getElementById('aiTaskStatus');
-  const error = document.getElementById('aiTaskError');
-  const submit = document.getElementById('aiTaskSubmit');
-  if (!modal || !subject || !sourceSubject || !submit) return;
-
-  subject.innerHTML = sourceSubject.innerHTML;
-  const preferredSubject = String(sourceSubject.value || selectedSubjectId || '');
-  if ([...subject.options].some(option => option.value === preferredSubject)) {
-    subject.value = preferredSubject;
-  }
-  error?.classList.add('hidden');
-  if (status) status.textContent = 'Проверяем доступ к ИИ...';
-  submit.disabled = true;
-  openModal(modal);
-
-  try {
-    const response = await fetch('./api/ai/status.php', {
-      credentials: 'same-origin',
-      cache: 'no-store'
-    });
-    const data = await readJsonResponse(response, 'Не удалось проверить доступ к ИИ.');
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось проверить доступ к ИИ.');
-
-    const used = Number(data.used || 0);
-    const limit = data.limit === null ? null : Number(data.limit || 0);
-    const usageText = limit === null
-      ? ('создано в этом месяце: ' + used)
-      : ('использовано ' + used + ' из ' + limit + ' в этом месяце');
-
-    if (status) {
-      if (!data.available) {
-        status.textContent = 'ИИ-создание заданий доступно только на PRO/Premium.';
-      } else {
-        status.textContent = 'ИИ UROVIA · ' + usageText +
-          (data.configured ? '' : ' · API-ключ ИИ ещё не настроен');
-      }
-    }
-    submit.disabled = !data.available || !data.configured || (limit !== null && Number(data.remaining || 0) <= 0);
-  } catch (err) {
-    if (error) {
-      error.textContent = err.message;
-      error.classList.remove('hidden');
-    }
-  }
-}
-
-document.getElementById('openAiTaskBtn')?.addEventListener('click', () => {
-  openAiTaskCreator().catch(() => {});
-});
-
-document.getElementById('aiTaskForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const submit = document.getElementById('aiTaskSubmit');
-  const error = document.getElementById('aiTaskError');
-  const result = document.getElementById('aiTaskResult');
-  error?.classList.add('hidden');
-  result?.classList.add('hidden');
-  submit.disabled = true;
-  submit.textContent = 'ИИ создаёт задание...';
-
-  try {
-    const payload = Object.fromEntries(new FormData(form).entries());
-    const response = await fetch('./api/ai/generate-assignment.php', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await readJsonResponse(response, 'Не удалось создать задание с ИИ.');
-    if (!response.ok || data.ok === false) throw new Error(data.error || 'Не удалось создать задание с ИИ.');
-
-    if (result) {
-      result.textContent = data.message || 'Черновик создан.';
-      result.classList.remove('hidden');
-    }
-    form.reset();
-    closeModal(document.getElementById('aiTaskModal'));
-    closeModal(taskModal);
-    await loadAssignments();
-    showView('assignments');
-    await openAssignmentEditor(Number(data.assignment_id || 0));
-  } catch (err) {
-    if (error) {
-      error.textContent = err.message;
-      error.classList.remove('hidden');
-    }
-  } finally {
-    submit.disabled = false;
-    submit.textContent = 'Создать черновик с ИИ';
-  }
-});
 
 document.getElementById('taskForm')?.addEventListener('submit', async event => {
   event.preventDefault();

@@ -37,28 +37,19 @@ $schema = growth_source('database/schema.sql');
 $app = growth_source('app.js');
 $index = growth_source('index.html');
 
-// Paid AI feature on PRO/Premium, powered by Groq.
-growth_expect($bootstrap, 'https://api.groq.com/openai/v1', 'Groq API base is missing');
-growth_expect($bootstrap, "getenv('GROQ_API_KEY')", 'Groq environment key support is missing');
-growth_expect($bootstrap, "openai/gpt-oss-20b", 'default free-tier Groq model is missing');
-growth_expect($bootstrap, 'function ai_request(array $payload)', 'AI provider request helper is missing');
-growth_expect($bootstrap, 'function subscription_record_ai_generation', 'AI generation usage accounting is missing');
-growth_expect($bootstrap, 'function subscription_assert_ai_capacity', 'paid AI subscription guard is missing');
-growth_expect(growth_source('api/ai/_generation.php'), 'question_editor_normalize_payload($candidate)', 'AI questions do not pass through the existing question normalizer');
-growth_expect($aiGenerate, 'subscription_assert_ai_capacity($pdo, $user, $schoolId)', 'AI generation is not subscription-gated');
-growth_expect($aiGenerate, "'ai_assignment_generated'", 'AI assignment audit event is missing');
-growth_expect($aiGenerate, '"draft", "draft"', 'AI generation must create a normal draft');
-growth_expect($aiStatus, "in_array(\$planCode, ['pro', 'premium'], true)", 'AI status does not restrict access to PRO/Premium');
-growth_expect($aiStatus, "'paid_feature' => true", 'AI paid feature flag is missing');
-growth_expect($aiAdminGet, "'provider' => \$config['provider']", 'AI admin endpoint does not expose selected provider');
-growth_expect($aiAdminSet, "'active_provider'=>\$provider", 'AI configuration does not persist selected provider');
-growth_expect($index, 'API-ключ Groq', 'Groq admin UI label is missing');
-growth_expect($index, 'id="aiKeyConnectionBadge"', 'inline Groq connection badge is missing');
-growth_expect($app, "keyBadge.textContent = config.api_key_configured ? 'Ключ сохранён' : 'Не подключён'", 'inline Groq connection badge is not updated');
-growth_expect($index, 'https://console.groq.com/keys', 'Groq API key setup link is missing');
-growth_expect($index, 'Подключение ИИ', 'AI setup instructions are missing');
-growth_expect($index, 'тарифах <b>PRO и Premium</b>', 'paid AI tariff copy is missing');
-growth_expect($app, 'ИИ-создание заданий доступно только на PRO/Premium', 'paid AI status copy is missing');
+// AI is temporarily suspended; keep provider implementation but never expose or invoke it.
+growth_expect($bootstrap, 'function ai_feature_enabled(): bool { return false; }', 'AI must be suspended');
+growth_expect($aiGenerate, 'ai_require_enabled();', 'generation endpoint must be disabled');
+growth_expect($aiAdminGet, 'ai_require_enabled();', 'AI admin settings must be disabled');
+growth_expect($aiAdminSet, 'ai_require_enabled();', 'AI configuration writes must be disabled');
+growth_expect(growth_source('api/admin/ai/test.php'), 'ai_require_enabled();', 'AI diagnostics must be disabled');
+growth_expect($aiStatus, '$available = ai_feature_enabled()', 'AI status must report unavailable');
+growth_expect(growth_source('api/paper/ocr.php'), '$enabled=ai_feature_enabled()', 'external OCR must be disabled');
+foreach (['openAiTaskBtn','aiTaskModal','aiConfigForm','aiRunDiagnostic'] as $id) growth_reject($index,$id,'AI interface is visible');
+growth_reject($app, 'ai_monthly_limit', 'AI advertised in tariff UI');
+growth_reject(growth_source('pricing.php'),'ai_monthly_limit','AI advertised on public pricing');
+foreach (['newPaperAi','navPaperAi','paperAiDialog'] as $id) growth_reject(growth_source('paper-workspace.html'),$id,'PAPER AI interface is visible');
+growth_reject(growth_source('paper-workspace.js'),'api/paper/ocr.php','external OCR frontend still active');
 
 // Work-on-mistakes feature must remain removed.
 if (is_file('api/results/create-remediation.php')) {

@@ -1,7 +1,7 @@
 'use strict';
 (() => {
 const $=id=>document.getElementById(id), assignment=$('assignment'), cls=$('class'), student=$('student');
-let current=null, rows=[], generation=0, image=null, corners=[], batchBusy=false,stream=null,cameraTimer=null,cameraEpoch=0,scanBusy=false,ready=false,ocrEnabled=false;
+let current=null, rows=[], generation=0, image=null, corners=[], batchBusy=false,stream=null,cameraTimer=null,cameraEpoch=0,scanBusy=false,ready=false;
 let scanTarget=null,videoCanvas=null,qrSeen=null,manualCapture=null;
 let previewTimer=null,previewEpoch=0,previewKey='',saving=false,scanReady=false;
 const make=(tag,text,klass)=>{const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(klass)e.className=klass;return e;};
@@ -11,7 +11,7 @@ function fill(select,items,placeholder,label){select.replaceChildren(new Option(
 function reset(){$('scanFormat').disabled=false;$('scanFormat').value='2';scanReady=false;clearTimeout(previewTimer);previewEpoch++;previewKey='';$('reviewSummary').textContent='';$('previewStatus').textContent='';generation++;current=null;scanTarget=null;rows=[];image=null;corners=[];$('review').hidden=true;$('navReview').hidden=true;$('photoCanvas').hidden=true;$('photo').value='';$('verify').value='';$('confirmed').checked=false;$('printArea').replaceChildren();$('printArea').hidden=true;$('save').disabled=true;$('batchPrint').disabled=true;$('batchPrint').hidden=true;report('result','');report('scanState','');}
 function buttons(){ $('printMode').disabled=batchBusy||scanBusy;$('cameraStart').disabled=!ready||!!stream||scanBusy||batchBusy;$('cameraStop').disabled=!stream;$('cameraCapture').disabled=!stream||scanBusy;$('plain').disabled=!assignment.value;$('prepare').disabled=batchBusy||!(assignment.value&&cls.value&&student.value);$('batch').disabled=batchBusy||!(assignment.value&&cls.value&&Array.from(student.options).some(o=>o.value)); }
 function payload(action){return {action,...(['submit','preview'].includes(action)&&scanTarget?scanTarget:{assignment_id:Number(assignment.value),class_id:Number(cls.value),student_id:Number(student.value)})};}
-async function init(){try{const [a,c]=await Promise.all([request('./api/assignments/list.php?mode=paper'),request('./api/classes/list.php')]);fill(assignment,(a.assignments||a.items||[]).filter(x=>x.paper_latest!==false&&!x.paper_archived),'Выберите бумажное задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));fill(cls,c.classes||c.items||[],'Выберите класс',x=>x.name);const id=new URLSearchParams(location.search).get('assignment_id');if(id)assignment.value=id;ready=true;buttons();request('./api/paper/ocr.php').then(d=>{ocrEnabled=d.enabled===true;}).catch(()=>{});}catch(e){report('message',e.message,true);}}
+async function init(){try{const [a,c]=await Promise.all([request('./api/assignments/list.php?mode=paper'),request('./api/classes/list.php')]);fill(assignment,(a.assignments||a.items||[]).filter(x=>x.paper_latest!==false&&!x.paper_archived),'Выберите бумажное задание',x=>[x.title,x.subject_name].filter(Boolean).join(' · '));fill(cls,c.classes||c.items||[],'Выберите класс',x=>x.name);const id=new URLSearchParams(location.search).get('assignment_id');if(id)assignment.value=id;ready=true;buttons();}catch(e){report('message',e.message,true);}}
 assignment.addEventListener('change',()=>{reset();buttons();});
 cls.addEventListener('change',async()=>{reset();fill(student,[],'Загрузка учеников…',()=> '');buttons();const id=cls.value;if(!id){fill(student,[],'Выберите ученика',()=> '');return;}try{const d=await request('./api/classes/students.php?class_id='+encodeURIComponent(id));if(id!==cls.value)return;fill(student,(d.students||[]).filter(x=>Number(x.is_active)===1),'Выберите ученика',x=>[x.last_name,x.first_name,x.middle_name].filter(Boolean).join(' '));buttons();}catch(e){if(id===cls.value)report('message',e.message,true);}});
 student.addEventListener('change',()=>{reset();buttons();});
@@ -93,7 +93,7 @@ const changed=()=>{row.classList.remove('uncertain');$('confirmed').checked=fals
 if(!isChoice(q)){
  row.classList.add('written-row');const title=make('span',q.text,'written-title');const input=make('textarea');input.rows=q.type==='essay'?5:2;input.maxLength=8000;input.placeholder=q.type==='order'?'A B C':q.type==='matching'?'1-A, 2-B':q.type==='number'?'Введите число':q.type==='correction'?'Запишите исправленный вариант':q.structured?.answer_hint||'Введите или распознайте письменный ответ';input.setAttribute('aria-label','Письменный ответ '+(i+1));input.addEventListener('input',changed);
  const label=make('label','Баллы учителя (0–'+q.points+')');const score=make('input');score.type='number';score.min='0';score.max=String(q.points);score.step='0.01';score.placeholder=q.manual_required?'Обязательно':'Автоматически по ключу';score.addEventListener('input',changed);label.append(score);
- const ocr=make('label','Распознать фото отдельного ответа (если разрешено администратором)');const file=make('input');file.type='file';file.accept='image/*';ocr.append(file);const status=make('small');file.addEventListener('change',()=>recognizeWriting(file,input,status,changed,q.id));row.append(title,input,label,verdict);if(ocrEnabled)row.append(ocr,status);answers.append(row);return {row,inputs:[],input,score,manual:q.manual_required,verdict};
+ row.append(title,input,label,verdict);answers.append(row);return {row,inputs:[],input,score,manual:q.manual_required,verdict};
 }
 row.append(make('span',q.text,'paper-review-question'));for(const a of q.assets||[]){const url=new URL(a.url,location.href);if(url.origin===location.origin&&/\/api\/questions\/asset\.php$/.test(url.pathname)){const img=make('img');img.src=url.href;img.alt=a.original_name||'Изображение к вопросу';img.style.maxWidth='100%';img.style.maxHeight='220px';row.append(img);}}const inputs=q.options.map((option,j)=>{const label=make('label'),input=make('input');input.type='checkbox';input.setAttribute('aria-label','Вопрос '+(i+1)+', ответ '+String.fromCharCode(65+j));input.addEventListener('change',()=>{if(q.type!=='multiple'&&input.checked)for(const other of inputs)if(other!==input)other.checked=false;changed();});label.append(input,make('span',String.fromCharCode(65+j)+' — '+option.text));row.append(label);return input;});row.append(verdict);answers.append(row);return {row,inputs,verdict};});}
 async function prepareSelected(code=null){
@@ -160,13 +160,7 @@ async function decodeFile(file,max=1800){
  try{const img=new Image();img.src=url;await img.decode();const scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c;}
  finally{URL.revokeObjectURL(url);}
 }
-async function recognizeWriting(file,input,status,changed,questionId){
- const source=file.files[0],d=current,version=generation;if(!source||!d)return;
- if(!window.confirm('Отправить только вырезанный обезличенный фрагмент рукописного ответа внешнему ИИ Groq? Не отправляйте ФИО, класс, QR-код или другие персональные данные. Необходимо разрешение школы.')){file.value='';return;}
- file.disabled=true;status.textContent='Распознавание…';
- try{const c=await decodeFile(source,1400);if(version!==generation)return;const result=await request('./api/paper/ocr.php',{code:d.code,question_id:questionId,consent:true,image:c.toDataURL('image/jpeg',.82)});if(version!==generation)return;input.value=result.text||'';changed();status.textContent='Черновик распознавания. Обязательно сверьте с оригиналом.';}
- catch(e){status.textContent=e.message+' Введите ответ вручную.';}finally{file.disabled=false;file.value='';}
-}
+
 function qrResult(frame){if(typeof jsQR!=='function')throw Error('Модуль чтения QR не загрузился. Обновите страницу.');return jsQR(frame.data,frame.width,frame.height,{inversionAttempts:'attemptBoth'});}
 function qrCode(result){const match=String(result?.data||'').match(/^UP[123]:([a-f0-9]{32})$/i);return match?match[1].toLowerCase():null;}
 async function openByCode(code){

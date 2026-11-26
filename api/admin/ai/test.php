@@ -4,6 +4,7 @@ require dirname(__DIR__,2).'/bootstrap.php';
 require dirname(__DIR__,2).'/ai/_generation.php';
 $user=require_user(['admin']);
 if(!is_platform_admin($user))json_response(['ok'=>false,'error'=>'Доступ только главному администратору.'],403);
+ai_require_enabled();
 if($_SERVER['REQUEST_METHOD']!=='POST')json_response(['ok'=>false,'error'=>'Метод не поддерживается.'],405);
 $data=read_json_body();
 $mode=$data['mode']??'';

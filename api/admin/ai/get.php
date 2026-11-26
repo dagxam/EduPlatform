@@ -6,6 +6,7 @@ $user = require_user(['admin']);
 if (!is_platform_admin($user)) {
     json_response(['ok' => false, 'error' => 'Доступ только главному администратору UROVIA.'], 403);
 }
+ai_require_enabled();
 
 $config = ai_config();
 json_response([

@@ -6,7 +6,8 @@ foreach(['free','basic','pro','premium'] as $code){
  $paid=in_array($code,['pro','premium'],true);
  if(($plans[$code]['features']['paper_tests']??null)!==$paid)throw new RuntimeException('Wrong PAPER entitlement: '.$code);
 }
-if($plans['pro']['ai_monthly_limit']!==50||$plans['premium']['ai_monthly_limit']!==300)throw new RuntimeException('AI limits changed');
+foreach($plans as $plan)if((int)($plan['ai_monthly_limit']??0)!==0)throw new RuntimeException('AI tariff quota must be disabled');
+if(ai_feature_enabled()||ai_is_configured())throw new RuntimeException('AI suspension not enforced');
 $root=dirname(__DIR__,2);
 $boot=file_get_contents($root.'/api/bootstrap.php');
 if(!str_contains($boot,"str_contains(\$script,'/api/paper/')"))throw new RuntimeException('Missing central PAPER gate');
