@@ -65,7 +65,8 @@ function createCompactForm(d){
  text(620,211,'Вариант '+d.variant_label,13,700,'middle');text(620,226,d.code.slice(-8).toUpperCase(),11,400,'middle');text(39,268,'* Несколько правильных ответов',10);page.append(svg);return page;
 }
 function buildCompactPackage(d){
- const packet=make('article',null,'paper-packet paper-compact-sheet'),head=make('header',null,'paper-compact-head'),brand=make('div',null,'paper-compact-brand'),logo=make('strong','U','paper-compact-logo'),word=make('div');
+ const packet=make('article',null,'paper-packet paper-compact-sheet'),head=make('header',null,'paper-compact-head'),brand=make('div',null,'paper-compact-brand'),logo=make('img',null,'paper-compact-logo'),word=make('div');
+ logo.src='./icons/urovia-mark-mono.svg?v=1';logo.alt='';
  word.append(make('b','UROVIA'),make('small','PAPER / БУМАЖНОЕ ТЕСТИРОВАНИЕ'));brand.append(logo,word);
  const variant=make('div',null,'paper-compact-variant');variant.append(make('small','ВАРИАНТ'),make('b',d.variant_label));head.append(brand,variant);
  const title=make('div',null,'paper-compact-title');title.append(make('h1',d.assignment.title),make('small',[d.assignment.subject_name,d.questions.length+' вопросов',d.questions.length+' баллов'].filter(Boolean).join(' · ')));

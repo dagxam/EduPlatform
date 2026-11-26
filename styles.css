@@ -11894,3 +11894,6 @@ body.school-staff-subscription-ui #subscription .subscription-plans{max-width:11
     width:auto;
   }
 }
+
+/* UROVIA brand identity: keep the emblem consistent across school palettes. */
+.brand-mark{background:#fff url('./icons/urovia-mark.svg?v=1') center/88% no-repeat!important;color:transparent!important;font-size:0!important;flex-shrink:0;overflow:hidden;border:1px solid #dbe6f5;box-shadow:0 4px 14px #10285914}

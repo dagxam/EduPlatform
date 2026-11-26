@@ -66,3 +66,5 @@
 @media print{.paper-app .paper-compact-sheet{margin:0!important;break-inside:avoid;page-break-inside:avoid}.paper-app #printArea{overflow:visible!important}.paper-app .paper-compact-logo{color:#111}}
 
 @media print{.paper-app .paper-layout,.paper-app .paper-main-area,.paper-app .paper-content{width:auto!important;max-width:none!important;margin:0!important;padding:0!important;display:block!important}.paper-app .paper-compact-sheet{width:181.8mm;height:266mm}.paper-app #printArea .paper-compact-sheet+.paper-compact-sheet{break-before:page;page-break-before:always}}
+
+.paper-compact-logo{display:block;object-fit:contain;width:12mm;height:12mm;border:0;border-radius:0}.paper-print-brand .paper-print-mark{width:12mm;height:12mm;object-fit:contain;display:block;margin-bottom:1mm}

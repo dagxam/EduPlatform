@@ -375,3 +375,8 @@ body{min-height:100vh;min-height:100dvh;-webkit-text-size-adjust:100%}
   .public-commerce-links{display:grid;grid-template-columns:1fr 1fr}
   .public-commerce-links a{justify-content:center;text-align:center}
 }
+
+/* UROVIA brand identity: keep the emblem consistent across school palettes. */
+.brand-mark{background:#fff url('./icons/urovia-mark.svg?v=1') center/88% no-repeat!important;color:transparent!important;font-size:0!important;flex-shrink:0;overflow:hidden;border:1px solid #dbe6f5;box-shadow:0 4px 14px #10285914}
+
+.auth-info .brand-mark{color:transparent!important;background-color:#fff!important}

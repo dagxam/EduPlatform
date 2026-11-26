@@ -19,6 +19,8 @@ const APP_SHELL = [
   './pwa.js',
   './manifest.webmanifest',
   './favicon.png?v=3',
+  './icons/urovia-mark.svg?v=1',
+  './icons/urovia-mark-mono.svg?v=1',
   './icons/uvoria-app.svg',
   './icons/uvoria-maskable.svg',
   './icons/icon-180.png',
