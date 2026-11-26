@@ -41,4 +41,10 @@ do
   curl --fail --location --silent --show-error     --retry 5 --retry-delay 4 --retry-all-errors     --connect-timeout 10 --max-time 30     "$url" -o /dev/null
 done
 
+if [[ -n "${GITHUB_SHA:-}" ]]; then
+  for page in index.html login.html paper.html paper-workspace.html; do
+    curl --fail --silent --show-error --retry 5 --connect-timeout 10 --max-time 30 "https://urovia.ru/$page?release=$GITHUB_SHA" | grep -F "name=\"urovia-release\" content=\"$GITHUB_SHA\"" >/dev/null
+  done
+fi
+
 echo "Live UROVIA deployment verified."

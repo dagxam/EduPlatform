@@ -161,6 +161,9 @@ jobs:
       - name: Validate 300-student MySQL concurrency
         run: php .github/tests/mysql-concurrency-smoke.php
 
+      - name: Validate release update notification
+        run: node .github/tests/release-update-smoke.mjs
+
       - name: Stamp release metadata
         if: github.ref == 'refs/heads/main'
         run: |

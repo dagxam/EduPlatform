@@ -368,6 +368,7 @@
   }
 
   function hardReloadToLatest() {
+    if(assessmentActive||assessmentUiVisible()){updateRequested=false;updatePending=true;const button=document.getElementById('pwaUpdateButton');if(button){button.disabled=false;button.textContent='Обновить UROVIA';}hideUpdateReady();return;}
     if (!window.location) return;
     const url = new URL(window.location.href);
     url.searchParams.set('urovia_update', (latestReleaseVersion || Date.now().toString()).slice(0, 16));
@@ -518,7 +519,6 @@
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         // Another tab can activate a worker. Never reload this tab implicitly.
         if(!updateRequested){checkForReleaseUpdate().catch(()=>{});return;}
-        if(assessmentActive||assessmentUiVisible()){updateRequested=false;updatePending=true;hideUpdateReady();return;}
         updateRequested=false;hardReloadToLatest();
       });
       checkForReleaseUpdate().catch(() => {});
