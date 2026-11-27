@@ -20,7 +20,8 @@ console.log('Release marker detection across all four UROVIA entry points OK');
 
 // All navigation items retain their own height; the list, not the page, scrolls.
 const menu=readFileSync('index.html','utf8');
-const css=readFileSync('styles.css','utf8');
+const css=readFileSync('sidebar.css','utf8');
+for(const file of ['index.html','paper-workspace.html'])assert(/sidebar\.css\?v=\d+/.test(readFileSync(file,'utf8')));
 assert.equal((menu.match(/class="nav-label"/g)||[]).length,18);
 assert.equal((menu.match(/class="nav-icon" aria-hidden="true"/g)||[]).length,18);
 assert.match(css,/\.sidebar>\.nav:not\(\.hidden\)\{[^}]*overflow-y:auto!important/s);

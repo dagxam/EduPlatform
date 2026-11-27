@@ -10,6 +10,7 @@ const APP_SHELL = [
   './personal-data-consent.html',
   './legal.css',
   './styles.css',
+  './sidebar.css',
   './login.css',
   './pwa.css',
   './app.js',
