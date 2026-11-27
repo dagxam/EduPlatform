@@ -2,8 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__).'/bootstrap.php';
 if($_SERVER['REQUEST_METHOD']!=='POST') json_response(['ok'=>false],405);
-$raw=file_get_contents('php://input');
-$event=json_decode((string)$raw,true);
+$event=read_json_body(65536);
 if(!is_array($event) || empty($event['object']['id'])) json_response(['ok'=>true]);
 $eventName=(string)($event['event']??'');
 if(!in_array($eventName,['payment.succeeded','payment.canceled'],true)) json_response(['ok'=>true]);
@@ -23,11 +22,15 @@ if($status==='succeeded'){
  if((string)($order['status']??'')==='succeeded') json_response(['ok'=>true]);
  $pdo->beginTransaction();
  try{
-  $pdo->prepare('UPDATE payment_orders SET status="succeeded", paid_at=CURRENT_TIMESTAMP WHERE id=:id')->execute(['id'=>$orderId]);
-  subscription_activate_from_payment($pdo,$order,$payment);
+  $claim=$pdo->prepare('UPDATE payment_orders SET status="succeeded", paid_at=CURRENT_TIMESTAMP WHERE id=:id AND status<>"succeeded"');
+  $claim->execute(['id'=>$orderId]);
+  if($claim->rowCount()===1){
+      if(db_is_mysql($pdo)){$lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');$lock->execute([(int)$order['user_id']]);}
+      subscription_activate_from_payment($pdo,$order,$payment);
+  }
   $pdo->commit();
  }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 } elseif($status==='canceled'){
- $pdo->prepare('UPDATE payment_orders SET status="cancelled" WHERE id=:id')->execute(['id'=>$orderId]);
+ $pdo->prepare('UPDATE payment_orders SET status="cancelled" WHERE id=:id AND status<>"succeeded"')->execute(['id'=>$orderId]);
 }
 json_response(['ok'=>true]);

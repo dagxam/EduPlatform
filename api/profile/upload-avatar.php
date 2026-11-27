@@ -41,11 +41,13 @@ if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
 }
 
 $tmp = (string)$file['tmp_name'];
+if(!is_uploaded_file($tmp))json_response(['ok'=>false,'error'=>'Некорректная загрузка изображения.'],422);
 $info = @getimagesize($tmp);
 if (!$info || !in_array((int)$info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) {
     json_response(['ok' => false, 'error' => 'Поддерживаются только PNG, JPG и WebP.'], 422);
 }
 
+if((int)$info[0]<1||(int)$info[1]<1||(int)$info[0]>6000||(int)$info[1]>6000||(int)$info[0]*(int)$info[1]>16000000)json_response(['ok'=>false,'error'=>'Размеры изображения слишком велики. Уменьшите фотографию.'],422);
 $dir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'avatars';
 if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
     json_response(['ok' => false, 'error' => 'Не удалось подготовить хранилище фото.'], 500);

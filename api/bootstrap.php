@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+ini_set('display_errors','0');
+ini_set('log_errors','1');
 // All database timestamps are UTC; browser converts only for display.
 date_default_timezone_set('UTC');
 
@@ -71,12 +73,12 @@ require_once __DIR__ . '/backups/_helpers.php';
 
 function privacy_policy_version(): string
 {
-    return '2026-10-01';
+    return '2026-11-27';
 }
 
 function privacy_consent_version(): string
 {
-    return '2026-10-01';
+    return '2026-11-27';
 }
 
 function privacy_truthy(mixed $value): bool
@@ -213,7 +215,7 @@ function read_json_body(int $maxBytes = 8388608): array
         ], 413);
     }
 
-    $raw = file_get_contents('php://input');
+    $raw = file_get_contents('php://input', false, null, 0, $maxBytes + 1);
     if ($raw === false || trim($raw) === '') {
         return [];
     }

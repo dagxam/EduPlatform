@@ -140,3 +140,8 @@ security_assert(
     str_contains($assignmentImport, "require_user(['admin', 'teacher'])"),
     'student assignment file import must stay blocked on the server'
 );
+
+security_assert(str_contains(security_read($root.'/api/auth/login.php'),"throttle_check('staff_login_ip'"),'staff IP-wide throttle missing');
+security_assert(str_contains(security_read($root.'/api/student/login.php'),"throttle_check('student_login_ip'"),'student IP-wide throttle missing');
+security_assert(str_contains(security_read($root.'/api/profile/upload-avatar.php'),'16000000'),'avatar pixel limit missing');
+security_assert(str_contains(security_read($root.'/api/subscription/yookassa-webhook.php'),'$claim->rowCount()===1'),'payment activation must be atomically claimed');

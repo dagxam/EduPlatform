@@ -6,8 +6,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
 
-$data = read_json_body();
-$identity = trim((string)($data['identity'] ?? $data['email'] ?? ''));
+$data = read_json_body(16384);
+$identityRaw=$data['identity']??$data['email']??'';
+if(!is_string($identityRaw)||!is_string($data['password']??null)||strlen($identityRaw)>512||strlen($data['password'])>4096)json_response(['ok'=>false,'error'=>'Некорректные данные входа.'],422);
+$identity = trim($identityRaw);
 $identity = function_exists('mb_strtolower') ? mb_strtolower($identity) : strtolower($identity);
 $password = (string)($data['password'] ?? '');
 
@@ -15,11 +17,13 @@ if ($identity === '' || $password === '') {
     json_response(['ok' => false, 'error' => 'Введите email/логин и пароль.'], 422);
 }
 
+throttle_check('staff_login_ip','',30,900);
 throttle_check('staff_login', $identity);
 
 $user = find_user_by_identity(app_db(), $identity);
 
-if (!$user || !(int)$user['is_active'] || !password_verify($password, (string)$user['password_hash'])) {
+if (!$user || !in_array($user['role'],['admin','teacher'],true) || !(int)$user['is_active'] || !password_verify($password, (string)$user['password_hash'])) {
+    throttle_failure('staff_login_ip','',30,900,900);
     throttle_failure('staff_login', $identity);
     audit_event('login_failed', 'user', $user ? (int)$user['id'] : null, ['kind' => 'staff']);
     usleep(250000);
@@ -28,6 +32,7 @@ if (!$user || !(int)$user['is_active'] || !password_verify($password, (string)$u
 
 throttle_clear('staff_login', $identity);
 session_regenerate_id(true);
+$_SESSION=[];
 $_SESSION['user_id'] = (int)$user['id'];
 unset($_SESSION['active_school_id']);
 

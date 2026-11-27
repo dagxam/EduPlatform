@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Метод не поддерживается.'], 405);
 }
 
-$data = read_json_body();
+$data = read_json_body(8192);
 $code = strtoupper(trim((string)($data['code'] ?? '')));
 $studentId = (int)($data['student_id'] ?? 0);
 $pin = trim((string)($data['pin'] ?? ''));
@@ -16,6 +16,7 @@ if ($code === '' || $studentId < 1 || !preg_match('/^\d{4,6}$/', $pin)) {
 }
 
 $throttleId = $code . ':' . $studentId;
+throttle_check('student_login_ip','',50,900);
 throttle_check('student_login', $throttleId, 5, 900);
 
 $pdo = app_db();
@@ -41,6 +42,7 @@ $stmt->execute(['code' => $code, 'student_id' => $studentId]);
 $student = $stmt->fetch();
 
 if (!$student || !(int)$student['is_active']) {
+    throttle_failure('student_login_ip','',50,900,900);
     throttle_failure('student_login', $throttleId, 5, 900, 900);
     usleep(250000);
     json_response(['ok' => false, 'error' => 'Ученик не найден в этом классе.'], 404);
@@ -70,6 +72,7 @@ if ($firstLogin) {
         json_response(['ok' => false, 'error' => 'Этот ученик уже активирован. Обновите список и войдите со своим PIN.'], 409);
     }
 } elseif (!$student['pin_hash'] || !password_verify($pin, $student['pin_hash'])) {
+    throttle_failure('student_login_ip','',50,900,900);
     throttle_failure('student_login', $throttleId, 5, 900, 900);
     audit_event('login_failed', 'user', $studentId, ['kind' => 'student_pin']);
     usleep(250000);
@@ -78,6 +81,7 @@ if ($firstLogin) {
 
 throttle_clear('student_login', $throttleId);
 session_regenerate_id(true);
+$_SESSION=[];
 $_SESSION['user_id'] = $studentId;
 if ((int)($student['school_id'] ?? 0) > 0) {
     $_SESSION['active_school_id'] = (int)$student['school_id'];

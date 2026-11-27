@@ -40,7 +40,9 @@ for (const marker of [
 assert(app.includes("data.append('privacy_basis_confirmed', '1')"));
 assert(app.includes('privacy_basis_confirmed: true'));
 assert(bootstrap.includes('function require_privacy_confirmation'));
-assert(bootstrap.includes("return '2026-10-01'"));
+assert(bootstrap.includes("return '2026-11-27'"));
+assert(read('api/connection/submit.php').includes("privacy_audit_metadata('consent')"));
+assert(consent.includes('27.11.2026') && policy.includes('27.11.2026'));
 assert(bootstrap.includes('privacy_policy_sha256'));
 assert(bootstrap.includes('privacy_consent_sha256'));
 assert(bootstrap.includes("hash_file('sha256'"));
