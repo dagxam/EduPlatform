@@ -8,11 +8,13 @@ $data=['kind'=>'teacher','full_name'=>'Тестовый Учитель','school_
 $id=connection_request_create($pdo,$data);
 $row=$pdo->query('SELECT * FROM connection_requests')->fetch();
 if($id!==1||$row['status']!=='new'||$row['consent_version']!=='2026-11-27')throw new RuntimeException('Create request failed');
-foreach([['consent'=>false],['email'=>'invalid'],['kind'=>'student'],['full_name'=>str_repeat('a',151)],['school_name'=>''],['phone'=>'<script>']] as $bad){
+foreach([['consent'=>false],['email'=>'invalid'],['kind'=>'student'],['full_name'=>str_repeat('a',151)],['kind'=>'school','school_name'=>''],['phone'=>'<script>']] as $bad){
  try{connection_request_create($pdo,array_replace($data,$bad));throw new RuntimeException('Invalid request accepted');}catch(InvalidArgumentException $e){}
 }
 if(!connection_request_update($pdo,$id,'connected','Связались')||$pdo->query('SELECT status FROM connection_requests')->fetchColumn()!=='connected')throw new RuntimeException('Update failed');
 try{connection_request_update($pdo,$id,'invalid','');throw new RuntimeException('Invalid status accepted');}catch(InvalidArgumentException $e){}
+$privateId=connection_request_create($pdo,array_replace($data,['school_name'=>'']));
+$q=$pdo->prepare('SELECT school_name FROM connection_requests WHERE id=?');$q->execute([$privateId]);if($q->fetchColumn()!=='')throw new RuntimeException('Independent teacher request failed');
 $root=dirname(__DIR__,2);
 foreach(['list','update'] as $p)if(!str_contains(file_get_contents($root.'/api/admin/connection/'.$p.'.php'),'connection_require_platform_admin()'))throw new RuntimeException('Admin gate missing');
 if(!str_contains(file_get_contents($root.'/api/connection/submit.php'),"throttle_check('connection_request'"))throw new RuntimeException('Throttle missing');

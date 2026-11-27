@@ -27,7 +27,7 @@ mysql_apply_schema($pdo);
 $required = [
     'users','schools','subjects','classes','assignments','assignment_students','questions',
     'question_options','attempts','answers','audit_log','auth_throttle',
-    'password_reset_tokens','urovia_meta'
+    'password_reset_tokens','urovia_meta','connection_requests'
 ];
 $tables = array_map(
     static fn(array $row): string => (string)$row[0],
@@ -36,6 +36,16 @@ $tables = array_map(
 foreach ($required as $table) {
     mysql_smoke_assert(in_array($table, $tables, true), "missing table {$table}");
 }
+
+// Confirm the new connection-request table works on the actual production DB engine.
+$pdo->beginTransaction();
+try{
+    $requestId=connection_request_create($pdo,['kind'=>'school','full_name'=>'Тестовая заявка','school_name'=>'Школа','locality'=>'Махачкала','email'=>'connection-ci@example.test','consent'=>true]);
+    mysql_smoke_assert($requestId>0,'connection request insert failed');
+    mysql_smoke_assert(connection_request_update($pdo,$requestId,'in_progress','Тест обработки'),'connection request update failed');
+    $q=$pdo->prepare('SELECT status,admin_note,consent_version FROM connection_requests WHERE id=?');$q->execute([$requestId]);$request=$q->fetch();
+    mysql_smoke_assert($request['status']==='in_progress'&&$request['admin_note']==='Тест обработки'&&$request['consent_version']==='2026-11-27','connection request readback mismatch');
+}finally{$pdo->rollBack();}
 
 $pdo->exec('DROP TABLE assignment_students');
 mysql_apply_runtime_migrations($pdo);

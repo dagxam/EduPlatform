@@ -65,7 +65,7 @@ function connection_request_normalize(array $data): array
     if($phone!==''&&!preg_match('/^[+0-9 ()-]{5,40}$/D',$phone))throw new InvalidArgumentException('Укажите корректный телефон или оставьте поле пустым.');
     return [
         'kind'=>$kind,'full_name'=>connection_request_text($data,'full_name',150,true),
-        'school_name'=>connection_request_text($data,'school_name',200,true),
+        'school_name'=>connection_request_text($data,'school_name',200,$kind==='school'),
         'locality'=>connection_request_text($data,'locality',160,true),
         'email'=>$email,'phone'=>$phone,'message'=>connection_request_text($data,'message',1000),
         'consent_version'=>'2026-11-27',

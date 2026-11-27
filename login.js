@@ -365,6 +365,8 @@ document.querySelectorAll('[data-password-target]').forEach(button=>button.addEv
 }));
 
 const connectForm=document.getElementById('connectForm');
+function syncConnectKind(){connectForm.elements.school_name.required=connectForm.elements.kind.value==='school';}
+connectForm?.elements.kind.addEventListener('change',syncConnectKind);syncConnectKind();
 function openConnect(){connectForm.classList.remove('hidden');document.getElementById('connectSuccess').classList.add('hidden');clearError(document.getElementById('connectError'));showState('connect');connectForm.querySelector('select')?.focus();}
 document.getElementById('openConnectBtn')?.addEventListener('click',openConnect);
 document.getElementById('backFromConnect')?.addEventListener('click',()=>showState('login'));
@@ -376,7 +378,7 @@ connectForm?.addEventListener('submit',async event=>{
   try{
     const payload=Object.fromEntries(new FormData(connectForm));payload.consent=connectForm.elements.consent.checked;
     await api('./api/connection/submit.php',{method:'POST',body:JSON.stringify(payload)});
-    connectForm.reset();connectForm.classList.add('hidden');document.getElementById('connectSuccess').classList.remove('hidden');document.getElementById('connectDone').focus();
+    connectForm.reset();syncConnectKind();connectForm.classList.add('hidden');document.getElementById('connectSuccess').classList.remove('hidden');document.getElementById('connectDone').focus();
   }catch(e){showError(error,e.message);}
   finally{button.disabled=false;button.textContent='Отправить заявку';}
 });
