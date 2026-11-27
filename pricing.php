@@ -40,6 +40,7 @@ function pricing_limit(mixed $value): string
 <article class="legal-card">
 <section>
   <h2>Актуальная стоимость</h2>
+  <p>Новый учитель или школа? <a href="login.html?connect=1">Оставить заявку на подключение UROVIA</a>.</p>
   <div class="legal-pricing-grid">
     <?php foreach ($plans as $plan): ?>
       <article class="legal-price-card">

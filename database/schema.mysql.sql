@@ -596,3 +596,21 @@ VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru')
 ON DUPLICATE KEY UPDATE id = VALUES(id);
 
 SET FOREIGN_KEY_CHECKS=1;
+
+
+CREATE TABLE IF NOT EXISTS connection_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    kind VARCHAR(20) NOT NULL,
+    full_name VARCHAR(150) NOT NULL,
+    school_name VARCHAR(200) NOT NULL,
+    locality VARCHAR(160) NOT NULL,
+    email VARCHAR(254) NOT NULL,
+    phone VARCHAR(40) NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'new',
+    admin_note TEXT NOT NULL,
+    consent_version VARCHAR(20) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_connection_requests_status (status,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

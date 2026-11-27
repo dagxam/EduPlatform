@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=108">
+  <link rel="stylesheet" href="styles.css?v=109">
   <link rel="stylesheet" href="pwa.css?v=52">
 </head>
 <body>
@@ -44,6 +44,7 @@
         <button class="nav-item" data-view="paper-tests"><span>▤</span> UROVIA PAPER</button>
         <button class="nav-item" data-view="uvoria-library"><span>◇</span> Библиотека UROVIA</button>
         <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
+        <button class="nav-item platform-admin-only hidden" data-view="connection-requests"><span>✉</span> Обращения <b class="nav-count hidden" id="connectionRequestBadge">0</b></button>
         <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span>⛁</span> Резервные копии</button>
         <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
         <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
@@ -485,6 +486,23 @@
         <div class="large-class-grid" id="classesGrid">
           <article class="panel"><p>Загрузка классов...</p></article>
         </div>
+      </section>
+
+      <section class="view platform-admin-only hidden" id="connection-requests">
+        <div class="section-toolbar"><div><span class="section-kicker">Подключение платформы</span><h2>Обращения</h2><p>Заявки новых учителей и образовательных организаций.</p></div><button class="secondary-btn" id="refreshConnectionRequests" type="button">↻ Обновить</button></div>
+        <div class="stats-grid connection-stats">
+          <article class="stat-card"><span>Новые</span><strong id="connectionCountNew">0</strong></article>
+          <article class="stat-card"><span>В работе</span><strong id="connectionCountProgress">0</strong></article>
+          <article class="stat-card"><span>Подключены</span><strong id="connectionCountConnected">0</strong></article>
+          <article class="stat-card"><span>Отклонены</span><strong id="connectionCountDeclined">0</strong></article>
+        </div>
+        <article class="panel connection-panel">
+          <div class="panel-head"><h3>Заявки на подключение</h3><select id="connectionStatusFilter" aria-label="Статус заявки"><option value="all">Все заявки</option><option value="new">Новые</option><option value="in_progress">В работе</option><option value="connected">Подключены</option><option value="declined">Отклонены</option></select></div>
+          <p class="panel-note">Заявка не создаёт учётную запись. После связи с заявителем создайте школу или сотрудника в обычном разделе управления и отметьте заявку как подключённую.</p>
+          <p id="connectionListMessage" role="status" aria-live="polite"></p>
+          <div id="connectionRequestsList" class="connection-requests-list"></div>
+          <div class="connection-pagination"><button class="secondary-btn" id="connectionPrev" type="button" disabled>←</button><span id="connectionPage">1 / 1</span><button class="secondary-btn" id="connectionNext" type="button" disabled>→</button></div>
+        </article>
       </section>
 
       <section class="view" id="system-backups">
@@ -1892,7 +1910,7 @@
   </div>
 
   <script src="attempt-security.js?v=52"></script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
   <script src="question-builder.js?v=50"></script>
   <script src="pwa.js?v=56"></script>
 </body>

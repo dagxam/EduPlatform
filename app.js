@@ -142,6 +142,7 @@ const titles = {
   'staff-profile': ['Учётная запись', 'Профиль сотрудника'],
   subscription: ['UROVIA', 'Тариф и подписка'],
   'activity-history': ['Контроль изменений', 'История действий'],
+  'connection-requests': ['Подключение платформы', 'Обращения'],
   'system-backups': ['Защита данных', 'Резервные копии'],
   'incoming-materials': ['Обмен между школами', 'Полученные материалы'],
   classes: ['Ученики и группы', 'Классы'],
@@ -171,6 +172,7 @@ document.addEventListener('keydown', event => {
 });
 
 function showView(id) {
+  if(id==='connection-requests' && !(currentUser?.role==='admin'&&Number(currentUser.is_platform_admin)===1))id=currentUser?.role==='student'?'student-dashboard':'teacher-dashboard';
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
   if (currentUser?.role === 'student' && !studentViews.has(id)) {
     id = 'student-dashboard';
@@ -5752,6 +5754,7 @@ document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('clic
   if (btn.dataset.view === 'staff-profile') loadStaffProfile().catch(() => {});
   if (btn.dataset.view === 'subscription') loadSubscriptionPage().catch(error => appAlert(error.message, { title: 'Тариф и подписка', tone: 'danger' }));
   if (btn.dataset.view === 'activity-history') loadActivityHistory().catch(() => {});
+  if (btn.dataset.view === 'connection-requests') loadConnectionRequests();
   if (btn.dataset.view === 'system-backups') {
     loadBackups().catch(() => {});
     loadDatabaseStatus().catch(() => {});
@@ -9179,13 +9182,64 @@ async function openAssignmentTestPreview(assignmentId) {
   }
 }
 
+let connectionPageNumber=1, connectionPageCount=1, connectionLoadSeq=0;
+const connectionStatuses={new:'Новая',in_progress:'В работе',connected:'Подключена',declined:'Отклонена'};
+async function loadConnectionRequests(){
+  if(currentUser?.role!=='admin'||Number(currentUser.is_platform_admin)!==1)return;
+  const seq=++connectionLoadSeq,list=document.getElementById('connectionRequestsList'),message=document.getElementById('connectionListMessage');
+  if(!list)return;
+  message.textContent='Загружаем обращения…';
+  try{
+    const status=document.getElementById('connectionStatusFilter').value;
+    const r=await fetch('./api/admin/connection/list.php?status='+encodeURIComponent(status)+'&page='+connectionPageNumber,{credentials:'same-origin',cache:'no-store'});
+    const d=await readJsonResponse(r,'Не удалось загрузить обращения.');
+    if(seq!==connectionLoadSeq)return;
+    if(!r.ok||!d.ok)throw Error(d.error||'Ошибка загрузки.');
+    const c=d.counts||{};
+    for(const [key,id] of Object.entries({new:'connectionCountNew',in_progress:'connectionCountProgress',connected:'connectionCountConnected',declined:'connectionCountDeclined'}))document.getElementById(id).textContent=Number(c[key]||0);
+    const badge=document.getElementById('connectionRequestBadge');badge.textContent=Number(c.new||0);badge.classList.toggle('hidden',!Number(c.new||0));
+    connectionPageNumber=Number(d.page||1);connectionPageCount=Number(d.pages||1);
+    document.getElementById('connectionPage').textContent=connectionPageNumber+' / '+connectionPageCount;
+    document.getElementById('connectionPrev').disabled=connectionPageNumber<=1;document.getElementById('connectionNext').disabled=connectionPageNumber>=connectionPageCount;
+    list.innerHTML=(d.items||[]).map(item=>{
+      const id=Number(item.id),status=String(item.status),colors={new:'amber',in_progress:'blue',connected:'green',declined:'gray'};
+      return '<article class="connection-request-card" data-connection-id="'+id+'">'+
+        '<div class="connection-card-head"><div><small>Заявка №'+id+' · '+escapeHtml(resultDateTime(item.created_at))+'</small><h3>'+escapeHtml(item.full_name)+'</h3></div><span class="status '+(colors[status]||'blue')+'">'+escapeHtml(connectionStatuses[status]||status)+'</span></div>'+
+        '<div class="connection-card-grid"><div><small>Тип</small><b>'+(item.kind==='school'?'Организация':'Учитель')+'</b></div><div><small>Школа</small><b>'+escapeHtml(item.school_name)+'</b></div><div><small>Регион / населённый пункт</small><b>'+escapeHtml(item.locality)+'</b></div><div><small>Email</small><b>'+escapeHtml(item.email)+'</b></div><div><small>Телефон</small><b>'+escapeHtml(item.phone||'Не указан')+'</b></div><div><small>Согласие</small><b>'+escapeHtml(item.consent_version)+'</b></div></div>'+
+        (item.message?'<div class="connection-message"><small>Комментарий заявителя</small><p>'+escapeHtml(item.message)+'</p></div>':'')+
+        '<form class="connection-edit"><label>Статус<select name="status">'+Object.entries(connectionStatuses).map(([key,label])=>'<option value="'+key+'"'+(key===status?' selected':'')+'>'+label+'</option>').join('')+'</select></label>'+
+        '<label>Заметка администратора<textarea name="admin_note" rows="2" maxlength="1000">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
+        '<div class="connection-actions"><button class="primary-btn" type="submit">Сохранить</button><button class="secondary-btn connection-delete" type="button">Удалить</button></div></form></article>';
+    }).join('')||'<div class="history-empty"><b>Обращений пока нет</b><span>Новые заявки появятся здесь.</span></div>';
+    message.textContent='Всего по фильтру: '+Number(d.total||0);
+    list.querySelectorAll('.connection-request-card').forEach(card=>{
+      const id=Number(card.dataset.connectionId),form=card.querySelector('form');
+      form.addEventListener('submit',async e=>{e.preventDefault();await saveConnectionRequest(card,{id,...Object.fromEntries(new FormData(form))});});
+      card.querySelector('.connection-delete').addEventListener('click',async()=>{if(await appConfirm('Удалить заявку и её контактные данные? Это действие нельзя отменить.',{title:'Удаление обращения',tone:'danger',okText:'Удалить'}))await saveConnectionRequest(card,{id,action:'delete'});});
+    });
+  }catch(e){if(seq===connectionLoadSeq){message.textContent=e.message;list.replaceChildren();}}
+}
+async function saveConnectionRequest(card,payload){
+  const controls=[...card.querySelectorAll('button,select,textarea')];controls.forEach(x=>x.disabled=true);
+  try{
+    const r=await fetch('./api/admin/connection/update.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await readJsonResponse(r,'Не удалось сохранить обращение.');if(!r.ok||!d.ok)throw Error(d.error||'Ошибка сохранения.');
+    await loadConnectionRequests();
+  }catch(e){await appAlert(e.message,{title:'Обращения',tone:'danger'});}
+  finally{controls.forEach(x=>x.disabled=false);}
+}
+document.getElementById('refreshConnectionRequests')?.addEventListener('click',loadConnectionRequests);
+document.getElementById('connectionStatusFilter')?.addEventListener('change',()=>{connectionPageNumber=1;loadConnectionRequests();});
+document.getElementById('connectionPrev')?.addEventListener('click',()=>{if(connectionPageNumber>1){connectionPageNumber--;loadConnectionRequests();}});
+document.getElementById('connectionNext')?.addEventListener('click',()=>{if(connectionPageNumber<connectionPageCount){connectionPageNumber++;loadConnectionRequests();}});
+
 function requestedInitialView(user) {
   const requested = new URLSearchParams(window.location.search).get('view');
   if (!requested) return null;
 
   const studentViews = new Set(['student-dashboard', 'student-tasks', 'student-results']);
   const staffViews = new Set(['teacher-dashboard', 'subjects', 'assignments', 'uvoria-library', 'activity-history', 'classes', 'journal', 'results', 'live-execution', 'staff-profile', 'subscription']);
-  if (user?.role === 'admin') { staffViews.add('school-management'); staffViews.add('incoming-materials'); if (Number(user.is_platform_admin) === 1) staffViews.add('system-backups'); }
+  if (user?.role === 'admin') { staffViews.add('school-management'); staffViews.add('incoming-materials'); if (Number(user.is_platform_admin) === 1) {staffViews.add('system-backups');staffViews.add('connection-requests');} }
   if (user?.role === 'student' && studentViews.has(requested)) return requested;
   if (user?.role !== 'student' && staffViews.has(requested)) return requested;
   return null;
@@ -9214,6 +9268,7 @@ loadSession().then(async user => {
       platformAdmin ? Promise.resolve(null) : loadSubscriptionPage()
     ]);
     const activeSchool = Number(schoolsData?.active_school_id || 0) > 0;
+    if(platformAdmin)await loadConnectionRequests();
 
     if (!platformAdmin && !Boolean(subscriptionData?.current?.access_active)) {
       showView('subscription');
@@ -9221,7 +9276,7 @@ loadSession().then(async user => {
     }
 
     if (!activeSchool) {
-      if (platformAdmin) showView('teacher-dashboard');
+      if (platformAdmin) showView(requestedInitialView(user)==='connection-requests'?'connection-requests':'teacher-dashboard');
       return;
     }
 

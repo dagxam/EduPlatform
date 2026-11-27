@@ -374,6 +374,8 @@ function mysql_add_index_if_missing(PDO $pdo, string $table, string $index, stri
 
 function mysql_apply_runtime_migrations(PDO $pdo): void
 {
+    require_once __DIR__.'/connection/_helpers.php';
+    connection_requests_schema($pdo);
     mysql_add_column_if_missing($pdo, 'schools', 'grade_5_min', 'INT NOT NULL DEFAULT 85');
     mysql_add_column_if_missing($pdo, 'schools', 'grade_4_min', 'INT NOT NULL DEFAULT 71');
     mysql_add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INT NOT NULL DEFAULT 50');
@@ -751,6 +753,8 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
 
 function apply_schema_migrations(PDO $pdo): void
 {
+    require_once __DIR__.'/connection/_helpers.php';
+    connection_requests_schema($pdo);
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'users', 'middle_name', 'TEXT');

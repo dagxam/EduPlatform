@@ -563,3 +563,21 @@ CREATE TABLE IF NOT EXISTS site_legal_profile (
 
 INSERT OR IGNORE INTO site_legal_profile (id, entity_type, email, support_email)
 VALUES (1, 'self_employed', 'info@urovia.ru', 'info@urovia.ru');
+
+
+CREATE TABLE IF NOT EXISTS connection_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    school_name TEXT NOT NULL,
+    locality TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new',
+    admin_note TEXT NOT NULL DEFAULT '',
+    consent_version TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_connection_requests_status ON connection_requests(status,id);

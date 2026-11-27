@@ -131,6 +131,9 @@ jobs:
       - name: Validate UROVIA library UX
         run: php .github/tests/library-ux-smoke.php
 
+      - name: Validate connection requests
+        run: php .github/tests/connection-requests-smoke.php
+
       - name: Validate teacher growth features
         run: php .github/tests/teacher-growth-features-smoke.php
 

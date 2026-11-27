@@ -1,6 +1,7 @@
 const states={
   loading:document.getElementById('loadingState'),
   login:document.getElementById('loginState'),
+  connect:document.getElementById('connectState'),
   forgotPassword:document.getElementById('forgotPasswordState'),
   resetPassword:document.getElementById('resetPasswordState'),
   studentCode:document.getElementById('studentCodeState'),
@@ -137,7 +138,7 @@ async function initialize(){
     const me=await api('./api/auth/me.php');
     if(me.authenticated){window.location.replace('./index.html');return}
     const setup=await api('./api/setup/status.php');
-    showState(setup.needs_setup?'setup':'login');
+    showState(setup.needs_setup?'setup':queryParams.get('connect')==='1'?'connect':'login');
   }catch(error){
     document.getElementById('serverErrorText').textContent=error.message+' Проверьте поддержку PHP и SQLite на хостинге.';
     showState('error');
@@ -363,5 +364,21 @@ document.querySelectorAll('[data-password-target]').forEach(button=>button.addEv
   input.type=visible?'password':'text';button.textContent=visible?'Показать':'Скрыть';
 }));
 
+const connectForm=document.getElementById('connectForm');
+function openConnect(){connectForm.classList.remove('hidden');document.getElementById('connectSuccess').classList.add('hidden');clearError(document.getElementById('connectError'));showState('connect');connectForm.querySelector('select')?.focus();}
+document.getElementById('openConnectBtn')?.addEventListener('click',openConnect);
+document.getElementById('backFromConnect')?.addEventListener('click',()=>showState('login'));
+document.getElementById('connectDone')?.addEventListener('click',()=>showState('login'));
+connectForm?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=connectForm.querySelector('button[type="submit"]'),error=document.getElementById('connectError');
+  clearError(error);button.disabled=true;button.textContent='Отправляем…';
+  try{
+    const payload=Object.fromEntries(new FormData(connectForm));payload.consent=connectForm.elements.consent.checked;
+    await api('./api/connection/submit.php',{method:'POST',body:JSON.stringify(payload)});
+    connectForm.reset();connectForm.classList.add('hidden');document.getElementById('connectSuccess').classList.remove('hidden');document.getElementById('connectDone').focus();
+  }catch(e){showError(error,e.message);}
+  finally{button.disabled=false;button.textContent='Отправить заявку';}
+});
 document.getElementById('retryBtn').addEventListener('click',initialize);
 initialize();
