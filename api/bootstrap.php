@@ -378,6 +378,7 @@ function mysql_apply_runtime_migrations(PDO $pdo): void
 {
     require_once __DIR__.'/connection/_helpers.php';
     connection_requests_schema($pdo);
+    mysql_add_column_if_missing($pdo, 'users', 'recurring_refused_at', 'DATETIME NULL');
     mysql_add_column_if_missing($pdo, 'schools', 'grade_5_min', 'INT NOT NULL DEFAULT 85');
     mysql_add_column_if_missing($pdo, 'schools', 'grade_4_min', 'INT NOT NULL DEFAULT 71');
     mysql_add_column_if_missing($pdo, 'schools', 'grade_3_min', 'INT NOT NULL DEFAULT 50');
@@ -759,6 +760,7 @@ function apply_schema_migrations(PDO $pdo): void
     connection_requests_schema($pdo);
     add_column_if_missing($pdo, 'users', 'is_platform_admin', 'INTEGER NOT NULL DEFAULT 0');
     add_column_if_missing($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    add_column_if_missing($pdo, 'users', 'recurring_refused_at', 'TEXT');
     add_column_if_missing($pdo, 'users', 'middle_name', 'TEXT');
     add_column_if_missing($pdo, 'users', 'phone', 'TEXT');
     add_column_if_missing($pdo, 'users', 'avatar_name', 'TEXT');
@@ -1761,6 +1763,50 @@ function yookassa_request(string $method, string $path, ?array $payload = null, 
     return $data;
 }
 
+// Serialize recurring payment initiation, confirmed payment activation and refusal per account.
+// The lock covers the provider request, so a successful refusal cannot race with a new debit.
+function subscription_payment_lock(PDO $pdo,int $userId,callable $action): mixed
+{
+    if($userId<1)throw new InvalidArgumentException('Invalid payment account');
+    if(db_is_mysql($pdo)){
+        $name=hash('sha256','urovia-payment:'.(string)$pdo->query('SELECT DATABASE()')->fetchColumn().':'.$userId);
+        $q=$pdo->prepare('SELECT GET_LOCK(?,15)');$q->execute([$name]);
+        if((int)$q->fetchColumn()!==1)throw new RuntimeException('Payment account is busy');
+        try{return $action();}
+        finally{$q=$pdo->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$name]);}
+    }
+    $dir=dirname(__DIR__).'/storage';
+    if(!is_dir($dir)&&!mkdir($dir,0775,true)&&!is_dir($dir))throw new RuntimeException('Payment lock storage unavailable');
+    $handle=fopen($dir.'/payment-lock-'.$userId.'.lock','c');
+    if(!$handle)throw new RuntimeException('Payment lock unavailable');
+    try{
+        $deadline=microtime(true)+15;
+        while(!flock($handle,LOCK_EX|LOCK_NB)){
+            if(microtime(true)>=$deadline)throw new RuntimeException('Payment account is busy');
+            usleep(100000);
+        }
+        return $action();
+    }finally{flock($handle,LOCK_UN);fclose($handle);}
+}
+
+function subscription_saved_method_after_payment(PDO $pdo,array $order,array $payment): ?string
+{
+    $userId=(int)$order['user_id'];
+    $q=$pdo->prepare('SELECT recurring_refused_at FROM users WHERE id=?');$q->execute([$userId]);$refused=$q->fetchColumn();
+    $created=(string)($order['created_at']??'');
+    // An old checkout or recurring notification must never undo a later refusal.
+    if(is_string($refused)&&$refused!==''&&($created===''||$created<=$refused))return null;
+    $method=$payment['payment_method']??[];
+    if(empty($method['saved'])||empty($method['id']))return null;
+    $id=(string)$method['id'];$meta=$payment['metadata']??[];
+    if((string)($meta['renewal']??'')==='1'){
+        $q=$pdo->prepare('SELECT provider_payment_method_id FROM user_subscriptions WHERE user_id=? AND auto_renew=1');$q->execute([$userId]);
+        $current=$q->fetchColumn();return is_string($current)&&hash_equals($current,$id)?$id:null;
+    }
+    // Legacy pending checkouts without proof of consent remain one-time payments.
+    return (string)($meta['auto_renew_consent']??'')==='1'?$id:null;
+}
+
 function subscription_activate_from_payment(PDO $pdo, array $order, array $payment): void
 {
     $userId = (int)$order['user_id'];
@@ -1790,10 +1836,7 @@ function subscription_activate_from_payment(PDO $pdo, array $order, array $payme
     }
     $endsAt = gmdate('Y-m-d H:i:s', $endsTs);
 
-    $savedMethod = null;
-    if (!empty($payment['payment_method']['saved']) && !empty($payment['payment_method']['id'])) {
-        $savedMethod = (string)$payment['payment_method']['id'];
-    }
+    $savedMethod = subscription_saved_method_after_payment($pdo,$order,$payment);
 
     $autoRenew = $savedMethod !== null ? 1 : 0;
 

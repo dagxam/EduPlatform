@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(32) NOT NULL,
   is_platform_admin TINYINT NOT NULL DEFAULT 0,
   session_version INT NOT NULL DEFAULT 0,
+  recurring_refused_at DATETIME NULL,
   middle_name VARCHAR(191) NULL,
   phone VARCHAR(64) NULL,
   avatar_name VARCHAR(255) NULL,

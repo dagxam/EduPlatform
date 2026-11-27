@@ -20,6 +20,7 @@ if((string)($payment['amount']['value']??'')!==$expected || (string)($payment['a
 $status=(string)($payment['status']??'');
 if($status==='succeeded'){
  if((string)($order['status']??'')==='succeeded') json_response(['ok'=>true]);
+ subscription_payment_lock($pdo,(int)$order['user_id'],function()use($pdo,$order,$orderId,$payment){
  $pdo->beginTransaction();
  try{
   $claim=$pdo->prepare('UPDATE payment_orders SET status="succeeded", paid_at=CURRENT_TIMESTAMP WHERE id=:id AND status<>"succeeded"');
@@ -30,6 +31,7 @@ if($status==='succeeded'){
   }
   $pdo->commit();
  }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+ });
 } elseif($status==='canceled'){
  $pdo->prepare('UPDATE payment_orders SET status="cancelled" WHERE id=:id AND status<>"succeeded"')->execute(['id'=>$orderId]);
 }

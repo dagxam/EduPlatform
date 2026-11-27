@@ -75,6 +75,7 @@ $payload = [
         'plan_code' => $planCode,
         'billing_period' => $period,
         'receipt_email' => $receiptEmail,
+        'auto_renew_consent' => $autoRenew?'1':'0',
     ],
 ];
 
@@ -90,6 +91,7 @@ try {
         $recurringFallback = true;
         $autoRenew = false;
         $payload['save_payment_method'] = false;
+        $payload['metadata']['auto_renew_consent']='0';
         $fallbackKey = bin2hex(random_bytes(24));
         $pdo->prepare(
             'UPDATE payment_orders SET idempotence_key = :idempotence_key WHERE id = :id'

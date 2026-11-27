@@ -23,6 +23,7 @@ $pdo = new PDO(
 );
 
 mysql_apply_schema($pdo);
+mysql_smoke_assert(mysql_column_exists($pdo,'users','recurring_refused_at'),'payment refusal migration missing');
 
 $required = [
     'users','schools','subjects','classes','assignments','assignment_students','questions',

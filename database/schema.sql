@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
     is_platform_admin INTEGER NOT NULL DEFAULT 0,
     session_version INTEGER NOT NULL DEFAULT 0,
+    recurring_refused_at TEXT,
     middle_name TEXT,
     phone TEXT,
     avatar_name TEXT,

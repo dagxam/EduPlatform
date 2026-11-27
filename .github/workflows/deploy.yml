@@ -147,7 +147,9 @@ jobs:
         run: php .github/tests/admin-subscription-grant-smoke.php
 
       - name: Validate YooKassa integration
-        run: php .github/tests/yookassa-integration-smoke.php
+        run: |
+          php .github/tests/yookassa-integration-smoke.php
+          php .github/tests/payment-refusal-smoke.php
 
       - name: Validate stale attempt recovery
         run: |
