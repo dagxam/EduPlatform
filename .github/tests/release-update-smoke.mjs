@@ -17,3 +17,14 @@ await check();assert.equal(shown,0);assert.equal(hidden,1);
 remote='b'.repeat(40);await check();assert.equal(shown,1);
 remote='bad';await check();assert.equal(shown,1);
 console.log('Release marker detection across all four UROVIA entry points OK');
+
+// All navigation items retain their own height; the list, not the page, scrolls.
+const menu=readFileSync('index.html','utf8');
+const css=readFileSync('styles.css','utf8');
+assert.equal((menu.match(/class="nav-label"/g)||[]).length,18);
+assert.equal((menu.match(/class="nav-icon" aria-hidden="true"/g)||[]).length,18);
+assert.match(css,/\.sidebar>\.nav:not\(\.hidden\)\{[^}]*overflow-y:auto!important/s);
+assert.match(css,/\.sidebar \.nav-item\{\s*flex:0 0 auto;/);
+assert.match(s,/updatePending = updatePending \|\| releaseUpdateAvailable/);
+assert.match(s,/window\.addEventListener\('online', \(\) => checkForUpdates/);
+console.log('Viewport-safe sidebar and deferred release notifications OK');

@@ -14,8 +14,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="styles.css?v=110">
-  <link rel="stylesheet" href="pwa.css?v=52">
+  <link rel="stylesheet" href="styles.css?v=111">
+  <link rel="stylesheet" href="pwa.css?v=53">
 </head>
 <body>
   <div class="auth-boot-screen" id="authBootScreen" aria-live="polite">
@@ -38,27 +38,27 @@
       <div class="account-role" id="accountRoleBadge">Загрузка профиля...</div>
 
       <nav class="nav teacher-nav">
-        <button class="nav-item active" data-view="teacher-dashboard"><span>⌂</span> Главная</button>
-        <button class="nav-item" data-view="subjects"><span>◫</span> Предметы</button>
-        <button class="nav-item" data-view="assignments"><span>▣</span> Задания</button>
-        <button class="nav-item" data-view="paper-tests"><span>▤</span> UROVIA PAPER</button>
-        <button class="nav-item" data-view="uvoria-library"><span>◇</span> Библиотека UROVIA</button>
-        <button class="nav-item" data-view="activity-history"><span>◷</span> История действий</button>
-        <button class="nav-item platform-admin-only hidden" data-view="connection-requests"><span>✉</span> Обращения <b class="nav-count hidden" id="connectionRequestBadge">0</b></button>
-        <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span>⛁</span> Резервные копии</button>
-        <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span>⇩</span> Полученные материалы <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
-        <button class="nav-item admin-only hidden" data-view="school-management"><span>◎</span> Управление школой</button>
-        <button class="nav-item" data-view="classes"><span>👥</span> Классы и ученики</button>
-        <button class="nav-item" data-view="journal"><span>▦</span> Журнал</button>
-        <button class="nav-item" data-view="results"><span>▤</span> Результаты</button>
-        <button class="nav-item live-execution-nav" data-view="live-execution"><span>◉</span> Выполнение <b class="nav-count hidden" id="liveExecutionBadge">0</b></button>
-        <button class="nav-item" data-view="subscription"><span>◆</span> Тариф и подписка</button>
+        <button class="nav-item active" data-view="teacher-dashboard"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span class="nav-label">Главная</span></button>
+        <button class="nav-item" data-view="subjects"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7c-3-3-7-3-10-2v15c4-1 7 0 10 2 3-2 6-3 10-2V5c-3-1-7-1-10 2v15"/></svg></span><span class="nav-label">Предметы</span></button>
+        <button class="nav-item" data-view="assignments"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10h6m-6 4h6m-6 4h4"/></svg></span><span class="nav-label">Задания</span></button>
+        <button class="nav-item" data-view="paper-tests"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/><path d="M18 12h1"/></svg></span><span class="nav-label">UROVIA PAPER</span></button>
+        <button class="nav-item" data-view="uvoria-library"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="m17 4 4-1 3 17-4 1z"/></svg></span><span class="nav-label">Библиотека UROVIA</span></button>
+        <button class="nav-item" data-view="activity-history"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">История действий</span></button>
+        <button class="nav-item platform-admin-only hidden" data-view="connection-requests"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><span class="nav-label">Обращения</span> <b class="nav-count hidden" id="connectionRequestBadge">0</b></button>
+        <button class="nav-item platform-admin-only hidden" data-view="system-backups"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></svg></span><span class="nav-label">Резервные копии</span></button>
+        <button class="nav-item admin-only hidden incoming-materials-nav" data-view="incoming-materials"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5"/></svg></span><span class="nav-label">Полученные материалы</span> <b class="nav-count hidden" id="incomingMaterialsBadge">0</b></button>
+        <button class="nav-item admin-only hidden" data-view="school-management"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-6 9 6v12H3zM9 21v-7h6v7M9 10h.01M15 10h.01"/></svg></span><span class="nav-label">Управление школой</span></button>
+        <button class="nav-item" data-view="classes"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M2 21v-3a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v3M17 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg></span><span class="nav-label">Классы и ученики</span></button>
+        <button class="nav-item" data-view="journal"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 9v12"/></svg></span><span class="nav-label">Журнал</span></button>
+        <button class="nav-item" data-view="results"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 17v-5m5 5V7m5 10v-8"/></svg></span><span class="nav-label">Результаты</span></button>
+        <button class="nav-item live-execution-nav" data-view="live-execution"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></span><span class="nav-label">Выполнение</span> <b class="nav-count hidden" id="liveExecutionBadge">0</b></button>
+        <button class="nav-item" data-view="subscription"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 7-9 11L3 10zM3 10h18M8 10l4 11 4-11"/></svg></span><span class="nav-label">Тариф и подписка</span></button>
       </nav>
 
       <nav class="nav student-nav hidden">
-        <button class="nav-item active" data-view="student-dashboard"><span>⌂</span> Главная</button>
-        <button class="nav-item" data-view="student-tasks"><span>▣</span> Мои задания</button>
-        <button class="nav-item" data-view="student-results"><span>★</span> Мои оценки</button>
+        <button class="nav-item active" data-view="student-dashboard"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span class="nav-label">Главная</span></button>
+        <button class="nav-item" data-view="student-tasks"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10h6m-6 4h6m-6 4h4"/></svg></span><span class="nav-label">Мои задания</span></button>
+        <button class="nav-item" data-view="student-results"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/></svg></span><span class="nav-label">Мои оценки</span></button>
       </nav>
 
       <div class="sidebar-footer">
@@ -1912,6 +1912,6 @@
   <script src="attempt-security.js?v=52"></script>
   <script src="app.js?v=119"></script>
   <script src="question-builder.js?v=50"></script>
-  <script src="pwa.js?v=56"></script>
+  <script src="pwa.js?v=57"></script>
 </body>
 </html>

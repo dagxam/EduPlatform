@@ -432,6 +432,8 @@
   window.addEventListener('urovia:assessment-state', event => {
     assessmentActive = Boolean(event.detail?.active);
     if (assessmentActive) {
+      // Remember an already visible release notification while the student works.
+      updatePending = updatePending || releaseUpdateAvailable;
       hideUpdateReady();
       return;
     }
@@ -485,6 +487,7 @@
     detectInstalledPwa().catch(() => {});
     checkForUpdates().catch(() => {});
   });
+  window.addEventListener('online', () => checkForUpdates().catch(() => {}));
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       refreshInstallButton();
