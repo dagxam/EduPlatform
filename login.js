@@ -104,6 +104,7 @@ function applyBranding(branding=null){
 
 
 function showState(name){
+  document.querySelector('.auth-card')?.classList.toggle('connect-open',name==='connect');
   Object.values(states).forEach(el=>el?.classList.add('hidden'));
   states[name]?.classList.remove('hidden');
 }
@@ -366,8 +367,8 @@ document.querySelectorAll('[data-password-target]').forEach(button=>button.addEv
 
 const connectForm=document.getElementById('connectForm');
 function syncConnectKind(){connectForm.elements.school_name.required=connectForm.elements.kind.value==='school';}
-connectForm?.elements.kind.addEventListener('change',syncConnectKind);syncConnectKind();
-function openConnect(){connectForm.classList.remove('hidden');document.getElementById('connectSuccess').classList.add('hidden');clearError(document.getElementById('connectError'));showState('connect');connectForm.querySelector('select')?.focus();}
+connectForm?.querySelectorAll('[name="kind"]').forEach(r=>r.addEventListener('change',syncConnectKind));if(connectForm)syncConnectKind();
+function openConnect(){connectForm.classList.remove('hidden');document.getElementById('connectSuccess').classList.add('hidden');clearError(document.getElementById('connectError'));showState('connect');connectForm.querySelector('[name="kind"]:checked')?.focus();}
 document.getElementById('openConnectBtn')?.addEventListener('click',openConnect);
 document.getElementById('backFromConnect')?.addEventListener('click',()=>showState('login'));
 document.getElementById('connectDone')?.addEventListener('click',()=>showState('login'));

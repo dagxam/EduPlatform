@@ -9203,13 +9203,18 @@ async function loadConnectionRequests(){
     document.getElementById('connectionPrev').disabled=connectionPageNumber<=1;document.getElementById('connectionNext').disabled=connectionPageNumber>=connectionPageCount;
     list.innerHTML=(d.items||[]).map(item=>{
       const id=Number(item.id),status=String(item.status),colors={new:'amber',in_progress:'blue',connected:'green',declined:'gray'};
+      const initials=String(item.full_name||'').trim().split(/\s+/).slice(0,2).map(s=>s.charAt(0).toUpperCase()).join('')||'У';
       return '<article class="connection-request-card" data-connection-id="'+id+'">'+
-        '<div class="connection-card-head"><div><small>Заявка №'+id+' · '+escapeHtml(resultDateTime(item.created_at))+'</small><h3>'+escapeHtml(item.full_name)+'</h3></div><span class="status '+(colors[status]||'blue')+'">'+escapeHtml(connectionStatuses[status]||status)+'</span></div>'+
-        '<div class="connection-card-grid"><div><small>Тип</small><b>'+(item.kind==='school'?'Организация':'Учитель')+'</b></div><div><small>Школа</small><b>'+escapeHtml(item.school_name)+'</b></div><div><small>Регион / населённый пункт</small><b>'+escapeHtml(item.locality)+'</b></div><div><small>Email</small><b>'+escapeHtml(item.email)+'</b></div><div><small>Телефон</small><b>'+escapeHtml(item.phone||'Не указан')+'</b></div><div><small>Согласие</small><b>'+escapeHtml(item.consent_version)+'</b></div></div>'+
+        '<details class="connection-details"><summary class="connection-summary">'+
+        '<span class="connection-avatar" aria-hidden="true">'+escapeHtml(initials)+'</span>'+
+        '<span class="connection-person"><strong>'+escapeHtml(item.full_name)+'</strong><small>'+(item.kind==='school'?'Школа':'Учитель')+' · '+escapeHtml(item.school_name||'Самостоятельный преподаватель')+'</small></span>'+
+        '<span class="connection-contact"><strong>'+escapeHtml(item.email)+'</strong><small>'+escapeHtml(item.locality)+'</small></span>'+
+        '<span class="connection-meta"><span class="status '+(colors[status]||'blue')+'">'+escapeHtml(connectionStatuses[status]||status)+'</span><small>№'+id+' · '+escapeHtml(journalShortDate(item.created_at))+'</small></span><span class="connection-chevron" aria-hidden="true">⌄</span></summary>'+
+        '<div class="connection-expanded"><div class="connection-card-grid"><div><small>Email</small><b>'+escapeHtml(item.email)+'</b></div><div><small>Телефон</small><b>'+escapeHtml(item.phone||'Не указан')+'</b></div><div><small>Дата заявки</small><b>'+escapeHtml(resultDateTime(item.created_at))+'</b></div><div><small>Организация</small><b>'+escapeHtml(item.school_name||'Не указана')+'</b></div><div><small>Населённый пункт</small><b>'+escapeHtml(item.locality)+'</b></div><div><small>Версия согласия</small><b>'+escapeHtml(item.consent_version)+'</b></div></div>'+
         (item.message?'<div class="connection-message"><small>Комментарий заявителя</small><p>'+escapeHtml(item.message)+'</p></div>':'')+
         '<form class="connection-edit"><label>Статус<select name="status">'+Object.entries(connectionStatuses).map(([key,label])=>'<option value="'+key+'"'+(key===status?' selected':'')+'>'+label+'</option>').join('')+'</select></label>'+
-        '<label>Заметка администратора<textarea name="admin_note" rows="2" maxlength="1000">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
-        '<div class="connection-actions"><button class="primary-btn" type="submit">Сохранить</button><button class="secondary-btn connection-delete" type="button">Удалить</button></div></form></article>';
+        '<label>Заметка администратора<textarea name="admin_note" rows="2" maxlength="1000" placeholder="Результат связи с заявителем">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
+        '<div class="connection-actions"><button class="primary-btn" type="submit">Сохранить</button><button class="secondary-btn connection-delete" type="button">Удалить</button></div></form></div></details></article>';
     }).join('')||'<div class="history-empty"><b>Обращений пока нет</b><span>Новые заявки появятся здесь.</span></div>';
     message.textContent='Всего по фильтру: '+Number(d.total||0);
     list.querySelectorAll('.connection-request-card').forEach(card=>{

@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="UROVIA">
-  <link rel="stylesheet" href="login.css?v=50">
+  <link rel="stylesheet" href="login.css?v=51">
   <link rel="stylesheet" href="pwa.css?v=52">
 </head>
 <body>
@@ -80,29 +80,24 @@
             <button class="auth-text-btn" id="forgotPasswordBtn" type="button">Забыли пароль?</button>
             <div class="legal-note">Продолжая вход, вы подтверждаете, что ознакомились с <a href="privacy-policy.html" target="_blank" rel="noopener">Политикой обработки персональных данных</a>.</div>
           </form>
-          <div class="connect-cta"><b>Впервые в UROVIA?</b><p>Подключите себя или свою школу к платформе.</p><button class="secondary-btn" id="openConnectBtn" type="button">Подключиться к UROVIA</button></div>
+          <div class="connect-cta"><div class="connect-cta-title"><span class="connect-cta-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 9 9-5 9 5-9 5-9-5Zm4 3v5c3 3 7 3 10 0v-5M21 9v7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><b>Впервые в UROVIA?</b><p>Для учителей и образовательных организаций</p></div></div><button class="connect-main-btn" id="openConnectBtn" type="button">Подключиться к UROVIA <span aria-hidden="true">→</span></button></div>
         </div>
 
         <div id="connectState" class="state-block hidden">
-          <span class="eyebrow">Новым пользователям</span>
-          <h2>Подключиться к UROVIA</h2>
-          <p class="subtitle">Оставьте заявку для себя или своей школы. Администратор рассмотрит её и поможет с подключением.</p>
+          <div class="connect-intro"><span class="connect-cta-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 9 9-5 9 5-9 5-9-5Zm4 3v5c3 3 7 3 10 0v-5M21 9v7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="eyebrow">Заявка на подключение</span><h2>Начните работу с UROVIA</h2><p class="subtitle">Оставьте контакты — поможем подключить вас или вашу школу.</p></div>
           <form id="connectForm">
-            <label>Кого подключаем?
-              <select name="kind" required><option value="teacher">Я учитель</option><option value="school">Образовательная организация</option></select>
-            </label>
-            <label>Ваше ФИО<input name="full_name" autocomplete="name" maxlength="150" required></label>
+            <fieldset class="connect-kind"><legend>Кого подключаем?</legend><label><input type="radio" name="kind" value="teacher" checked required><span><b>Учитель</b><small>Личный кабинет</small></span></label><label><input type="radio" name="kind" value="school" required><span><b>Школа</b><small>Для организации</small></span></label></fieldset>
+            <div class="connect-section-label">Контактные данные</div><label>Ваше ФИО <input name="full_name" autocomplete="name" maxlength="150" placeholder="Фамилия Имя Отчество" required></label>
             <label>Школа или организация <small>Обязательно для заявки от школы. Самостоятельный преподаватель может оставить поле пустым.</small><input name="school_name" autocomplete="organization" maxlength="200" placeholder="Например, МКОУ СОШ № 1"></label>
-            <label>Регион, город или село<input name="locality" maxlength="160" required></label>
-            <label>Email для связи<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
-            <label>Телефон (необязательно)<input name="phone" type="tel" autocomplete="tel" maxlength="40"></label>
+            <label>Регион, город или село<input name="locality" maxlength="160" placeholder="Например, Махачкала" required></label>
+            <div class="form-row connect-contacts"><label>Email для связи<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="name@mail.ru" required></label><label>Телефон <small>Необязательно</small><input name="phone" type="tel" autocomplete="tel" maxlength="40" placeholder="+7 (___) ___-__-__"></label></div>
             <label>Комментарий (необязательно)<textarea name="message" rows="3" maxlength="1000" placeholder="Какие возможности вас интересуют?"></textarea></label>
             <div class="hidden" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
             <small class="legal-note">Не указывайте сведения об учениках, пароли и документы.</small>
             <label class="privacy-checkbox"><input type="checkbox" name="consent" required><span>Даю отдельное <a href="personal-data-consent.html" target="_blank" rel="noopener">согласие на обработку персональных данных</a> для рассмотрения заявки и связи со мной. <a href="privacy-policy.html" target="_blank" rel="noopener">Политика</a>.</span></label>
             <div id="connectError" class="form-error hidden" role="alert"></div>
-            <button class="primary-btn" type="submit">Отправить заявку</button>
-            <button class="secondary-btn" id="backFromConnect" type="button">← Вернуться ко входу</button>
+            <button class="connect-main-btn" type="submit">Отправить заявку <span aria-hidden="true">→</span></button>
+            <button class="auth-text-btn" id="backFromConnect" type="button">← Вернуться ко входу</button>
           </form>
           <div id="connectSuccess" class="auth-success hidden" role="status"><strong>Заявка принята!</strong><p>Администратор рассмотрит обращение и свяжется с вами по указанным контактам.</p><button class="secondary-btn" id="connectDone" type="button">Вернуться ко входу</button></div>
         </div>
@@ -225,7 +220,7 @@
       <footer>UROVIA · <a href="pricing.php">Тарифы и цены</a> · <a href="payment-info.php">Оплата и получение</a> · <a href="offer.php">Оферта</a> · <a href="requisites.php">Реквизиты</a> · <a href="privacy-policy.html">Политика персональных данных</a> · <a href="personal-data-consent.html">Согласие</a></footer>
     </section>
   </main>
-  <script src="login.js?v=58"></script>
+  <script src="login.js?v=59"></script>
   <script src="pwa.js?v=56"></script>
 </body>
 </html>
