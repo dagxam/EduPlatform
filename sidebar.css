@@ -12,7 +12,8 @@
 .sidebar>.brand strong{font-size:19px;font-weight:800;line-height:1.15;letter-spacing:.015em}
 .sidebar>.brand small,.sidebar>.brand .brand-caption{font-size:12px;color:#758296;margin-top:4px;line-height:normal;font-weight:400}
 .sidebar>.brand .brand-mark{width:46px;height:46px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;background:#fff url('./icons/urovia-mark.svg?v=1') center/88% no-repeat!important;color:transparent!important;font-size:0!important;border:1px solid #dbe6f5;box-shadow:0 4px 14px #10285914}
-.sidebar>.account-role{flex:0 0 auto;margin:0 4px 14px;padding:10px 12px;line-height:1.35;overflow-wrap:anywhere;border:1px solid color-mix(in srgb,var(--brand) 22%,white)!important;border-radius:12px;background:var(--brand-soft)!important;color:var(--brand)!important;font-size:12px;font-weight:750;text-align:center}
+/* Keep the role node for existing account scripts, but reserve no sidebar space. */
+.sidebar>.account-role{display:none!important}
 .sidebar>.nav:not(.hidden){
   flex:1 1 0!important;min-height:0!important;min-width:0;display:flex;
   flex-direction:column;gap:4px;overflow-y:auto!important;overflow-x:hidden!important;
@@ -48,7 +49,6 @@
 @media (max-height:800px) and (pointer:fine){
   .sidebar{padding-top:12px!important}
   .sidebar>.brand{padding-bottom:10px}
-  .sidebar>.account-role{margin-bottom:7px}
   .sidebar>.nav:not(.hidden){gap:2px}
   .sidebar .nav-item{min-height:36px;padding-block:4px}
   .sidebar .nav-item .nav-icon{height:26px;width:26px;flex-basis:26px}
